@@ -1,0 +1,1 @@
+﻿const { Client } = require('pg'); const client = new Client({ user: 'postgres', host: 'localhost', database: 'domain_system', password: 'password', port: 5432 }); client.connect(); client.query('SELECT * FROM domain', (err, res) => { console.log(err ? err.stack : res.rows); client.end(); });

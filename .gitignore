@@ -1,0 +1,7 @@
+node_modules/
+dist/
+target/
+.output/
+.nuxt/
+.DS_Store
+scratch_puppeteer/

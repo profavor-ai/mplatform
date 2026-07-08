@@ -1,0 +1,1 @@
+const token = '123'; fetch('http://localhost:8080/api/approval-requests/effective-workflow/006929a4-cc24-4fa2-b676-f3460f79eb58?actionType=UPDATE', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.text()).then(d => console.log(d)).catch(e => console.error(e));

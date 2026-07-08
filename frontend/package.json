@@ -1,0 +1,27 @@
+{
+  "name": "frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@nuxtjs/i18n": "^10.4.0",
+    "@vuestic/nuxt": "^1.0.21",
+    "ag-grid-community": "^31.3.4",
+    "ag-grid-vue3": "^31.3.4",
+    "echarts": "^5.6.0",
+    "node-fetch": "^3.3.2",
+    "nuxt": "^3.17.7",
+    "nuxt-auth-utils": "^0.5.29",
+    "vue-echarts": "^7.0.3",
+    "vuestic-ui": "^1.10.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
