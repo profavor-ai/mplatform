@@ -39,6 +39,12 @@ public class RecordHistory {
     @Column(name = "approval_request_id")
     private UUID approvalRequestId;
 
+    @Column(name = "version", nullable = false)
+    private Integer version = 1;
+
+    @Column(name = "source_system", length = 100)
+    private String sourceSystem;
+
     @Column(name = "changed_at", nullable = false, updatable = false)
     private LocalDateTime changedAt;
 

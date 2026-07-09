@@ -33,6 +33,15 @@ public class Record {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "approval_request_id")
+    private UUID approvalRequestId;
+
+    @Column(name = "version", nullable = false, columnDefinition = "integer default 1")
+    private Integer version = 1;
+
+    @Column(name = "source_system", length = 100)
+    private String sourceSystem;
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 

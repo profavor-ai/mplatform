@@ -38,15 +38,18 @@ public class ApprovalService {
     private final DataQualityService dqService;
     private final RecordHistoryRepository recordHistoryRepository;
     private final FieldDefinitionService fieldDefinitionService;
+    private final MatchingService matchingService;
     
-    private void logHistory(UUID recordId, String changeType, UUID changedBy, String prevData, String newData, UUID approvalRequestId) {
+    private void logHistory(Record record, String changeType, UUID changedBy, String prevData, String newData, UUID approvalRequestId) {
         RecordHistory history = new RecordHistory();
-        history.setRecordId(recordId);
+        history.setRecordId(record.getId());
         history.setChangeType(changeType);
         history.setChangedBy(changedBy);
         history.setPreviousData(prevData);
         history.setNewData(newData);
         history.setApprovalRequestId(approvalRequestId);
+        history.setVersion(record.getVersion());
+        history.setSourceSystem(record.getSourceSystem());
         recordHistoryRepository.save(history);
     }
 
@@ -291,6 +294,17 @@ public class ApprovalService {
             throw new RuntimeException("Data Quality Check Failed: " + String.join(", ", dq.errors));
         }
 
+        // 1.5. Duplicate Check (Golden Record) -> UPSERT Behavior
+        MatchingService.DuplicateResult dup = matchingService.checkDuplicates(nodeId, request.getData());
+        if (dup.hasDuplicates) {
+            if (dup.duplicateRecordIds != null && dup.duplicateRecordIds.size() == 1) {
+                // Exactly one duplicate found -> Convert to UPDATE request
+                return requestRecordUpdate(dup.duplicateRecordIds.get(0), request);
+            } else {
+                throw new RuntimeException("Deduplication Failed: " + dup.message);
+            }
+        }
+
         // 2. Create Record in PENDING_APPROVAL status with calculated fields
         String computedData = recomputeCalculatedFields(nodeId, request.getData());
         Record record = new Record();
@@ -347,6 +361,16 @@ public class ApprovalService {
         DataQualityService.DQResult dq = dqService.validateData(nodeId, request.getData());
         if (!dq.isValid) {
             throw new RuntimeException("Data Quality Check Failed: " + String.join(", ", dq.errors));
+        }
+
+        // 1.5. Duplicate Check
+        MatchingService.DuplicateResult dup = matchingService.checkDuplicates(nodeId, request.getData());
+        if (dup.hasDuplicates) {
+            // Exclude self from duplicates
+            dup.duplicateRecordIds.remove(recordId);
+            if (!dup.duplicateRecordIds.isEmpty()) {
+                throw new RuntimeException("Deduplication Failed: " + dup.message);
+            }
         }
         
         // 2. Prepare changes JSON (before and after) with calculated fields recomputed
@@ -461,8 +485,9 @@ public class ApprovalService {
                 record.setStatus("ACTIVE");
                 String finalData = recomputeCalculatedFields(record.getNode().getId(), approval.getChanges());
                 record.setData(finalData);
+                record.setVersion(1);
                 recordRepository.save(record);
-                logHistory(record.getId(), "CREATE", approval.getRequesterId(), null, finalData, approval.getId());
+                logHistory(record, "CREATE", approval.getRequesterId(), null, finalData, approval.getId());
             } else if ("RECORD_UPDATE".equals(approval.getTargetType())) {
                 Record record = recordRepository.findById(approval.getTargetId())
                         .orElseThrow(() -> new RuntimeException("Record not found"));
@@ -475,15 +500,16 @@ public class ApprovalService {
                         record.setData(afterData);
                     }
                     record.setStatus("ACTIVE");
+                    record.setVersion(record.getVersion() + 1);
                     recordRepository.save(record);
-                    logHistory(record.getId(), "UPDATE", approval.getRequesterId(), prevData, record.getData(), approval.getId());
+                    logHistory(record, "UPDATE", approval.getRequesterId(), prevData, record.getData(), approval.getId());
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             } else if ("RECORD_DELETE".equals(approval.getTargetType())) {
                 Record record = recordRepository.findById(approval.getTargetId())
                         .orElseThrow(() -> new RuntimeException("Record not found"));
-                logHistory(record.getId(), "DELETE", approval.getRequesterId(), record.getData(), null, approval.getId());
+                logHistory(record, "DELETE", approval.getRequesterId(), record.getData(), null, approval.getId());
                 recordRepository.delete(record);
             }
         }

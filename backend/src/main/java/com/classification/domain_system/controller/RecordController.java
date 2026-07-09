@@ -32,6 +32,17 @@ public class RecordController {
             @RequestBody RecordRequest request) {
         return ResponseEntity.ok(approvalService.requestRecordCreation(nodeId, request));
     }
+
+    @PostMapping("/batch")
+    public ResponseEntity<List<ApprovalRequest>> createBatchRecords(
+            @PathVariable UUID nodeId, 
+            @RequestBody List<RecordRequest> requests) {
+        List<ApprovalRequest> approvals = new ArrayList<>();
+        for (RecordRequest req : requests) {
+            approvals.add(approvalService.requestRecordCreation(nodeId, req));
+        }
+        return ResponseEntity.ok(approvals);
+    }
     
     @GetMapping
     public ResponseEntity<List<Record>> getRecords(

@@ -22,7 +22,7 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
         StringBuilder sql = new StringBuilder(
             "SELECT r.* FROM record r " +
             "WHERE r.node_id IN (:nodeIds) " +
-            "AND r.status NOT IN ('REJECTED', 'MISMATCHED', 'PENDING_APPROVAL') "
+            "AND r.status NOT IN ('REJECTED', 'MISMATCHED') "
         );
 
         if (status != null && !status.isEmpty()) {
@@ -37,7 +37,8 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
             String op = searchParams.getOrDefault("op_" + key, "EQ");
             
             if ("EQ".equals(op)) {
-                sql.append(" AND r.data->>'").append(safeKey).append("' = :searchVal").append(paramIndex).append(" ");
+                sql.append(" AND (CAST(r.data AS jsonb) @> CAST(:searchValStr").append(paramIndex).append(" AS jsonb) ");
+                sql.append(" OR CAST(r.data AS jsonb) @> CAST(:searchValNum").append(paramIndex).append(" AS jsonb)) ");
                 paramIndex++;
             } else if ("BETWEEN".equals(op)) {
                 sql.append(" AND NULLIF(r.data->>'").append(safeKey).append("', '') ~ '^[0-9]+(\\.[0-9]+)?$' ");
@@ -69,9 +70,17 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
             if (key.startsWith("op_") || key.endsWith("_max")) continue;
             String op = searchParams.getOrDefault("op_" + key, "EQ");
             String val = searchParams.get(key);
+            String safeKey = key.replaceAll("[^a-zA-Z0-9_]", "_");
             
             if ("EQ".equals(op)) {
-                query.setParameter("searchVal" + paramIndex, val);
+                query.setParameter("searchValStr" + paramIndex, "{\"" + safeKey + "\": \"" + val.replace("\"", "\\\"") + "\"}");
+                if (val.matches("-?\\d+(\\.\\d+)?")) {
+                    query.setParameter("searchValNum" + paramIndex, "{\"" + safeKey + "\": " + val + "}");
+                } else if ("true".equalsIgnoreCase(val) || "false".equalsIgnoreCase(val)) {
+                    query.setParameter("searchValNum" + paramIndex, "{\"" + safeKey + "\": " + val.toLowerCase() + "}");
+                } else {
+                    query.setParameter("searchValNum" + paramIndex, "{\"" + safeKey + "\": null}");
+                }
             } else if ("BETWEEN".equals(op)) {
                 String maxVal = searchParams.get(key + "_max");
                 query.setParameter("searchValMin" + paramIndex, Double.parseDouble(val));
@@ -92,7 +101,7 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
             "SELECT r.* FROM record r " +
             "JOIN classification_node n ON r.node_id = n.id " +
             "WHERE n.domain_id = :domainId " +
-            "AND r.status NOT IN ('REJECTED', 'MISMATCHED', 'PENDING_APPROVAL') "
+            "AND r.status NOT IN ('REJECTED', 'MISMATCHED') "
         );
 
         int paramIndex = 0;
@@ -103,7 +112,8 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
             String op = searchParams.getOrDefault("op_" + key, "EQ");
             
             if ("EQ".equals(op)) {
-                sql.append(" AND r.data->>'").append(safeKey).append("' = :searchVal").append(paramIndex).append(" ");
+                sql.append(" AND (CAST(r.data AS jsonb) @> CAST(:searchValStr").append(paramIndex).append(" AS jsonb) ");
+                sql.append(" OR CAST(r.data AS jsonb) @> CAST(:searchValNum").append(paramIndex).append(" AS jsonb)) ");
                 paramIndex++;
             } else if ("BETWEEN".equals(op)) {
                 sql.append(" AND NULLIF(r.data->>'").append(safeKey).append("', '') ~ '^[0-9]+(\\.[0-9]+)?$' ");
@@ -131,9 +141,17 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
             if (key.startsWith("op_") || key.endsWith("_max")) continue;
             String op = searchParams.getOrDefault("op_" + key, "EQ");
             String val = searchParams.get(key);
+            String safeKey = key.replaceAll("[^a-zA-Z0-9_]", "_");
             
             if ("EQ".equals(op)) {
-                query.setParameter("searchVal" + paramIndex, val);
+                query.setParameter("searchValStr" + paramIndex, "{\"" + safeKey + "\": \"" + val.replace("\"", "\\\"") + "\"}");
+                if (val.matches("-?\\d+(\\.\\d+)?")) {
+                    query.setParameter("searchValNum" + paramIndex, "{\"" + safeKey + "\": " + val + "}");
+                } else if ("true".equalsIgnoreCase(val) || "false".equalsIgnoreCase(val)) {
+                    query.setParameter("searchValNum" + paramIndex, "{\"" + safeKey + "\": " + val.toLowerCase() + "}");
+                } else {
+                    query.setParameter("searchValNum" + paramIndex, "{\"" + safeKey + "\": null}");
+                }
             } else if ("BETWEEN".equals(op)) {
                 String maxVal = searchParams.get(key + "_max");
                 query.setParameter("searchValMin" + paramIndex, Double.parseDouble(val));

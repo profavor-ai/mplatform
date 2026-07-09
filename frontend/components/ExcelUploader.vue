@@ -1,0 +1,407 @@
+<template>
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh]">
+      <!-- Header -->
+      <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Excel Bulk Upload</h3>
+        <button @click="$emit('close')" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+          <span class="text-2xl">&times;</span>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="p-6 overflow-y-auto flex-1">
+        
+        <!-- Step 1: File Upload -->
+        <div v-if="step === 1" class="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-10 bg-gray-50 dark:bg-gray-900">
+          
+          <div class="mb-6 flex flex-col items-center">
+            <p class="text-sm text-gray-500 mb-2">Need a template? Download a pre-formatted Excel file.</p>
+            <button @click="downloadTemplate" class="text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              Download Template
+            </button>
+          </div>
+
+          <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+          <p class="text-gray-700 dark:text-gray-300 mb-4 text-center">Drag and drop an Excel (.xlsx) file here, or click to select</p>
+          <input type="file" ref="fileInput" accept=".xlsx, .xls, .csv" class="hidden" @change="handleFileUpload" />
+          <button @click="$refs.fileInput.click()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors">
+            Select File
+          </button>
+        </div>
+
+        <!-- Step 2: Mapping -->
+        <div v-else-if="step === 2" class="space-y-6">
+          <div class="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-md">
+            <p class="text-sm text-blue-700 dark:text-blue-300">
+              Found <strong>{{ parsedData.length }}</strong> rows. Please map the Excel columns to the system fields.
+            </p>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead class="bg-gray-50 dark:bg-gray-800">
+                <tr>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">System Field</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Excel Column</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                <tr v-for="field in nodeFields" :key="field.id">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                    {{ getTranslatedName(field.name) }}
+                    <span v-if="field.type === 'MULTILINGUAL'" class="text-xs font-normal text-blue-500 bg-blue-100 px-2 py-0.5 rounded ml-2">(다국어)</span>
+                    <span v-if="field.required" class="text-red-500">*</span>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <div v-if="field.type === 'MULTILINGUAL'" class="flex flex-col gap-2">
+                      <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold w-6">ko:</span>
+                        <select v-model="mapping[field.key + '_ko']" class="block w-full pl-3 pr-10 py-1 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md transition-colors">
+                          <option :value="null">-- Ignore --</option>
+                          <option v-for="header in excelHeaders" :key="header" :value="header">{{ header }}</option>
+                        </select>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold w-6">en:</span>
+                        <select v-model="mapping[field.key + '_en']" class="block w-full pl-3 pr-10 py-1 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md transition-colors">
+                          <option :value="null">-- Ignore --</option>
+                          <option v-for="header in excelHeaders" :key="header" :value="header">{{ header }}</option>
+                        </select>
+                      </div>
+                    </div>
+                    <select v-else v-model="mapping[field.key]" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md transition-colors">
+                      <option :value="null">-- Ignore (Do not map) --</option>
+                      <option v-for="header in excelHeaders" :key="header" :value="header">
+                        {{ header }}
+                      </option>
+                    </select>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Step 3: Progress -->
+        <div v-else-if="step === 3" class="flex flex-col items-center justify-center p-10 space-y-4">
+          <div class="w-full bg-gray-200 rounded-full h-4 dark:bg-gray-700 mb-2 overflow-hidden relative">
+            <div class="bg-blue-600 h-4 rounded-full transition-all duration-300" :style="{ width: progress + '%' }"></div>
+          </div>
+          <p class="text-lg font-medium text-gray-700 dark:text-gray-300">
+            Processing... {{ Math.round(progress) }}%
+          </p>
+          <p v-if="uploadError" class="text-red-600 dark:text-red-400 mt-4">{{ uploadError }}</p>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 bg-gray-50 dark:bg-gray-800">
+        <button v-if="step !== 3" @click="$emit('close')" class="px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600 transition-colors">
+          Cancel
+        </button>
+        <button v-if="step === 2" @click="startUpload" class="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+          Start Upload
+        </button>
+        <button v-if="step === 3 && progress === 100" @click="$emit('close')" class="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed } from 'vue';
+import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
+import { useI18n } from 'vue-i18n';
+import { useCookie } from '#app';
+
+const props = defineProps({
+  nodeId: { type: String, required: true },
+  nodeFields: { type: Array, required: true },
+  domainReferences: { type: Object, default: () => ({}) }
+});
+
+const emit = defineEmits(['close', 'uploaded']);
+
+const userCookie = useCookie('user_data');
+const token = useCookie('auth_token', { default: () => '' });
+
+const currentUser = computed(() => {
+  if (userCookie.value) {
+    return typeof userCookie.value === 'string' ? JSON.parse(userCookie.value) : userCookie.value;
+  }
+  return null;
+});
+
+const step = ref(1);
+const parsedData = ref([]);
+const excelHeaders = ref([]);
+const mapping = ref({}); // { fieldKey: excelHeaderName }
+const progress = ref(0);
+const uploadError = ref(null);
+
+const { locale } = useI18n();
+
+const getTranslatedName = (nameObj) => {
+  if (!nameObj) return '';
+  if (typeof nameObj === 'string') return nameObj;
+  return nameObj[locale.value] || nameObj.ko || nameObj.en || '';
+};
+
+const downloadTemplate = async () => {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('Template');
+
+  const headers = [];
+  const validations = []; // { colIndex: 1, type: 'SELECT', options: ['A','B'] }
+  const colWidths = [];
+
+  let colIndex = 1;
+  props.nodeFields.forEach(f => {
+    if (f.type === 'CALCULATED') return;
+    
+    const fieldName = getTranslatedName(f.name);
+    
+    // Parse options for SELECT fields
+    let parsedOpts = [];
+    if (['SELECT', 'MULTI_SELECT'].includes(f.type) && f.options) {
+      try {
+        const arr = JSON.parse(f.options);
+        parsedOpts = arr.map(a => {
+          if (typeof a === 'object') {
+            const labelStr = a.label ? getTranslatedName(a.label) : a.value;
+            return labelStr || a.key || JSON.stringify(a);
+          }
+          return a;
+        });
+      } catch (e) {}
+    }
+
+    const excelWidth = (f.gridWidth && f.gridWidth > 0) ? (f.gridWidth / 8) : 25;
+
+    if (f.type === 'MULTILINGUAL') {
+      headers.push(`${fieldName} (ko)`);
+      headers.push(`${fieldName} (en)`);
+      colWidths.push(excelWidth, excelWidth);
+      colIndex += 2;
+    } else {
+      headers.push(fieldName);
+      colWidths.push(excelWidth);
+      if (parsedOpts.length > 0) {
+        validations.push({ colIndex, options: parsedOpts });
+      }
+      colIndex++;
+    }
+  });
+  
+  // Set header row
+  sheet.addRow(headers);
+  sheet.getRow(1).font = { bold: true };
+  sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } };
+
+  // Convert column index (1-based) to letter (A, B, C...)
+  const getColLetter = (idx) => {
+    let temp, letter = '';
+    while (idx > 0) {
+      temp = (idx - 1) % 26;
+      letter = String.fromCharCode(temp + 65) + letter;
+      idx = (idx - temp - 1) / 26;
+    }
+    return letter;
+  };
+
+  // Apply Data Validations for up to 500 rows
+  validations.forEach(val => {
+    const colLetter = getColLetter(val.colIndex);
+    // formula1 requires double quotes around comma separated string
+    const formulaStr = '"' + val.options.join(',').replace(/"/g, '') + '"'; 
+    sheet.dataValidations.add(`${colLetter}2:${colLetter}500`, {
+      type: 'list',
+      allowBlank: true,
+      showErrorMessage: true,
+      errorStyle: 'warning',
+      errorTitle: 'Invalid Selection',
+      error: 'Please select a value from the drop-down list.',
+      formulae: [formulaStr]
+    });
+  });
+
+  // Adjust column widths according to schema (gridWidth)
+  sheet.columns.forEach((column, idx) => {
+    column.width = colWidths[idx] || 25;
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  saveAs(blob, "Upload_Template.xlsx");
+};
+
+const handleFileUpload = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const bstr = evt.target.result;
+      const wb = XLSX.read(bstr, { type: 'binary' });
+      const wsname = wb.SheetNames[0];
+      const ws = wb.Sheets[wsname];
+      const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      
+      if (data.length < 2) {
+        alert("The Excel file does not contain enough data.");
+        return;
+      }
+      
+      excelHeaders.value = data[0];
+      
+      // Convert rows to array of objects based on header
+      const rows = [];
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        const obj = {};
+        for (let j = 0; j < excelHeaders.value.length; j++) {
+          obj[excelHeaders.value[j]] = row[j];
+        }
+        rows.push(obj);
+      }
+      
+      parsedData.value = rows;
+      
+      // Auto-map based on exact translation match
+      props.nodeFields.forEach(field => {
+        const fieldName = getTranslatedName(field.name).toLowerCase();
+        if (field.type === 'MULTILINGUAL') {
+          const matchKo = excelHeaders.value.find(h => h && h.toLowerCase() === `${fieldName} (ko)`);
+          const matchEn = excelHeaders.value.find(h => h && h.toLowerCase() === `${fieldName} (en)`);
+          mapping.value[field.key + '_ko'] = matchKo || null;
+          mapping.value[field.key + '_en'] = matchEn || null;
+        } else {
+          const match = excelHeaders.value.find(h => h && h.toLowerCase() === fieldName);
+          mapping.value[field.key] = match || null;
+        }
+      });
+      
+      step.value = 2;
+    } catch (err) {
+      console.error(err);
+      alert("Error parsing Excel file.");
+    }
+  };
+  reader.readAsBinaryString(file);
+};
+
+const startUpload = async () => {
+  // Validate required fields mapping
+  const missingReq = props.nodeFields.filter(f => {
+    if (!f.required) return false;
+    if (f.type === 'MULTILINGUAL') {
+      return !mapping.value[f.key + '_ko']; // At least KO is required for multilingual
+    }
+    return !mapping.value[f.key];
+  });
+  
+  if (missingReq.length > 0) {
+    alert("Please map all required fields: " + missingReq.map(f => getTranslatedName(f.name)).join(', '));
+    return;
+  }
+
+  step.value = 3;
+  progress.value = 10;
+  uploadError.value = null;
+
+  try {
+    const batchSize = 100;
+    const totalBatches = Math.ceil(parsedData.value.length / batchSize);
+    let uploadedCount = 0;
+
+    for (let i = 0; i < parsedData.value.length; i += batchSize) {
+      const chunk = parsedData.value.slice(i, i + batchSize);
+      
+      // Transform mapped chunk
+      const requests = chunk.map(row => {
+        const dataObj = {};
+        props.nodeFields.forEach(field => {
+          if (field.type === 'MULTILINGUAL') {
+            const koHeader = mapping.value[field.key + '_ko'];
+            const enHeader = mapping.value[field.key + '_en'];
+            if (koHeader || enHeader) {
+              dataObj[field.key] = {
+                ko: koHeader ? String(row[koHeader] || '') : '',
+                en: enHeader ? String(row[enHeader] || '') : ''
+              };
+            }
+          } else if (field.type === 'DOMAIN_REFERENCE') {
+            const excelHeader = mapping.value[field.key];
+            if (excelHeader && row[excelHeader] !== undefined) {
+              const val = String(row[excelHeader]);
+              const refData = props.domainReferences[field.key];
+              
+              if (refData && val) {
+                const targetFields = refData.fields || [];
+                const idFieldId = refData.domainInfo?.identifierFieldId;
+                
+                const idFieldInfo = targetFields.find(f => f.id === idFieldId);
+                
+                const matchedRecord = (refData.records || []).find(r => {
+                  if (!r.data) return false;
+                  try {
+                    const parsed = JSON.parse(r.data);
+                    if (idFieldInfo && String(parsed[idFieldInfo.key]) === val) return true;
+                  } catch (e) {}
+                  return false;
+                });
+                
+                if (matchedRecord) {
+                  dataObj[field.key] = matchedRecord.id;
+                } else {
+                  dataObj[field.key] = val; // Fallback
+                }
+              } else {
+                dataObj[field.key] = val;
+              }
+            }
+          } else {
+            const excelHeader = mapping.value[field.key];
+            if (excelHeader && row[excelHeader] !== undefined) {
+              dataObj[field.key] = String(row[excelHeader]);
+            }
+          }
+        });
+        
+        return {
+          data: JSON.stringify(dataObj),
+          requesterId: currentUser.value?.uuid || '123e4567-e89b-12d3-a456-426614174000',
+          comment: 'Bulk upload via Excel'
+        };
+      });
+
+      const res = await $fetch(`/api/nodes/${props.nodeId}/records/batch`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token.value}`
+        },
+        body: requests
+      });
+
+      uploadedCount += chunk.length;
+      progress.value = 10 + ((uploadedCount / parsedData.value.length) * 90);
+    }
+    
+    progress.value = 100;
+    setTimeout(() => {
+      emit('uploaded');
+    }, 1000);
+    
+  } catch (err) {
+    console.error(err);
+    uploadError.value = "Upload failed: " + (err.data?.message || err.message || "An error occurred");
+  }
+};
+</script>

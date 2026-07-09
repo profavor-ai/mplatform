@@ -37,9 +37,14 @@
             {{ getFilterFieldLabel(key) }}: {{ formatFilterValue(key, val) }}
           </va-chip>
         </div>
-        <va-button v-if="selectedNode && !selectedNode.isDomain" color="primary" @click="openCreateModal">
-          <va-icon name="add" class="mr-2"/> Create Record
-        </va-button>
+        <template v-if="selectedNode && !selectedNode.isDomain">
+          <va-button color="primary" @click="openCreateModal">
+            <va-icon name="add" class="mr-2"/> Create Record
+          </va-button>
+          <va-button color="success" outline @click="showExcelUploader = true" class="ml-2">
+            <va-icon name="upload" class="mr-2"/> Bulk Upload
+          </va-button>
+        </template>
         <va-button v-else-if="selectedNode && selectedNode.isDomain" color="secondary" outline disabled>
           <va-icon name="info" class="mr-2"/> 하위 분류 노드를 선택해야 데이터를 생성할 수 있습니다
         </va-button>
@@ -48,77 +53,73 @@
       <!-- Advanced Search Panel -->
       <va-card v-if="showAdvancedSearch" class="mb-4" style="background-color: #f8f9fa;">
         <va-card-content>
-                      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; align-items: start;">
-              <div v-for="field in searchableFields" :key="field.id" style="display: flex; flex-direction: column; gap: 0.4rem;">
-                <!-- Unified External Label -->
-                <span style="font-size: 0.75rem; color: #154ec1; font-weight: bold; text-transform: uppercase;">{{ getTranslatedName(field.name) }}</span>
-                
-                <va-select
-                  v-if="['SELECT', 'MULTI_SELECT'].includes(field.type)"
-                  v-model="draftFilters[field.key]"
-                  :options="parseOptions(field.options)"
-                  value-by="value"
-                  placeholder="선택해주세요"
-                  clearable
-                  class="w-full"
-                />
-                <va-select
-                  v-else-if="field.type === 'BOOLEAN'"
-                  v-model="draftFilters[field.key]"
-                  :options="['true', 'false']"
-                  placeholder="선택해주세요"
-                  clearable
-                  class="w-full"
-                />
-                <div v-else-if="['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type)" style="display: flex; flex-direction: column; gap: 0.4rem; width: 100%;">
-                  <va-input
-                    v-model="draftFilters[field.key]"
-                    type="number"
-                    placeholder="숫자 입력"
-                    clearable
-                    class="w-full"
-                  >
-                    <template #prependInner>
-                      <select 
-                        v-model="draftFiltersOp[field.key]" 
-                        @click.stop
-                        @mousedown.stop
-                        style="border: none; outline: none; background: transparent; font-weight: bold; color: #154ec1; cursor: pointer; padding-right: 0.2rem; margin-right: 0.5rem; border-right: 1px solid #ccc;"
-                      >
-                        <option value="EQ">=</option>
-                        <option value="GT">&gt;</option>
-                        <option value="GTE">&gt;=</option>
-                        <option value="LT">&lt;</option>
-                        <option value="LTE">&lt;=</option>
-                        <option value="BETWEEN">범위</option>
-                      </select>
-                    
-    
-
-</template>
-                  </va-input>
-                  <va-input
-                    v-if="draftFiltersOp[field.key] === 'BETWEEN'"
-                    v-model="draftFiltersMax[field.key]"
-                    type="number"
-                    placeholder="최대값 (Max)"
-                    clearable
-                    class="w-full"
-                  >
-                    <template #prependInner>
-                      <span style="font-weight: bold; color: #666; margin-right: 0.5rem; border-right: 1px solid #ccc; padding-right: 0.5rem;">~ 이하</span>
-                    </template>
-                  </va-input>
-                </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; align-items: start;">
+            <div v-for="field in searchableFields" :key="field.id" style="display: flex; flex-direction: column; gap: 0.4rem;">
+              <span style="font-size: 0.75rem; color: #154ec1; font-weight: bold; text-transform: uppercase;">{{ getTranslatedName(field.name) }}</span>
+              
+              <va-select
+                v-if="['SELECT', 'MULTI_SELECT'].includes(field.type)"
+                v-model="draftFilters[field.key]"
+                :options="parseOptions(field.options)"
+                value-by="value"
+                placeholder="선택해주세요"
+                clearable
+                class="w-full"
+              />
+              <va-select
+                v-else-if="field.type === 'BOOLEAN'"
+                v-model="draftFilters[field.key]"
+                :options="['true', 'false']"
+                placeholder="선택해주세요"
+                clearable
+                class="w-full"
+              />
+              <div v-else-if="['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type)" style="display: flex; flex-direction: column; gap: 0.4rem; width: 100%;">
                 <va-input
-                  v-else
                   v-model="draftFilters[field.key]"
-                  placeholder="검색어 입력"
+                  type="number"
+                  placeholder="숫자 입력"
                   clearable
                   class="w-full"
-                />
+                >
+                  <template #prependInner>
+                    <select 
+                      v-model="draftFiltersOp[field.key]" 
+                      @click.stop
+                      @mousedown.stop
+                      style="border: none; outline: none; background: transparent; font-weight: bold; color: #154ec1; cursor: pointer; padding-right: 0.2rem; margin-right: 0.5rem; border-right: 1px solid #ccc;"
+                    >
+                      <option value="EQ">=</option>
+                      <option value="GT">&gt;</option>
+                      <option value="GTE">&gt;=</option>
+                      <option value="LT">&lt;</option>
+                      <option value="LTE">&lt;=</option>
+                      <option value="BETWEEN">범위</option>
+                    </select>
+                  </template>
+                </va-input>
+                <va-input
+                  v-if="draftFiltersOp[field.key] === 'BETWEEN'"
+                  v-model="draftFiltersMax[field.key]"
+                  type="number"
+                  placeholder="최대값 (Max)"
+                  clearable
+                  class="w-full"
+                >
+                  <template #prependInner>
+                    <span style="font-weight: bold; color: #666; margin-right: 0.5rem; border-right: 1px solid #ccc; padding-right: 0.5rem;">~ 이하</span>
+                  </template>
+                </va-input>
               </div>
+              <va-input
+                v-else
+                v-model="draftFilters[field.key]"
+                placeholder="검색어 입력"
+                clearable
+                class="w-full"
+              />
             </div>
+          </div>
           <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
             <va-button preset="secondary" @click="clearFilters">초기화</va-button>
             <va-button @click="applyFilters">검색</va-button>
@@ -153,6 +154,15 @@
         </va-card>
       </div>
     </div>
+
+    <ExcelUploader
+      v-if="showExcelUploader"
+      :nodeId="selectedNode?.id"
+      :nodeFields="nodeFields"
+      :domainReferences="domainReferences"
+      @close="showExcelUploader = false"
+      @uploaded="handleExcelUploaded"
+    />
 
     <!-- Create Record Modal -->
     <va-modal v-model="showCreateModal" :title="`Create Record in ${selectedNode?.label}`" hide-default-actions>
@@ -363,9 +373,6 @@
     <!-- Record History Modal -->
     <va-modal v-model="showHistoryModal" title="Record History" hide-default-actions size="large">
       <div style="max-height: 60vh; overflow-y: auto; padding: 1rem; box-sizing: border-box; width: 100%;">
-        
-        
-        
         <div v-if="!historyLogs || historyLogs.length === 0" style="text-align: center; color: #777;">
           이력 데이터가 없습니다.
         </div>
@@ -395,55 +402,15 @@
               />
             </template>
             <template #cell(diff)="{ row }">
-              <!-- CASE 0: PENDING_APPROVAL Status Monitoring -->
-              <div v-if="row.rowData.changeType === 'PENDING_APPROVAL' && row.rowData.rawRequest" style="font-size: 0.85rem; padding: 0.25rem 0; display: flex; flex-direction: column; gap: 0.35rem;">
-                <div v-for="diff in getParsedDiffs(row.rowData.rawRequest.changes, row.rowData.rawRequest.targetType)" :key="diff.fieldName" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                  <span style="font-weight: bold; color: #555;">• {{ diff.fieldName }}:</span>
-                  <template v-if="(diff.before === undefined || diff.before === null || diff.before === '' || diff.before === 'undefined')">
-                    <va-badge color="info" text="NEW" size="small" />
-                    <span style="color: #2c3e50; font-weight: bold; font-family: monospace;">{{ typeof diff.after === 'object' ? JSON.stringify(diff.after) : diff.after }}</span>
-                  </template>
-                  <template v-else>
-                    <va-badge color="warning" text="MOD" size="small" />
-                    <span style="color: #666; text-decoration: line-through; font-family: monospace;">{{ typeof diff.before === 'object' ? JSON.stringify(diff.before) : diff.before }}</span>
-                    <span style="color: #999; font-weight: bold;">&rarr;</span>
-                    <span style="color: #2c3e50; font-weight: bold; font-family: monospace;">{{ typeof diff.after === 'object' ? JSON.stringify(diff.after) : diff.after }}</span>
-                  </template>
-                </div>
-                <div style="margin-top: 0.25rem; font-weight: bold; color: #154ec1; background: #eef4ff; padding: 0.35rem 0.5rem; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.25rem; width: fit-content;">
+              <div v-if="row.rowData.changeType === 'PENDING_APPROVAL' && row.rowData.rawRequest" style="padding: 0.25rem 0;">
+                <va-button size="small" outline @click="viewDiffDetails(row.rowData.rawRequest.changes, row.rowData.rawRequest.targetType, true)">변경 내역 보기</va-button>
+                <div style="margin-top: 0.25rem; font-size: 0.85rem; font-weight: bold; color: #154ec1; display: flex; align-items: center; gap: 0.25rem;">
                   <va-icon name="hourglass_empty" size="small" />
-                  <span>현재 대기중인 결재자: {{ getUserName(row.rowData.rawRequest.steps.find(s => s.status === 'PENDING')?.assigneeId) }}</span>
+                  <span>대기중: {{ getUserName(row.rowData.rawRequest.steps.find(s => s.status === 'PENDING')?.assigneeId) }}</span>
                 </div>
               </div>
-              <div v-else-if="row.rowData.changeType === 'UPDATE'" style="display: flex; flex-direction: column; gap: 0.35rem; padding: 0.25rem 0;">
-                <div v-for="diff in getParsedDiffs(row.rowData.previousData, row.rowData.newData)" :key="diff.fieldName" style="font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                  
-                  <!-- CASE 1: New Registration -->
-                  <template v-if="(diff.before === undefined || diff.before === null || diff.before === '' || diff.before === 'undefined') && (diff.after !== undefined && diff.after !== null && diff.after !== '' && diff.after !== 'undefined')">
-                    <va-badge color="info" text="NEW" size="small" />
-                    <span style="font-weight: bold; color: #555;">{{ diff.fieldName }}:</span>
-                    <span style="color: #2c3e50; font-weight: bold; font-family: monospace;">{{ typeof diff.after === 'object' ? JSON.stringify(diff.after) : diff.after }}</span>
-                  </template>
-                  
-                  <!-- CASE 2: Deletion -->
-                  <template v-else-if="(diff.after === undefined || diff.after === null || diff.after === '' || diff.after === 'undefined') && (diff.before !== undefined && diff.before !== null && diff.before !== '' && diff.before !== 'undefined')">
-                    <va-badge color="danger" text="DEL" size="small" />
-                    <span style="font-weight: bold; color: #555;">{{ diff.fieldName }}:</span>
-                    <span style="color: #666; text-decoration: line-through; font-family: monospace;">{{ typeof diff.before === 'object' ? JSON.stringify(diff.before) : diff.before }}</span>
-                  </template>
-                  
-                  <!-- CASE 3: Modification -->
-                  <template v-else-if="diff.before !== undefined && diff.before !== null && diff.before !== '' && diff.before !== 'undefined' && diff.after !== undefined && diff.after !== null && diff.after !== '' && diff.after !== 'undefined'">
-                    <va-badge color="warning" text="MOD" size="small" />
-                    <span style="font-weight: bold; color: #555;">{{ diff.fieldName }}:</span>
-                    <span style="color: #666; text-decoration: line-through; font-family: monospace;">{{ typeof diff.before === 'object' ? JSON.stringify(diff.before) : diff.before }}</span>
-                    <span style="color: #999; font-weight: bold;">&rarr;</span>
-                    <span style="color: #2c3e50; font-weight: bold; font-family: monospace;">{{ typeof diff.after === 'object' ? JSON.stringify(diff.after) : diff.after }}</span>
-                  </template>
-                </div>
-                <div v-if="getParsedDiffs(row.rowData.previousData, row.rowData.newData).length === 0" style="font-size: 0.85rem; color: #999; font-style: italic;">
-                  No mapped fields changed.
-                </div>
+              <div v-else-if="row.rowData.changeType === 'UPDATE'" style="padding: 0.25rem 0;">
+                <va-button size="small" outline @click="viewDiffDetails(row.rowData.previousData, row.rowData.newData, false)">변경 내역 보기</va-button>
               </div>
               <div v-else-if="row.rowData.changeType === 'CREATE'" style="color: #1b5e20; font-size: 0.85rem; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
                 <va-badge color="success" text="CREATE" size="small" /> 초기 생성됨
@@ -478,6 +445,39 @@
       </div>
     </va-modal>
 
+    <!-- Diff Modal -->
+    <va-modal v-model="showDiffModal" title="변경 내역 상세" hide-default-actions size="large">
+      <div style="padding: 1rem; box-sizing: border-box; width: 100%; max-height: 60vh; overflow-y: auto;">
+        <div v-if="!selectedDiffs || selectedDiffs.length === 0" style="color: #777; font-style: italic;">
+          변경된 필드가 없습니다.
+        </div>
+        <div v-else style="display: flex; flex-direction: column; gap: 0.25rem;">
+          <div v-for="diff in selectedDiffs" :key="diff.fieldName" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; background: #f9f9f9; padding: 0.35rem 0.5rem; border-radius: 4px; border: 1px solid #eee; font-size: 0.85rem;">
+            <span style="font-weight: bold; color: #333; min-width: 90px;">{{ diff.fieldName }}</span>
+            <div style="flex: 1; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+              <template v-if="(diff.before === undefined || diff.before === null || diff.before === '' || diff.before === 'undefined')">
+                <va-badge color="info" text="NEW" size="small" />
+                <span style="color: #2c3e50; font-weight: bold; font-family: monospace; font-size: 0.8rem;">{{ diff.after }}</span>
+              </template>
+              <template v-else-if="(diff.after === undefined || diff.after === null || diff.after === '' || diff.after === 'undefined')">
+                <va-badge color="danger" text="DEL" size="small" />
+                <span style="color: #666; text-decoration: line-through; font-family: monospace; font-size: 0.8rem;">{{ diff.before }}</span>
+              </template>
+              <template v-else>
+                <va-badge color="warning" text="MOD" size="small" />
+                <span style="color: #666; text-decoration: line-through; font-family: monospace; font-size: 0.8rem;">{{ diff.before }}</span>
+                <span style="color: #999; font-weight: bold;">&rarr;</span>
+                <span style="color: #2c3e50; font-weight: bold; font-family: monospace; font-size: 0.8rem;">{{ diff.after }}</span>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+        <va-button @click="showDiffModal = false">Close</va-button>
+      </div>
+    </va-modal>
+
     <!-- Approval History Modal -->
     <va-modal v-model="showApprovalHistoryModal" title="결재 내역 상세" hide-default-actions size="large">
       <div style="max-height: 60vh; overflow-y: auto; padding: 1rem; box-sizing: border-box; width: 100%;">
@@ -505,21 +505,18 @@
               <div v-if="selectedApprovalRequest.changes" style="display: flex; flex-direction: column; gap: 0.35rem;">
                 <div v-for="diff in getParsedDiffs(selectedApprovalRequest.changes, selectedApprovalRequest.targetType)" :key="diff.fieldName" style="font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                   
-                  <!-- CASE 1: New field -->
                   <template v-if="(diff.before === undefined || diff.before === null || diff.before === '' || diff.before === 'undefined') && (diff.after !== undefined && diff.after !== null && diff.after !== '' && diff.after !== 'undefined')">
                     <va-badge color="info" text="NEW" size="small" />
                     <span style="font-weight: bold; color: #555;">{{ diff.fieldName }}:</span>
                     <span style="color: #2c3e50; font-weight: bold; font-family: monospace;">{{ typeof diff.after === 'object' ? JSON.stringify(diff.after) : diff.after }}</span>
                   </template>
                   
-                  <!-- CASE 2: Deleted field -->
                   <template v-else-if="(diff.after === undefined || diff.after === null || diff.after === '' || diff.after === 'undefined') && (diff.before !== undefined && diff.before !== null && diff.before !== '' && diff.before !== 'undefined')">
                     <va-badge color="danger" text="DEL" size="small" />
                     <span style="font-weight: bold; color: #555;">{{ diff.fieldName }}:</span>
                     <span style="color: #666; text-decoration: line-through; font-family: monospace;">{{ typeof diff.before === 'object' ? JSON.stringify(diff.before) : diff.before }}</span>
                   </template>
                   
-                  <!-- CASE 3: Modified field -->
                   <template v-else>
                     <va-badge color="warning" text="MOD" size="small" />
                     <span style="font-weight: bold; color: #555;">{{ diff.fieldName }}:</span>
@@ -563,28 +560,28 @@
       </div>
     </va-modal>
 
-      <!-- Domain Reference Search Modal -->
-      <va-modal v-model="showDomainRefModal" title="Select Reference Record" hide-default-actions size="large">
-        <div style="height: 50vh; width: 100%; display: flex; flex-direction: column;">
-          <div style="margin-bottom: 1rem; color: #666; font-size: 0.9rem;">
-            원하시는 레코드를 목록에서 더블 클릭하여 선택해 주세요.
-          </div>
-          <div class="ag-theme-alpine" style="flex: 1; width: 100%;">
-            <AgGridVue
-              style="width: 100%; height: 100%;"
-              :columnDefs="domainRefColDefs"
-              :rowData="domainRefRowData"
-              :defaultColDef="{ sortable: true, filter: true, resizable: true }"
-              rowSelection="single"
-              @rowDoubleClicked="onDomainRefRowDoubleClicked"
-            />
-          </div>
+    <!-- Domain Reference Search Modal -->
+    <va-modal v-model="showDomainRefModal" title="Select Reference Record" hide-default-actions size="large">
+      <div style="height: 50vh; width: 100%; display: flex; flex-direction: column;">
+        <div style="margin-bottom: 1rem; color: #666; font-size: 0.9rem;">
+          원하시는 레코드를 목록에서 더블 클릭하여 선택해 주세요.
         </div>
-        <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-          <va-button @click="showDomainRefModal = false">Cancel</va-button>
+        <div class="ag-theme-alpine" style="flex: 1; width: 100%;">
+          <AgGridVue
+            style="width: 100%; height: 100%;"
+            :columnDefs="domainRefColDefs"
+            :rowData="domainRefRowData"
+            :defaultColDef="{ sortable: true, filter: true, resizable: true }"
+            rowSelection="single"
+            @rowDoubleClicked="onDomainRefRowDoubleClicked"
+          />
         </div>
-      </va-modal>
-    </div>
+      </div>
+      <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+        <va-button @click="showDomainRefModal = false">Cancel</va-button>
+      </div>
+    </va-modal>
+  </div>
 </template>
 
 <script setup>
@@ -593,6 +590,7 @@ import { useCookie, useState } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
 import 'ag-grid-community/styles/ag-grid.css'
 import 'ag-grid-community/styles/ag-theme-alpine.css'
+import ExcelUploader from '~/components/ExcelUploader.vue'
 
 // Global i18n sync
 const currentLocale = useCookie('locale', { default: () => 'ko' })
@@ -634,7 +632,8 @@ const hasUpdateWorkflow = ref(true)
 
 const nodeFields = ref([])
 const rowData = ref([])
-const domainReferences = ref({}) // Stores target domain info, fields, and records for DOMAIN_REFERENCE fields
+const domainReferences = ref({}) 
+const showExcelUploader = ref(false)
 
 const loadDomainReferences = async (fields) => {
   domainReferences.value = {}
@@ -839,7 +838,6 @@ const getDomainRefDisplayName = (fieldKey, recordId) => {
     return recordId;
   }
   
-  // If not found in preloaded records, fetch dynamically!
   if (!domainRefDisplayMap.value[recordId]) {
     fetchDomainRefName(recordId, refInfo.targetDomainId);
   }
@@ -852,7 +850,6 @@ const showCreateModal = ref(false)
 const activeSectorTab = ref(0)
 const recordFormData = ref({})
 
-// Helper to translate JSON names
 const parseName = (nameObj) => {
   if (!nameObj) return null;
   if (typeof nameObj === 'string') {
@@ -1047,7 +1044,6 @@ const selectNode = async (node) => {
     const isParentNode = node.children && node.children.length > 0;
     columnDefs.value = buildColumnDefs(fields, isParentNode)
     
-    // Check for effective workflows
     try {
       const [createRes, updateRes] = await Promise.all([
         $fetch(`/api/approval-requests/effective-workflow/${node.id}?actionType=CREATE`, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => true),
@@ -1142,7 +1138,6 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
         }
       }
     }
-    // Add number formatting for numeric field types
     if (['NUMBER', 'INTEGER', 'DECIMAL'].includes(f.type)) {
       colDef.valueFormatter = (params) => {
         if (params.value === null || params.value === undefined || params.value === '') return '';
@@ -1342,6 +1337,8 @@ const formatViewingValue = (field, val) => {
 const showDetailModal = ref(false)
 const showHistoryModal = ref(false)
 const historyLogs = ref([])
+const showDiffModal = ref(false)
+const selectedDiffs = ref([])
 
 const historyColumns = [
   { key: 'changedAt', label: '일시', sortable: true },
@@ -1375,9 +1372,9 @@ const viewApprovalHistory = async (row) => {
 const selectedRecordData = ref({})
 const originalRecordData = ref({})
 const selectedRecordId = ref(null)
-  const isEditingRecord = ref(false)
-  const hasPendingUpdate = ref(false)
-  const isSnapshotMode = ref(false)
+const isEditingRecord = ref(false)
+const hasPendingUpdate = ref(false)
+const isSnapshotMode = ref(false)
 
 const viewSnapshot = (dataString) => {
   if (!dataString) return
@@ -1389,7 +1386,6 @@ const viewSnapshot = (dataString) => {
   } catch(e) {}
 }
 
-  
 const getParsedDiffs = (prev, next) => {
   try {
     let p = {};
@@ -1434,9 +1430,19 @@ const getParsedDiffs = (prev, next) => {
             }
           }
         }
-        // Format numeric values with thousand separators
-        if (typeof valBefore === 'number') valBefore = valBefore.toLocaleString('ko-KR');
-        if (typeof valAfter === 'number') valAfter = valAfter.toLocaleString('ko-KR');
+        
+        const formatValue = (val) => {
+          if (val === undefined || val === null) return val;
+          if (typeof val === 'object') {
+            return Object.entries(val).map(([k, v]) => `${k.toUpperCase()}: ${v}`).join(', ');
+          }
+          if (typeof val === 'number') return val.toLocaleString('ko-KR');
+          return val;
+        };
+        
+        valBefore = formatValue(valBefore);
+        valAfter = formatValue(valAfter);
+        
         diffs.push({
           fieldName: fName,
           before: valBefore,
@@ -1444,58 +1450,21 @@ const getParsedDiffs = (prev, next) => {
         })
       }
     })
-    return diffs;
-  } catch(e) {
-    return [];
+    return diffs
+  } catch (e) {
+    console.error('getParsedDiffs error:', e)
+    return []
   }
 }
 
-const getDiffText = (prev, next) => {
-    try {
-      const p = prev ? JSON.parse(prev) : {}
-      const n = next ? JSON.parse(next) : {}
-      const diffs = []
-      const keys = [...new Set([...Object.keys(p), ...Object.keys(n)])]
-      keys.forEach(k => {
-        if (JSON.stringify(p[k]) !== JSON.stringify(n[k])) {
-          const field = nodeFields.value?.find(f => f.key === k)
-          const fName = field ? getTranslatedName(field.name) : k
-          
-          let valBefore = p[k];
-          let valAfter = n[k];
-          
-          if (field && field.type === 'DOMAIN_REFERENCE') {
-            let tDomainId = null;
-            try { tDomainId = JSON.parse(field.options || '{}').targetDomainId; } catch(e){}
-            if (valBefore) {
-              if (typeof valBefore === 'string' && valBefore.length === 36) {
-                if (!domainRefDisplayMap.value[valBefore]) fetchDomainRefName(valBefore, tDomainId);
-                valBefore = domainRefDisplayMap.value[valBefore] || valBefore;
-              }
-            }
-            if (valAfter) {
-              if (typeof valAfter === 'string' && valAfter.length === 36) {
-                if (!domainRefDisplayMap.value[valAfter]) fetchDomainRefName(valAfter, tDomainId);
-                valAfter = domainRefDisplayMap.value[valAfter] || valAfter;
-              }
-            }
-          }
-          
-          const formatVal = (v) => {
-            if (v === undefined || v === null || v === '' || v === 'undefined') return '신규 데이터';
-            if (typeof v === 'string') return v;
-            return JSON.stringify(v);
-          };
-          diffs.push(`- ${fName}: ${formatVal(valBefore)} -> ${formatVal(valAfter)}`)
-        }
-      })
-      return diffs.length > 0 ? diffs.join('\n') : 'No mapped fields changed.'
-    } catch (e) {
-      return 'Diff parsing error'
-    }
+const viewDiffDetails = (prev, next, isPendingCreation = false) => {
+  if (isPendingCreation) {
+    selectedDiffs.value = getParsedDiffs(prev, next);
+  } else {
+    selectedDiffs.value = getParsedDiffs(prev, next);
   }
-
-const historyPendingApproval = ref(null)
+  showDiffModal.value = true;
+}
 
 const openHistory = async () => {
   if (!selectedRecordId.value) return
@@ -1505,16 +1474,11 @@ const openHistory = async () => {
     })
     historyLogs.value = res || []
     
-    // Fetch pending approval for monitoring
-    historyPendingApproval.value = null
     try {
       const approvals = await $fetch('/api/approval-requests', { headers: { Authorization: `Bearer ${token.value}` } })
       const pending = approvals.find(a => a.targetId === selectedRecordId.value && a.status === 'PENDING')
       if (pending) {
         const fullPending = await $fetch(`/api/approval-requests/${pending.id}`, { headers: { Authorization: `Bearer ${token.value}` } })
-        historyPendingApproval.value = fullPending
-        
-        // Prepend the PENDING_APPROVAL row to history logs
         historyLogs.value = [
           {
             id: 'pending-approval-log',
@@ -1565,7 +1529,6 @@ const formatDataForSave = (dataObj) => {
         formatted[field.key] = Boolean(val)
       }
     }
-    // Compute and persist CALCULATED fields
     if (field.type === 'CALCULATED') {
       try {
         const opts = JSON.parse(field.options || '{}')
@@ -1584,7 +1547,6 @@ const formatDataForSave = (dataObj) => {
 }
 
 const saveEditedRecord = async () => {
-  // Original update logic
   try {
     let reqId = currentUser.value?.uuid || '123e4567-e89b-12d3-a456-426614174000'
     const dataToSave = { ...selectedRecordData.value }
@@ -1632,7 +1594,6 @@ const saveEditedRecord = async () => {
 
 const requestDeleteRecord = async () => {
   if (!confirm('Are you sure you want to request deletion for this record?')) return
-  // Original delete logic
   try {
     let reqId = currentUser.value?.uuid || '123e4567-e89b-12d3-a456-426614174000'
     const payload = { requesterId: reqId, data: "{}" }
@@ -1657,58 +1618,56 @@ const defaultColDef = {
   cellDataType: false
 }
 
-  const evaluateFormula = (formula, data) => {
-    try {
-      const replaced = formula.replace(/\${([^}]+)}/g, (_, key) => {
-        const val = data[key]
-        return val != null && val !== '' ? val : '0'
-      })
-      const ROUND = (val, dec=0) => Number(Math.round(val+'e'+dec)+'e-'+dec);
-      const fn = new Function('ROUND', 'ABS', 'CEIL', 'FLOOR', `return ${replaced};`)
-      return fn(ROUND, Math.abs, Math.ceil, Math.floor)
-    } catch (e) {
-      console.warn('Formula evaluation failed', e)
-      return null
-    }
+const evaluateFormula = (formula, data) => {
+  try {
+    const replaced = formula.replace(/\${([^}]+)}/g, (_, key) => {
+      const val = data[key]
+      return val != null && val !== '' ? val : '0'
+    })
+    const ROUND = (val, dec=0) => Number(Math.round(val+'e'+dec)+'e-'+dec);
+    const fn = new Function('ROUND', 'ABS', 'CEIL', 'FLOOR', `return ${replaced};`)
+    return fn(ROUND, Math.abs, Math.ceil, Math.floor)
+  } catch (e) {
+    console.warn('Formula evaluation failed', e)
+    return null
   }
+}
 
-  // Prevent infinite loops during calculation
-  let isCalculating = false;
+let isCalculating = false;
 
-  const handleCalculatedFields = (newData) => {
-    if (isCalculating) return;
-    
-    const calculatedFields = nodeFields.value.filter(f => f.type === 'CALCULATED')
-    if (calculatedFields.length === 0) return
+const handleCalculatedFields = (newData) => {
+  if (isCalculating) return;
+  
+  const calculatedFields = nodeFields.value.filter(f => f.type === 'CALCULATED')
+  if (calculatedFields.length === 0) return
 
-    isCalculating = true;
-    let changed = false;
-    
-    // Multiple passes to resolve dependencies (up to 3 levels)
-    for (let pass = 0; pass < 3; pass++) {
-      let passChanged = false;
-      for (const field of calculatedFields) {
-        try {
-          const opts = JSON.parse(field.options || '{}')
-          if (opts.formula) {
-            const result = evaluateFormula(opts.formula, newData)
-            if (result !== null && !isNaN(result) && String(newData[field.key]) !== String(result)) {
-              newData[field.key] = result
-              passChanged = true
-              changed = true
-            }
+  isCalculating = true;
+  let changed = false;
+  
+  for (let pass = 0; pass < 3; pass++) {
+    let passChanged = false;
+    for (const field of calculatedFields) {
+      try {
+        const opts = JSON.parse(field.options || '{}')
+        if (opts.formula) {
+          const result = evaluateFormula(opts.formula, newData)
+          if (result !== null && !isNaN(result) && String(newData[field.key]) !== String(result)) {
+            newData[field.key] = result
+            passChanged = true
+            changed = true
           }
-        } catch(e) {}
-      }
-      if (!passChanged) break;
+        }
+      } catch(e) {}
     }
-    isCalculating = false;
+    if (!passChanged) break;
   }
+  isCalculating = false;
+}
 
-  watch(recordFormData, handleCalculatedFields, { deep: true })
-  watch(selectedRecordData, handleCalculatedFields, { deep: true })
+watch(recordFormData, handleCalculatedFields, { deep: true })
+watch(selectedRecordData, handleCalculatedFields, { deep: true })
 
-  const openCreateModal = () => {
+const openCreateModal = () => {
   const initialData = {}
   nodeFields.value.forEach(f => {
     if (f.type === 'MULTILINGUAL') initialData[f.key] = { ko: '', en: '' }
@@ -1721,6 +1680,12 @@ const defaultColDef = {
 const showDraftCommentModal = ref(false)
 const draftCommentText = ref('')
 const pendingSaveAction = ref(null)
+
+const handleExcelUploaded = () => {
+  showExcelUploader.value = false;
+  fetchRecords();
+  alert('Bulk upload completed! Requests are now in PENDING status.');
+}
 
 const promptDraftComment = (action) => {
   if (action === 'UPDATE') {
