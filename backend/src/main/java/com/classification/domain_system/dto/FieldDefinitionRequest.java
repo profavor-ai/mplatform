@@ -16,6 +16,7 @@ public class FieldDefinitionRequest {
     private Boolean required;
     private String defaultValue;
     private Integer order;
+    private Integer gridWidth;
     private Boolean isMultiValue;
     private Boolean isTable;
     private Boolean isEncrypted;

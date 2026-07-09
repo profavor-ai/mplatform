@@ -1,22 +1,22 @@
 <template>
   <div>
-    <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem;">{{ currentLocale === 'ko' ? '대시보드' : 'Dashboard' }}</h1>
+    <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem;">{{ t('dashboard') }}</h1>
     
     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem;">
       <va-card>
-        <va-card-title>{{ currentLocale === 'ko' ? '총 도메인 수' : 'Total Domains' }}</va-card-title>
+        <va-card-title>{{ t('total_domains') }}</va-card-title>
         <va-card-content style="font-size: 2rem; font-weight: bold;">
           {{ stats?.totalDomains || 0 }}
         </va-card-content>
       </va-card>
       <va-card>
-        <va-card-title>{{ currentLocale === 'ko' ? '결재 대기 중' : 'Pending Approvals' }}</va-card-title>
+        <va-card-title>{{ t('pending_approvals') }}</va-card-title>
         <va-card-content style="font-size: 2rem; font-weight: bold; color: #E42222;">
           {{ stats?.pendingApprovals || 0 }}
         </va-card-content>
       </va-card>
       <va-card>
-        <va-card-title>{{ currentLocale === 'ko' ? '활성 레코드' : 'Active Records' }}</va-card-title>
+        <va-card-title>{{ t('active_records') }}</va-card-title>
         <va-card-content style="font-size: 2rem; font-weight: bold; color: #3D9209;">
           {{ stats?.activeRecords || 0 }}
         </va-card-content>
@@ -25,7 +25,7 @@
     
     <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 2rem;">
       <va-card>
-        <va-card-title>{{ currentLocale === 'ko' ? '레코드 생성 추이' : 'Record Creation Trends' }}</va-card-title>
+        <va-card-title>{{ t('record_creation_trends') }}</va-card-title>
         <va-card-content>
           <ClientOnly>
             <v-chart style="height: 350px; width: 100%;" :option="chartOption" autoresize />
@@ -34,10 +34,10 @@
       </va-card>
 
       <va-card>
-        <va-card-title>{{ currentLocale === 'ko' ? '나의 할 일 목록' : 'My To-Do List' }}</va-card-title>
+        <va-card-title>{{ t('my_to_do_list') }}</va-card-title>
         <va-card-content>
           <div v-if="!todos || todos.length === 0" style="text-align: center; color: #777; margin-top: 2rem;">
-            {{ currentLocale === 'ko' ? '대기 중인 작업이 없습니다.' : 'No pending tasks. You\'re all caught up!' }}
+            {{ t('no_pending_tasks_you') }}
           </div>
           <div v-else style="display: flex; flex-direction: column; gap: 1rem;">
             <div v-for="todo in todos" :key="todo.id" style="border: 1px solid #eee; padding: 1rem; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
@@ -48,15 +48,15 @@
                 </div>
                 <div style="font-size: 0.85rem; color: #555; line-height: 1.5;">
                   <div v-if="todo.approvalRequest.classificationNode">
-                    <strong>{{ currentLocale === 'ko' ? '도메인' : 'Domain' }}:</strong> {{ todo.approvalRequest.classificationNode.domainName?.[currentLocale] || todo.approvalRequest.classificationNode.domainName?.['en'] || 'Unknown' }}<br/>
-                    <strong>{{ currentLocale === 'ko' ? '분류' : 'Classification' }}:</strong> {{ todo.approvalRequest.classificationNode.name?.[currentLocale] || todo.approvalRequest.classificationNode.name?.['en'] || 'Unknown' }}
+                    <strong>{{ t('domain') }}:</strong> {{ todo.approvalRequest.classificationNode.domainName?.[currentLocale] || todo.approvalRequest.classificationNode.domainName?.['en'] || 'Unknown' }}<br/>
+                    <strong>{{ t('classification') }}:</strong> {{ todo.approvalRequest.classificationNode.name?.[currentLocale] || todo.approvalRequest.classificationNode.name?.['en'] || 'Unknown' }}
                   </div>
                   <div style="margin-top: 0.25rem;">
-                    <strong>{{ currentLocale === 'ko' ? '기안자' : 'Requester' }}:</strong> {{ getUserName(todo.approvalRequest.requesterId) }}
+                    <strong>{{ t('requester') }}:</strong> {{ getUserName(todo.approvalRequest.requesterId) }}
                   </div>
-                  <div><strong>{{ currentLocale === 'ko' ? '기안일' : 'Date' }}:</strong> {{ new Date(todo.approvalRequest.createdAt).toLocaleDateString() }}</div>
+                  <div><strong>{{ t('date') }}:</strong> {{ new Date(todo.approvalRequest.createdAt).toLocaleDateString() }}</div>
                   <div style="font-size: 0.75rem; color: #888; margin-top: 0.25rem;">
-                    {{ currentLocale === 'ko' ? '요청 ID' : 'Req ID' }}: {{ todo.approvalRequest.id.substring(0, 8) }}...
+                    {{ t('req_id') }}: {{ todo.approvalRequest.id.substring(0, 8) }}...
                   </div>
                 </div>
               </div>
@@ -71,16 +71,16 @@
                   </div>
                 </div>
                 <div v-else style="color: #999; font-size: 0.85rem; width: 100%; word-break: break-all;">
-                  <em>{{ currentLocale === 'ko' ? '필드 데이터를 기다리는 중...' : 'Waiting for field data...' }}</em><br/>
+                  <em>{{ t('waiting_for_field_data') }}</em><br/>
                   <div style="margin-top: 0.25rem;">
-                    <strong>{{ currentLocale === 'ko' ? '원본 데이터' : 'Raw Data' }}:</strong><br/>
+                    <strong>{{ t('raw_data') }}:</strong><br/>
                     {{ typeof todo.approvalRequest.changes === 'string' ? todo.approvalRequest.changes : JSON.stringify(todo.approvalRequest.changes) }}
                   </div>
                 </div>
               </div>
 
               <div style="display: flex; align-items: center; justify-content: center; padding-left: 1rem;">
-                <va-button size="large" @click="goToApprovals(todo)">{{ currentLocale === 'ko' ? '심사하기' : 'Review' }}</va-button>
+                <va-button size="large" @click="goToApprovals(todo)">{{ t('review') }}</va-button>
               </div>
             </div>
           </div>
@@ -89,18 +89,18 @@
     </div>
 
     <!-- My Submitted Requests -->
-    <h2 style="font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem;">{{ currentLocale === 'ko' ? '내가 상신한 결재 내역' : 'My Submitted Requests' }}</h2>
+    <h2 style="font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem;">{{ t('my_submitted_requests') }}</h2>
     <va-card style="margin-bottom: 2rem;">
       <va-card-content>
         <div v-if="!myRequests || myRequests.length === 0" style="text-align: center; color: #777; padding: 1rem;">
-          {{ currentLocale === 'ko' ? '상신한 결재가 없습니다.' : 'No requests submitted yet.' }}
+          {{ t('no_requests_submitted_yet') }}
         </div>
         <table v-else style="width: 100%; border-collapse: collapse; text-align: left;">
           <thead>
             <tr style="border-bottom: 2px solid #eaeaea;">
-              <th style="padding: 10px;">{{ currentLocale === 'ko' ? '요청 ID' : 'Request ID' }}</th>
-              <th style="padding: 10px;">{{ currentLocale === 'ko' ? '상태' : 'Status' }}</th>
-              <th style="padding: 10px;">{{ currentLocale === 'ko' ? '기안일' : 'Date' }}</th>
+              <th style="padding: 10px;">{{ t('req_id') }}</th>
+              <th style="padding: 10px;">{{ t('status') }}</th>
+              <th style="padding: 10px;">{{ t('date') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -120,6 +120,8 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -149,7 +151,7 @@ onMounted(async () => {
     const myUuid = currentUser.value?.uuid
     
     try {
-      const uRes = await fetch('http://localhost:8080/api/auth/users', { headers })
+      const uRes = await fetch('/api/auth/users', { headers })
       if (uRes.ok) userList.value = await uRes.json()
     } catch(e) {}
 
@@ -228,7 +230,7 @@ const goToApprovals = (todo) => {
 }
 
 const getActionTypeLabel = (changes) => {
-  if (!changes) return currentLocale.value === 'ko' ? '생성' : 'CREATE'
+  if (!changes) return t('create')
   try {
     const deepParse = (val) => {
       try {
@@ -238,10 +240,10 @@ const getActionTypeLabel = (changes) => {
     }
     const parsed = deepParse(changes)
     if (parsed && typeof parsed === 'object' && ('before' in parsed || 'after' in parsed)) {
-      return currentLocale.value === 'ko' ? '변경' : 'UPDATE'
+      return t('update')
     }
   } catch(e) {}
-  return currentLocale.value === 'ko' ? '생성' : 'CREATE'
+  return t('create')
 }
 
 const getUserName = (uuid) => {

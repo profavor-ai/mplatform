@@ -62,6 +62,9 @@ public class FieldDefinition {
     @Column(name = "field_order", nullable = false)
     private Integer order;
 
+    @Column(name = "grid_width")
+    private Integer gridWidth;
+
     @Column(name = "is_removed", nullable = false)
     private Boolean isRemoved = false;
 

@@ -69,6 +69,7 @@ public class FieldDefinitionService {
         field.setRequired(request.getRequired() != null ? request.getRequired() : false);
         field.setDefaultValue(normalizeJsonStr(request.getDefaultValue()));
         field.setOrder(request.getOrder() != null ? request.getOrder() : 0);
+        field.setGridWidth(request.getGridWidth());
         field.setIsRemoved(false);
         field.setIsMultiValue(request.getIsMultiValue() != null ? request.getIsMultiValue() : false);
         field.setIsTable(request.getIsTable() != null ? request.getIsTable() : false);
@@ -145,6 +146,7 @@ public class FieldDefinitionService {
         field.setRequired(request.getRequired() != null ? request.getRequired() : false);
         field.setDefaultValue(normalizeJsonStr(request.getDefaultValue()));
         field.setOrder(request.getOrder() != null ? request.getOrder() : 0);
+        field.setGridWidth(request.getGridWidth());
         field.setIsRemoved(false);
         field.setIsMultiValue(request.getIsMultiValue() != null ? request.getIsMultiValue() : false);
         field.setIsTable(request.getIsTable() != null ? request.getIsTable() : false);
@@ -185,6 +187,7 @@ public class FieldDefinitionService {
         field.setRequired(request.getRequired() != null ? request.getRequired() : field.getRequired());
         field.setDefaultValue(normalizeJsonStr(request.getDefaultValue()));
         field.setOrder(request.getOrder() != null ? request.getOrder() : field.getOrder());
+        field.setGridWidth(request.getGridWidth() != null ? request.getGridWidth() : field.getGridWidth());
         field.setIsMultiValue(request.getIsMultiValue() != null ? request.getIsMultiValue() : field.getIsMultiValue());
         field.setIsTable(request.getIsTable() != null ? request.getIsTable() : field.getIsTable());
         Boolean wasSearchable = field.getIsSearchable();
@@ -231,6 +234,7 @@ public class FieldDefinitionService {
         field.setRequired(request.getRequired() != null ? request.getRequired() : field.getRequired());
         field.setDefaultValue(normalizeJsonStr(request.getDefaultValue()));
         field.setOrder(request.getOrder() != null ? request.getOrder() : field.getOrder());
+        field.setGridWidth(request.getGridWidth() != null ? request.getGridWidth() : field.getGridWidth());
         field.setIsMultiValue(request.getIsMultiValue() != null ? request.getIsMultiValue() : field.getIsMultiValue());
         field.setIsTable(request.getIsTable() != null ? request.getIsTable() : field.getIsTable());
         

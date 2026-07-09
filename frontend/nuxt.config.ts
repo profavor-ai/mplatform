@@ -1,9 +1,19 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
-  devtools: { enabled: true },
+  devtools: { enabled: false },
   unhead: { legacy: true },
-  modules: ['@vuestic/nuxt', 'nuxt-auth-utils'],
+  modules: ['@vuestic/nuxt', 'nuxt-auth-utils', '@nuxtjs/i18n'],
+  i18n: {
+    locales: [
+      { code: 'ko', file: 'ko.json' },
+      { code: 'en', file: 'en.json' }
+    ],
+    defaultLocale: 'ko',
+    strategy: 'no_prefix',
+    lazy: true,
+    langDir: 'locales/'
+  },
   build: {
   },
   app: {
@@ -14,8 +24,13 @@ export default defineNuxtConfig({
       ]
     }
   },
+  runtimeConfig: {
+    public: {
+      apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:8080'
+    }
+  },
   routeRules: {
-    '/api/**': { proxy: 'http://localhost:8080/api/**' }
+    '/api/**': { proxy: process.env.API_BASE_URL ? `${process.env.API_BASE_URL}/api/**` : 'http://localhost:8080/api/**' }
   },
   vite: {
     server: {

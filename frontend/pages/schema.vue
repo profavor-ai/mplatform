@@ -30,7 +30,7 @@
               <va-button style="flex: 1" icon="add" @click="openNodeModal()" :disabled="!selectedNode">Node</va-button>
             </div>
             <div style="margin-top: 1rem;">
-              <va-button style="width: 100%" color="info" icon="settings" @click="openSectorGroupModal" :disabled="!treeNodes || treeNodes.length === 0">Manage Sectors & Groups</va-button>
+              <va-button style="width: 100%" color="info" icon="settings" @click="openSectorGroupModal" :disabled="!treeNodes || treeNodes.length === 0" :outline="isDark">Manage Sectors & Groups</va-button>
             </div>
           </va-card-content>
         </va-card>
@@ -50,7 +50,7 @@
           <va-card-content style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 0;">
             <!-- Fields Tab -->
             <div v-show="activeTab === 0" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem;">
-              <div class="ag-theme-alpine schema-grid-wrapper">
+              <div :class="[currentPresetName === 'dark' ? 'ag-theme-alpine-dark' : 'ag-theme-alpine', ' schema-grid-wrapper']">
                 <ag-grid-vue
                   style="width: 100%; height: 100%;"
                   :columnDefs="columnDefs"
@@ -117,7 +117,7 @@
                 </div>
               </div>
               <div style="padding: 1rem; border-top: 1px solid #ddd; background: #fafafa; display: flex; justify-content: flex-end;">
-                <va-button color="success" icon="save" @click="saveWorkflowConfigs">설정 저장</va-button>
+                <va-button color="success" icon="save" @click="saveWorkflowConfigs" :outline="isDark">설정 저장</va-button>
               </div>
             </div>
           </va-card-content>
@@ -214,15 +214,15 @@
         />
       
       <div v-if="['SELECT', 'MULTI_SELECT'].includes(newField.type)" class="mb-4 w-full" style="border: 1px solid #ccc; padding: 1rem; border-radius: 8px;">
-        <label style="font-weight: bold; margin-bottom: 0.5rem; display: block;">{{ currentLocale === 'ko' ? '옵션 설정' : 'Options Settings' }}</label>
+        <label style="font-weight: bold; margin-bottom: 0.5rem; display: block;">{{ t('options_settings') }}</label>
         
         <div style="margin-bottom: 0.5rem; display: flex; gap: 0.5rem; justify-content: flex-end;">
-          <va-button size="small" icon="add" @click="addGridOption">{{ currentLocale === 'ko' ? '옵션 추가' : 'Add Option' }}</va-button>
-          <va-button size="small" icon="remove" color="danger" @click="removeSelectedGridOption">{{ currentLocale === 'ko' ? '선택 삭제' : 'Remove Selected' }}</va-button>
+          <va-button size="small" icon="add" @click="addGridOption">{{ t('add_option') }}</va-button>
+          <va-button size="small" icon="remove" color="danger" @click="removeSelectedGridOption" :outline="isDark">{{ t('remove_selected') }}</va-button>
         </div>
         
         <ag-grid-vue
-          class="ag-theme-alpine"
+          :class="[currentPresetName === 'dark' ? 'ag-theme-alpine-dark' : 'ag-theme-alpine']"
           style="width: 100%; height: 250px;"
           :columnDefs="optionsColumnDefs"
           :rowData="newFieldOptionsList"
@@ -233,16 +233,16 @@
       </div>
       
       <div v-else-if="newField.type === 'CALCULATED'" class="mb-4 w-full" style="border: 1px solid #ccc; padding: 1rem; border-radius: 8px;">
-        <label style="font-weight: bold; margin-bottom: 0.5rem; display: block;">{{ currentLocale === 'ko' ? '수식 설정 (Formula)' : 'Formula Settings' }}</label>
+        <label style="font-weight: bold; margin-bottom: 0.5rem; display: block;">{{ t('formula_settings') }}</label>
         <va-textarea
           v-model="newField.formula"
-          :placeholder="currentLocale === 'ko' ? '예: ABS(${KEY_A} + ${KEY_B} / 2) * 100' : 'e.g. ABS(${KEY_A} + ${KEY_B} / 2) * 100'"
+          :placeholder="t('e_g_abs_key_a_key_b_2_100')"
           class="w-full mb-2"
           :min-rows="3"
           style="font-family: monospace;"
         />
         <va-alert color="info" dense class="w-full" style="font-size: 0.85rem;">
-          <strong>{{ currentLocale === 'ko' ? '수식 작성 가이드' : 'Formula Guide' }}</strong><br/>
+          <strong>{{ t('formula_guide') }}</strong><br/>
           - <strong>필드 참조</strong>: <code>${필드_KEY}</code> 형식으로 입력하세요. (예: <code>${PRICE}</code>)<br/>
           - <strong>기본 연산</strong>: <code>+</code> (더하기), <code>-</code> (빼기), <code>*</code> (곱하기), <code>/</code> (나누기)<br/>
           - <strong>수학 함수</strong>:<br/>
@@ -266,14 +266,17 @@
         />
       </div>
 
+      <div style="display: flex; gap: 1rem; margin-top: 1rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
+        <va-input v-model="newField.gridWidth" type="number" label="Grid Width (px)" class="w-full" style="max-width: 150px;" placeholder="Auto" clearable />
+      </div>
       <div style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
-        <va-checkbox v-model="newField.required" :label="currentLocale === 'ko' ? '필수' : 'Required'" />
-        <va-checkbox v-model="newField.isMultiValue" :label="currentLocale === 'ko' ? '다중 값' : 'Multi-Value'" />
-        <va-checkbox v-model="newField.isSearchable" :label="currentLocale === 'ko' ? '검색 가능' : 'Searchable'" />
-        <va-checkbox v-model="newField.isEncrypted" :label="currentLocale === 'ko' ? '암호화' : 'Encrypted'" />
-        <va-checkbox v-model="newField.isReadOnly" :label="currentLocale === 'ko' ? '읽기 전용' : 'Read-Only'" />
-        <va-checkbox v-model="newField.isImmutable" :label="currentLocale === 'ko' ? '수정 금지' : 'Immutable'" />
-        <va-checkbox v-model="newField.isHidden" :label="currentLocale === 'ko' ? '숨김' : 'Hidden'" />
+        <va-checkbox v-model="newField.required" :label="t('required')" />
+        <va-checkbox v-model="newField.isMultiValue" :label="t('multi_value')" />
+        <va-checkbox v-model="newField.isSearchable" :label="t('searchable_1')" />
+        <va-checkbox v-model="newField.isEncrypted" :label="t('encrypted')" />
+        <va-checkbox v-model="newField.isReadOnly" :label="t('read_only')" />
+        <va-checkbox v-model="newField.isImmutable" :label="t('immutable')" />
+        <va-checkbox v-model="newField.isHidden" :label="t('hidden')" />
       </div>
 
       <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
@@ -290,10 +293,10 @@
             <h3 style="font-weight:bold; margin: 0;">Sectors</h3>
             <div style="display:flex; gap: 0.5rem;">
               <va-button size="small" @click="addSectorRow">Add Row</va-button>
-              <va-button size="small" color="danger" @click="deleteSelectedSector">Delete Selected</va-button>
+              <va-button size="small" color="danger" @click="deleteSelectedSector" :outline="isDark">Delete Selected</va-button>
             </div>
           </div>
-          <div class="ag-theme-alpine" style="flex: 1; width: 100%;">
+          <div :class="[currentPresetName === 'dark' ? 'ag-theme-alpine-dark' : 'ag-theme-alpine']" style="flex: 1; width: 100%;">
             <AgGridVue
               style="width: 100%; height: 100%;"
               :columnDefs="sectorColumnDefs"
@@ -312,10 +315,10 @@
             <h3 style="font-weight:bold; margin: 0;">Groups</h3>
             <div style="display:flex; gap: 0.5rem;">
               <va-button size="small" @click="addGroupRow">Add Row</va-button>
-              <va-button size="small" color="danger" @click="deleteSelectedGroup">Delete Selected</va-button>
+              <va-button size="small" color="danger" @click="deleteSelectedGroup" :outline="isDark">Delete Selected</va-button>
             </div>
           </div>
-          <div class="ag-theme-alpine" style="flex: 1; width: 100%;">
+          <div :class="[currentPresetName === 'dark' ? 'ag-theme-alpine-dark' : 'ag-theme-alpine']" style="flex: 1; width: 100%;">
             <AgGridVue
               style="width: 100%; height: 100%;"
               :columnDefs="groupColumnDefs"
@@ -338,6 +341,12 @@
 </template>
 
 <script setup>
+const colors = useColors()
+const isDark = computed(() => colors.currentPresetName.value === 'dark')
+import { useColors } from 'vuestic-ui'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+const { currentPresetName } = useColors()
 import { ref, computed, onMounted, watch } from 'vue'
 import { useCookie, useState } from '#app'
 
@@ -566,6 +575,7 @@ const columnDefs = computed(() => [
   },
   { headerName: 'Key', field: 'key', sortable: true, flex: 1 },
   { headerName: 'Order', field: 'order', sortable: true, width: 90 },
+  { headerName: 'Grid Width', field: 'gridWidth', sortable: true, width: 120 },
   { headerName: 'Type', field: 'type', sortable: true, width: 150 },
   { 
     headerName: 'Required', 
@@ -583,15 +593,20 @@ const columnDefs = computed(() => [
     field: 'id',
     width: 100,
     cellRenderer: (params) => {
+      if (params.data.domainId && !selectedNode.value.isDomain) {
+        return '<span style="color: #666; font-style: italic;">Inherited</span>';
+      }
       return '<span style="cursor: pointer; color: #2c82e0; text-decoration: underline;">Edit</span>';
     },
     onCellClicked: (params) => {
+      if (params.data.domainId && !selectedNode.value.isDomain) return;
       openFieldModal(params.data);
     }
   }
 ])
 
 const onRowDoubleClicked = (params) => {
+  if (params.data.domainId && !selectedNode.value.isDomain) return;
   openFieldModal(params.data)
 }
 
@@ -662,7 +677,7 @@ const loadTree = async () => {
 onMounted(async () => {
   loadTree()
   try {
-    const users = await $fetch('http://localhost:8080/api/auth/users', { headers: getAuthHeaders() }).catch(() => [])
+    const users = await $fetch('/api/auth/users', { headers: getAuthHeaders() }).catch(() => [])
     userOptions.value = users.map(u => ({ text: u.username, value: u.uuid }))
     
     unitOptions.value = [
@@ -754,8 +769,8 @@ const saveWorkflowConfigs = async () => {
     })
     
     const url = selectedNode.value.isDomain 
-      ? `http://localhost:8080/api/workflow-configs/domain/${selectedNode.value.id}`
-      : `http://localhost:8080/api/workflow-configs/node/${selectedNode.value.id}`
+      ? `/api/workflow-configs/domain/${selectedNode.value.id}`
+      : `/api/workflow-configs/node/${selectedNode.value.id}`
       
     await $fetch(url, {
       method: 'POST',
@@ -801,10 +816,10 @@ const onNodeSelected = async (nodes) => {
   
   const dId = node.domainId
   try {
-    const wfUrl = node.isDomain ? `http://localhost:8080/api/workflow-configs/domain/${node.id}` : `http://localhost:8080/api/workflow-configs/node/${node.id}`
+    const wfUrl = node.isDomain ? `/api/workflow-configs/domain/${node.id}` : `/api/workflow-configs/node/${node.id}`
     const [sData, gData, wfData] = await Promise.all([
-      $fetch(`http://localhost:8080/api/domains/${dId}/sectors`, { headers: getAuthHeaders() }),
-      $fetch(`http://localhost:8080/api/domains/${dId}/groups`, { headers: getAuthHeaders() }),
+      $fetch(`/api/domains/${dId}/sectors`, { headers: getAuthHeaders() }),
+      $fetch(`/api/domains/${dId}/groups`, { headers: getAuthHeaders() }),
       $fetch(wfUrl, { headers: getAuthHeaders() }).catch(() => [])
     ])
     domainSectors.value = sData
@@ -851,9 +866,9 @@ const onNodeSelected = async (nodes) => {
   
   try {
     if (node.isDomain) {
-      fields.value = await $fetch(`http://localhost:8080/api/domains/${node.id}/fields`, { headers: getAuthHeaders() })
+      fields.value = await $fetch(`/api/domains/${node.id}/fields`, { headers: getAuthHeaders() })
     } else {
-      fields.value = await $fetch(`http://localhost:8080/api/nodes/${node.id}/fields/effective`, { headers: getAuthHeaders() })
+      fields.value = await $fetch(`/api/nodes/${node.id}/fields/effective`, { headers: getAuthHeaders() })
     }
   } catch(e) {
     console.error('Failed to load fields', e)
@@ -867,7 +882,7 @@ const handleNodeEdit = async (node) => {
   isEditMode.value = true
   if (targetNode.isDomain) {
     try {
-      const dFields = await $fetch(`http://localhost:8080/api/domains/${targetNode.id}/fields`, { headers: getAuthHeaders() })
+      const dFields = await $fetch(`/api/domains/${targetNode.id}/fields`, { headers: getAuthHeaders() })
       domainFieldOptions.value = dFields.map(f => {
         const pName = typeof f.name === 'string' ? JSON.parse(f.name || '{}') : (f.name || {})
         return {
@@ -923,7 +938,8 @@ const openFieldModal = (rowData = null) => {
       name: { ...rowData.name }, 
       formula: rowData.formula || '', 
       unit: rowData.unit || '',
-      fieldGroupId: rowData.fieldGroup?.id || null
+      fieldGroupId: rowData.fieldGroup?.id || null,
+      gridWidth: rowData.gridWidth || null
     }
     if (['SELECT', 'MULTI_SELECT'].includes(rowData.type)) {
       try {
@@ -953,14 +969,14 @@ const openFieldModal = (rowData = null) => {
   } else {
     isEditMode.value = false
     editingId.value = null
-    newField.value = { name: {ko:'', en:''}, key: '', type: 'STRING', required: false, order: 0, fieldGroupId: null, targetDomainId: null, isMultiValue: false, isSearchable: true, isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, formula: '', unit: '' }
+    newField.value = { name: {ko:'', en:''}, key: '', type: 'STRING', required: false, order: 0, fieldGroupId: null, targetDomainId: null, isMultiValue: false, isSearchable: true, isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, formula: '', unit: '', gridWidth: null }
     newFieldOptionsList.value = []
   }
   showFieldModal.value = true
 }
 const saveDomain = async () => {
   try {
-    const url = isEditMode.value ? `http://localhost:8080/api/domains/${newDomain.value.id}` : `http://localhost:8080/api/domains`
+    const url = isEditMode.value ? `/api/domains/${newDomain.value.id}` : `/api/domains`
     await $fetch(url, {
       method: isEditMode.value ? 'PUT' : 'POST',
       headers: getAuthHeaders(),
@@ -975,7 +991,7 @@ const saveDomain = async () => {
     showDomainModal.value = false
     await loadTree()
   } catch (e) {
-    alert(currentLocale.value === 'ko' ? '도메인 저장 중 오류가 발생했습니다.' : 'Error saving domain')
+    alert(t('error_saving_domain'))
   }
 }
 
@@ -985,7 +1001,7 @@ const saveNode = async () => {
   
   try {
     const targetId = isEditMode.value ? newNode.value.id : selectedNode.value.id
-    const url = isEditMode.value ? `http://localhost:8080/api/nodes/${targetId}` : `http://localhost:8080/api/domains/${targetId}/nodes`
+    const url = isEditMode.value ? `/api/nodes/${targetId}` : `/api/domains/${targetId}/nodes`
     await $fetch(url, {
       method: isEditMode.value ? 'PUT' : 'POST',
       headers: getAuthHeaders(),
@@ -1005,26 +1021,26 @@ const saveNode = async () => {
 const saveField = async () => {
   const duplicate = fields.value.find(f => f.key === newField.value.key && (!isEditMode.value || f.id !== editingId.value))
   if (duplicate) {
-    alert(currentLocale.value === 'ko' ? `이미 존재하는 Field Key 입니다: ${newField.value.key}` : `Field Key already exists: ${newField.value.key}`)
+    alert(t('field_key_already_exists_newfield_value_key'))
     return
   }
   
   if (['SELECT', 'MULTI_SELECT'].includes(newField.value.type)) {
     const hasEmptyKey = newFieldOptionsList.value.some(opt => !opt.key || String(opt.key).trim() === '')
     if (hasEmptyKey) {
-      alert(currentLocale.value === 'ko' ? '모든 옵션에 Key를 입력해주세요.' : 'Please enter a Key for all options.')
+      alert(t('enter_key_all_options'))
       return
     }
     newField.value.options = JSON.stringify(newFieldOptionsList.value)
   } else if (newField.value.type === 'DOMAIN_REFERENCE') {
     if (!newField.value.targetDomainId) {
-      alert(currentLocale.value === 'ko' ? '대상 도메인을 선택해주세요.' : 'Please select a target domain.')
+      alert(t('please_select_a_target_domain'))
       return
     }
     newField.value.options = JSON.stringify({ targetDomainId: newField.value.targetDomainId })
   } else if (newField.value.type === 'CALCULATED') {
     if (!newField.value.formula || String(newField.value.formula).trim() === '') {
-      alert(currentLocale.value === 'ko' ? '수식을 입력해주세요.' : 'Please enter a formula.')
+      alert(t('enter_formula'))
       return
     }
     try {
@@ -1033,7 +1049,7 @@ const saveField = async () => {
       const fn = new Function('ROUND', 'ABS', 'CEIL', 'FLOOR', `return ${testFormula};`)
       fn(ROUND, Math.abs, Math.ceil, Math.floor)
     } catch (e) {
-      alert(currentLocale.value === 'ko' ? `수식에 문법 오류가 있습니다: ${e.message}` : `Syntax error in formula: ${e.message}`)
+      alert(t('syntax_error_in_formula_e_message'))
       return
     }
     newField.value.options = JSON.stringify({ formula: newField.value.formula.trim() })
@@ -1062,6 +1078,7 @@ const saveField = async () => {
       required: newField.value.required,
       defaultValue: newField.value.defaultValue,
       order: newField.value.order,
+      gridWidth: newField.value.gridWidth ? Number(newField.value.gridWidth) : null,
       isMultiValue: newField.value.isMultiValue,
       isTable: newField.value.isTable,
       isEncrypted: newField.value.isEncrypted,

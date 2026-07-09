@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="auth-container">
     <div class="auth-box">
       <!-- Welcome Header -->
@@ -108,7 +108,7 @@
               {{ successMessage }}
             </va-alert>
             
-            <va-button type="submit" size="large" color="success" class="w-full mt-2" :loading="loading" style="border-radius: 8px;">
+            <va-button type="submit" size="large" color="success" class="w-full mt-2" :loading="loading" style="border-radius: 8px;" :outline="isDark">
               Create Account
             </va-button>
           </form>
@@ -123,6 +123,8 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCookie } from '#app'

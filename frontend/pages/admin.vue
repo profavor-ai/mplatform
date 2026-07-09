@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div>
     <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem;">Admin Process Monitor</h1>
     
@@ -72,6 +72,8 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 import { ref, onMounted } from 'vue'
 import { useCookie } from '#app'
 

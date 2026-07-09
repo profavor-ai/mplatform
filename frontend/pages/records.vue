@@ -610,7 +610,7 @@ const userList = ref([])
 
 const loadUsers = async () => {
   try {
-    const res = await fetch('http://localhost:8080/api/auth/users', {
+    const res = await fetch('/api/auth/users', {
       headers: { 'Authorization': `Bearer ${token.value}` }
     })
     if (res.ok) {
@@ -685,22 +685,25 @@ const openDomainRefModal = (fieldKey, isCreate = false) => {
   const descField = refInfo.fields.find(f => f.id === tDomain.descriptionFieldId)
   
   const createColDef = (field) => {
-    return {
+    const def = {
       headerName: getTranslatedName(field.name),
       field: `data.${field.key}`,
-      flex: 1,
-      valueFormatter: (params) => {
-        if (!params.value) return ''
-        if (field.type === 'MULTILINGUAL') {
-          try {
-            const obj = typeof params.value === 'string' ? JSON.parse(params.value) : params.value;
-            return obj[currentLocale.value] || obj.ko || obj.en || JSON.stringify(params.value);
-          } catch(e) { return String(params.value); }
-        }
-        if (typeof params.value === 'object') return JSON.stringify(params.value);
-        return String(params.value);
-      }
     }
+    if (field.gridWidth) def.width = field.gridWidth
+    else def.flex = 1
+    
+    def.valueFormatter = (params) => {
+      if (!params.value) return ''
+      if (field.type === 'MULTILINGUAL') {
+        try {
+          const obj = typeof params.value === 'string' ? JSON.parse(params.value) : params.value;
+          return obj[currentLocale.value] || obj.ko || obj.en || JSON.stringify(params.value);
+        } catch(e) { return String(params.value); }
+      }
+      if (typeof params.value === 'object') return JSON.stringify(params.value);
+      return String(params.value);
+    }
+    return def;
   }
 
   const cols = []
@@ -1089,19 +1092,20 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
     const colDef = {
       headerName: getTranslatedName(f.name),
       field: `data.${f.key}`,
-      sortable: true,
-      flex: 1
+      sortable: true
     }
+    if (f.gridWidth) colDef.width = f.gridWidth
+    else colDef.flex = 1
     if (f.type === 'FILE') {
       colDef.cellRenderer = (params) => {
         if (!params.value) return ''
         try {
           const arr = JSON.parse(params.value)
           if (Array.isArray(arr)) {
-            return arr.map(url => `<a href="http://localhost:8080${url}" target="_blank" style="color: blue; text-decoration: underline;">Download</a>`).join(' | ')
+            return arr.map(url => `<a href="${url}" target="_blank" style="color: blue; text-decoration: underline;">Download</a>`).join(' | ')
           }
         } catch(e) {}
-        return `<a href="http://localhost:8080${params.value}" target="_blank" style="color: blue; text-decoration: underline;">Download</a>`
+        return `<a href="${params.value}" target="_blank" style="color: blue; text-decoration: underline;">Download</a>`
       }
     } else if (f.type === 'MULTILINGUAL') {
       colDef.cellRenderer = (params) => {
@@ -1300,10 +1304,10 @@ const formatViewingValue = (field, val) => {
     try {
       const arr = JSON.parse(val);
       if (Array.isArray(arr)) {
-        return arr.map(url => `<a href="http://localhost:8080${url}" target="_blank" style="color: blue; text-decoration: underline;">Download</a>`).join(' | ');
+        return arr.map(url => `<a href="${url}" target="_blank" style="color: blue; text-decoration: underline;">Download</a>`).join(' | ');
       }
     } catch(e) {}
-    return `<a href="http://localhost:8080${val}" target="_blank" style="color: blue; text-decoration: underline;">Download</a>`;
+    return `<a href="${val}" target="_blank" style="color: blue; text-decoration: underline;">Download</a>`;
   }
   if (['SELECT', 'MULTI_SELECT'].includes(field.type)) {
     try {
@@ -1357,7 +1361,7 @@ const viewApprovalHistory = async (row) => {
   selectedReflectionTime.value = row.changedAt
   showApprovalHistoryModal.value = true
   try {
-    const res = await $fetch(`http://localhost:8080/api/approval-requests/${row.approvalRequestId}`, {
+    const res = await $fetch(`/api/approval-requests/${row.approvalRequestId}`, {
       headers: { Authorization: `Bearer ${token.value}` }
     })
     selectedApprovalRequest.value = res
@@ -1496,7 +1500,7 @@ const historyPendingApproval = ref(null)
 const openHistory = async () => {
   if (!selectedRecordId.value) return
   try {
-    const res = await $fetch(`http://localhost:8080/api/records/${selectedRecordId.value}/history`, {
+    const res = await $fetch(`/api/records/${selectedRecordId.value}/history`, {
       headers: { Authorization: `Bearer ${token.value}` }
     })
     historyLogs.value = res || []
@@ -1504,10 +1508,10 @@ const openHistory = async () => {
     // Fetch pending approval for monitoring
     historyPendingApproval.value = null
     try {
-      const approvals = await $fetch('http://localhost:8080/api/approval-requests', { headers: { Authorization: `Bearer ${token.value}` } })
+      const approvals = await $fetch('/api/approval-requests', { headers: { Authorization: `Bearer ${token.value}` } })
       const pending = approvals.find(a => a.targetId === selectedRecordId.value && a.status === 'PENDING')
       if (pending) {
-        const fullPending = await $fetch(`http://localhost:8080/api/approval-requests/${pending.id}`, { headers: { Authorization: `Bearer ${token.value}` } })
+        const fullPending = await $fetch(`/api/approval-requests/${pending.id}`, { headers: { Authorization: `Bearer ${token.value}` } })
         historyPendingApproval.value = fullPending
         
         // Prepend the PENDING_APPROVAL row to history logs

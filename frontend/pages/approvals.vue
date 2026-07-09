@@ -20,7 +20,7 @@
       <p>{{ t('noRequests') }}</p>
     </div>
 
-    <div v-else class="ag-theme-alpine" style="height: 400px; width: 100%; margin-bottom: 2rem;">
+    <div v-else :class="[currentPresetName === 'dark' ? 'ag-theme-alpine-dark' : 'ag-theme-alpine']" style="height: 400px; width: 100%; margin-bottom: 2rem;">
       <AgGridVue
         style="width: 100%; height: 100%;"
         :columnDefs="pendingColumnDefs"
@@ -32,7 +32,7 @@
     <!-- Action Modal for Pending Step -->
     <va-modal v-model="showActionModal" size="large" hide-default-actions>
       <template #header>
-        <h3 style="margin: 0; font-size: 1.25rem;">결재 심사</h3>
+        <h3 style="margin: 0; font-size: 1.25rem;">{{ $t('approval_review') }}</h3>
       </template>
       <div v-if="selectedPendingStep" style="padding: 1rem 0;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 1rem; margin-bottom: 1rem;">
@@ -182,7 +182,7 @@
 
         <!-- Actions -->
         <div style="display: flex; gap: 1rem;">
-          <va-button color="success" icon="check" style="flex: 1;" @click="handleSingleAction(selectedPendingStep.id, 'approve')">{{ t('approve') }}</va-button>
+          <va-button color="success" icon="check" style="flex: 1;" @click="handleSingleAction(selectedPendingStep.id, 'approve')" :outline="isDark">{{ t('approve') }}</va-button>
           <va-button color="danger" icon="close" preset="secondary" style="flex: 1;" @click="handleSingleAction(selectedPendingStep.id, 'reject')">{{ t('reject') }}</va-button>
         </div>
       </div>
@@ -193,7 +193,7 @@
     <div v-if="myRequests.length === 0" style="text-align: center; color: #777; margin-top: 2rem;">
       {{ t('noSubmitted') }}
     </div>
-    <div v-else class="ag-theme-alpine" style="height: 400px; width: 100%;">
+    <div v-else :class="[currentPresetName === 'dark' ? 'ag-theme-alpine-dark' : 'ag-theme-alpine']" style="height: 400px; width: 100%;">
       <AgGridVue
         style="width: 100%; height: 100%;"
         :columnDefs="myRequestsColumnDefs"
@@ -334,12 +334,19 @@
 </template>
 
 <script setup>
+const colors = useColors()
+const isDark = computed(() => colors.currentPresetName.value === 'dark')
+import { useColors } from 'vuestic-ui'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+const { currentPresetName } = useColors()
 import { ref, computed, onMounted } from 'vue'
 import { useCookie } from '#app'
 import { useToast } from 'vuestic-ui'
 import { AgGridVue } from 'ag-grid-vue3'
 import 'ag-grid-community/styles/ag-grid.css'
 import 'ag-grid-community/styles/ag-theme-alpine.css'
+
 
 const { init } = useToast()
 const pendingSteps = ref([])
@@ -364,7 +371,7 @@ const pendingColumnDefs = computed(() => [
     cellRenderer: (params) => {
       const eDiv = document.createElement('div')
       const eButton = document.createElement('button')
-      eButton.innerHTML = '심사하기'
+      eButton.innerHTML = t('review')
       eButton.style.padding = '4px 12px'
       eButton.style.cursor = 'pointer'
       eButton.style.background = '#154ec1'
@@ -419,19 +426,19 @@ const userCookie = useCookie('user_data')
 
 const messages = {
   ko: {
-    title: '결재함',
+    title: t('approvals'),
     refresh: '새로고침',
     allDone: '모든 결재/합의가 완료되었습니다.',
     noRequests: '현재 대기 중인 요청이 없습니다.',
-    consensus: '합의',
+    consensus: t('consensus'),
     finalApproval: '최종 결재',
-    step: '단계',
-    requestedBy: '기안자',
+    step: t('step_prefix'),
+    requestedBy: t('requester'),
     requestedData: '요청 데이터:',
     noParsable: '파싱 가능한 데이터가 없습니다.',
     addComment: '의견 추가 (선택)...',
-    approve: '승인',
-    reject: '반려',
+    approve: t('status_approved'),
+    reject: t('status_rejected'),
     mySubmitted: '내가 올린 결재 상신 내역',
     noSubmitted: '상신한 요청이 없습니다.',
     request: '요청',
@@ -458,9 +465,7 @@ const messages = {
   }
 }
 
-const t = (key) => {
-  return messages[currentLocale.value]?.[key] || key
-}
+
 
 const currentUser = computed(() => {
   if (userCookie.value) {
@@ -491,12 +496,12 @@ const myRequestsColumnDefs = computed(() => [
     }
   },
   {
-    headerName: '결재 내역',
+    headerName: t('approval_history'),
     field: 'id',
     cellRenderer: (params) => {
       const eDiv = document.createElement('div')
       const eButton = document.createElement('button')
-      eButton.innerHTML = '결재 내역 보기'
+      eButton.innerHTML = t('view_approval_history')
       eButton.style.padding = '4px 12px'
       eButton.style.cursor = 'pointer'
       eButton.style.background = '#eef2f5'
@@ -687,11 +692,11 @@ const getGroupedChangesList = (changesString, targetType) => {
     const sObj = f.fieldGroup?.sector
     const gObj = f.fieldGroup
 
-    const sName = translate(sObj?.name, '일반', 'General')
+    const sName = translate(sObj?.name, t('general'), 'General')
     const sKey = sObj?.id || 'default'
     const sOrder = sObj?.sortOrder || 0
     
-    const gName = translate(gObj?.name, '기본 필드', 'Fields')
+    const gName = translate(gObj?.name, t('fields'), 'Fields')
     const gKey = gObj?.id || 'default'
     const gOrder = gObj?.sortOrder || 0
     
@@ -888,7 +893,7 @@ const getObserversList = (obsString) => {
 }
 
 const getApprovalLineString = (steps) => {
-  if (!steps || steps.length === 0) return '결재선 없음';
+  if (!steps || steps.length === 0) return t('no_approval_line');
   
   // Sort steps by stepOrder
   const sortedSteps = [...steps].sort((a, b) => a.stepOrder - b.stepOrder);
@@ -897,10 +902,10 @@ const getApprovalLineString = (steps) => {
   const stepStrings = sortedSteps.map(s => {
     const name = getUserName(s.assigneeId);
     let statusText = '';
-    if (s.status === 'APPROVED') statusText = '승인';
-    else if (s.status === 'REJECTED') statusText = '반려';
-    else if (s.status === 'PENDING') statusText = '진행중';
-    else statusText = '대기';
+    if (s.status === 'APPROVED') statusText = t('status_approved');
+    else if (s.status === 'REJECTED') statusText = t('status_rejected');
+    else if (s.status === 'PENDING') statusText = t('status_pending');
+    else statusText = t('status_waiting');
     
     return `${name}(${statusText})`;
   });
@@ -998,7 +1003,7 @@ const loadFieldNamesForRecord = async (targetId) => {
 
 const loadUsers = async () => {
   try {
-    const res = await fetch('http://localhost:8080/api/auth/users', {
+    const res = await fetch('/api/auth/users', {
       headers: { 'Authorization': `Bearer ${token.value}` }
     })
     if (res.ok) {

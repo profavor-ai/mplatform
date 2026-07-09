@@ -1,7 +1,7 @@
 <template>
   <va-layout>
     <template #top>
-      <va-navbar color="primary" class="mb-2">
+      <va-navbar color="primary">
         <template #left>
           <div style="display: flex; align-items: center; gap: 0.5rem;">
             <va-icon name="menu" @click="showSidebar = !showSidebar" class="mobile-menu-btn" style="cursor: pointer; font-size: 28px;" />
@@ -14,17 +14,62 @@
         <template #right>
           <va-navbar-item class="text-white">
             <div class="navbar-right">
-              <div class="lang-select hide-mobile">
-                <va-select v-model="currentLocale" :options="[{text: '한국어', value: 'ko'}, {text: 'English', value: 'en'}]" value-by="value" background="#ffffff" class="small-select" style="font-size: 0.8rem;" />
-              </div>
-              <span class="user-info">
-                <va-icon name="account_circle" class="mr-1" /> 
-                <span class="username-text">{{ currentUser?.username || 'Admin' }} ({{ currentUser?.role || 'GUEST' }})</span>
-              </span>
-              <va-button color="danger" size="small" @click="handleLogout" style="margin-left: 0.5rem;" class="logout-btn">
-                <span class="logout-text">Logout</span>
-                <va-icon name="logout" class="logout-icon" />
+              <!-- Theme Toggle for Desktop -->
+              <va-button preset="plain" class="mr-2 hide-mobile theme-btn" @click="toggleTheme" style="color: white !important;">
+                <va-icon :name="isDark ? 'light_mode' : 'dark_mode'" size="large" />
               </va-button>
+              
+              <!-- User Profile Dropdown -->
+              <va-dropdown placement="bottom-end" stick-to-edges>
+                <template #anchor>
+                  <va-button preset="plain" class="profile-btn" style="color: white !important; padding: 0.5rem;">
+                    <va-icon name="account_circle" class="mr-2" size="28px" /> 
+                    <span class="username-text font-bold">{{ currentUser?.username || 'Admin' }}</span>
+                    <va-icon name="expand_more" class="ml-1" />
+                  </va-button>
+                </template>
+                <va-dropdown-content class="profile-dropdown-content">
+                  <div class="profile-header text-center pb-2">
+                    <div class="font-bold text-lg">{{ currentUser?.username || 'Admin' }}</div>
+                    <div class="text-sm text-gray" style="color: var(--va-secondary)">{{ currentUser?.role || 'GUEST' }}</div>
+                  </div>
+                  <va-divider class="my-2" />
+                  <va-list>
+                    <va-list-item @click="toggleLang" class="cursor-pointer dropdown-item">
+                      <va-list-item-section icon>
+                        <va-icon name="language" />
+                      </va-list-item-section>
+                      <va-list-item-section>
+                        <va-list-item-title>{{ currentLocale === 'ko' ? 'English' : '한국어' }}</va-list-item-title>
+                      </va-list-item-section>
+                    </va-list-item>
+                    <va-list-item @click="toggleTheme" class="cursor-pointer dropdown-item show-mobile">
+                      <va-list-item-section icon>
+                        <va-icon :name="isDark ? 'light_mode' : 'dark_mode'" />
+                      </va-list-item-section>
+                      <va-list-item-section>
+                        <va-list-item-title>{{ isDark ? 'Light Theme' : 'Dark Theme' }}</va-list-item-title>
+                      </va-list-item-section>
+                    </va-list-item>
+                    <va-list-item @click="showSettingsModal = true" class="cursor-pointer dropdown-item">
+                      <va-list-item-section icon>
+                        <va-icon name="settings" />
+                      </va-list-item-section>
+                      <va-list-item-section>
+                        <va-list-item-title>Personal Settings</va-list-item-title>
+                      </va-list-item-section>
+                    </va-list-item>
+                    <va-list-item @click="handleLogout" class="cursor-pointer dropdown-item text-danger">
+                      <va-list-item-section icon>
+                        <va-icon name="logout" color="danger" />
+                      </va-list-item-section>
+                      <va-list-item-section>
+                        <va-list-item-title style="color: var(--va-danger); font-weight: bold;">Logout</va-list-item-title>
+                      </va-list-item-section>
+                    </va-list-item>
+                  </va-list>
+                </va-dropdown-content>
+              </va-dropdown>
             </div>
           </va-navbar-item>
         </template>
@@ -33,48 +78,54 @@
     
     <template #left>
       <va-sidebar v-model="showSidebar" :minimized="false" class="responsive-sidebar">
-        <va-sidebar-item :active="$route.path === '/'" to="/">
+        <va-sidebar-item :active="$route.path === '/'" @click="router.push('/')">
           <va-sidebar-item-content>
             <va-icon name="dashboard" />
-            <va-sidebar-item-title>Dashboard</va-sidebar-item-title>
+            <va-sidebar-item-title>{{ $t('dashboard') || 'Dashboard' }}</va-sidebar-item-title>
           </va-sidebar-item-content>
         </va-sidebar-item>
-        <va-sidebar-item :active="$route.path === '/schema'" to="/schema">
+        <va-sidebar-item :active="$route.path === '/schema'" @click="router.push('/schema')">
           <va-sidebar-item-content>
             <va-icon name="list" />
-            <va-sidebar-item-title>Domain Schema</va-sidebar-item-title>
+            <va-sidebar-item-title>{{ $t('schema') || 'Domain Schema' }}</va-sidebar-item-title>
           </va-sidebar-item-content>
         </va-sidebar-item>
-        <va-sidebar-item :active="$route.path === '/records'" to="/records">
+        <va-sidebar-item :active="$route.path === '/records'" @click="router.push('/records')">
           <va-sidebar-item-content>
             <va-icon name="storage" />
-            <va-sidebar-item-title>Records</va-sidebar-item-title>
+            <va-sidebar-item-title>{{ $t('records') || 'Records' }}</va-sidebar-item-title>
           </va-sidebar-item-content>
         </va-sidebar-item>
-        <router-link to="/approvals" style="text-decoration: none;">
-          <va-sidebar-item :active="$route.path === '/approvals'">
-            <va-sidebar-item-content>
-              <va-icon name="check_circle" />
-              <va-sidebar-item-title>Approvals</va-sidebar-item-title>
-            </va-sidebar-item-content>
-          </va-sidebar-item>
-        </router-link>
+        <va-sidebar-item :active="$route.path === '/approvals'" @click="router.push('/approvals')">
+          <va-sidebar-item-content>
+            <va-icon name="check_circle" />
+            <va-sidebar-item-title>{{ $t('approvals') || 'Approvals' }}</va-sidebar-item-title>
+          </va-sidebar-item-content>
+        </va-sidebar-item>
 
-        <router-link to="/admin" style="text-decoration: none;">
-          <va-sidebar-item :active="$route.path === '/admin'">
-            <va-sidebar-item-content>
-              <va-icon name="admin_panel_settings" />
-              <va-sidebar-item-title>Admin Monitor</va-sidebar-item-title>
-            </va-sidebar-item-content>
-          </va-sidebar-item>
-        </router-link>
+        <va-sidebar-item :active="$route.path === '/admin'" @click="router.push('/admin')">
+          <va-sidebar-item-content>
+            <va-icon name="admin_panel_settings" />
+            <va-sidebar-item-title>{{ $t('admin') || 'Admin Monitor' }}</va-sidebar-item-title>
+          </va-sidebar-item-content>
+        </va-sidebar-item>
       </va-sidebar>
     </template>
     
     <template #content>
-      <main class="responsive-main">
+      <main class="responsive-main" :style="{ backgroundColor: isDark ? 'var(--va-background-primary)' : '#f4f6f8' }">
         <slot />
       </main>
+
+      <!-- Personal Settings Modal -->
+      <va-modal v-model="showSettingsModal" title="Personal Settings" hide-default-actions>
+        <div class="p-3">
+          <p class="mb-4" style="color: var(--va-secondary)">Personal settings feature is coming soon.<br/>You will be able to configure your profile and security settings here.</p>
+          <div class="flex justify-end mt-4">
+            <va-button @click="showSettingsModal = false">Close</va-button>
+          </div>
+        </div>
+      </va-modal>
     </template>
   </va-layout>
 </template>
@@ -83,17 +134,48 @@
 import { computed, ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useCookie, useState } from '#app'
+import { useI18n } from 'vue-i18n'
+import { useColors } from 'vuestic-ui'
+
+const { t, locale } = useI18n()
+const { applyPreset, currentPresetName } = useColors()
 
 const router = useRouter()
 const tokenCookie = useCookie('auth_token')
 const userCookie = useCookie('user_data')
 const currentLocale = useCookie('locale', { default: () => 'ko' })
+const savedTheme = useCookie('theme', { default: () => 'light' })
+
+const showSettingsModal = ref(false)
+
+const isDark = computed(() => currentPresetName.value === 'dark')
+
+locale.value = currentLocale.value || 'ko'
+watch(currentLocale, (newVal) => {
+  locale.value = newVal || 'ko'
+})
+
+const toggleTheme = () => {
+  const newTheme = isDark.value ? 'light' : 'dark'
+  applyPreset(newTheme)
+  savedTheme.value = newTheme
+}
+
+const toggleLang = () => {
+  const newLang = currentLocale.value === 'ko' ? 'en' : 'ko'
+  currentLocale.value = newLang
+  locale.value = newLang
+}
 const showSidebar = ref(true)
 const isMobile = ref(false)
 
 const route = useRoute()
 
 onMounted(() => {
+  if (savedTheme.value) {
+    applyPreset(savedTheme.value)
+  }
+
   if (window.innerWidth < 768) {
     isMobile.value = true
     showSidebar.value = false
@@ -132,35 +214,36 @@ body {
   margin: 0;
   padding: 0;
   font-family: 'Inter', sans-serif;
-  background-color: #f4f6f8;
-  overflow: hidden; /* Force hide global scrollbar */
+  background-color: var(--va-background-primary);
+  color: var(--va-text-primary);
   height: 100vh;
-  width: 100vw;
-}
-.small-select {
-  --va-input-font-size: 0.8rem;
-  --va-input-wrapper-min-height: 28px;
-  --va-input-wrapper-border-radius: 4px;
-}
-.small-select .va-input-wrapper__text {
-  font-size: 0.8rem !important;
+  width: 100%;
+  overflow: hidden; /* Prevent double scrollbars, let va-layout handle it */
 }
 .navbar-right {
   display: flex; 
   align-items: center; 
-  gap: 0.5rem; 
   white-space: nowrap; 
-  padding-right: 1rem;
 }
-.lang-select {
-  width: 90px;
+.profile-btn {
+  text-transform: none !important;
 }
-.user-info {
-  display: flex;
-  align-items: center;
+.profile-dropdown-content {
+  min-width: 240px;
+  padding: 0.5rem 0;
+}
+.dropdown-item {
+  padding: 0.75rem 1rem;
+  transition: background-color 0.2s;
+}
+.dropdown-item:hover {
+  background-color: var(--va-background-element);
 }
 .hide-mobile {
   display: block;
+}
+.show-mobile {
+  display: none !important;
 }
 .mobile-menu-btn {
   display: inline-flex !important;
@@ -169,12 +252,12 @@ body {
   padding: 1rem;
   height: calc(100vh - 64px);
   box-sizing: border-box;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
 }
 .short-title { display: none; }
-.logout-icon { display: none; }
 
 @media (max-width: 768px) {
   body {
@@ -186,12 +269,8 @@ body {
   .username-text {
     display: none;
   }
-  .lang-select {
-    width: 75px;
-  }
   .navbar-right {
     padding-right: 0;
-    gap: 0.2rem;
   }
   .responsive-sidebar {
     position: absolute;
@@ -200,10 +279,8 @@ body {
   }
   .full-title { display: none; }
   .short-title { display: inline; font-size: 1.1rem; }
-  .logout-text { display: none; }
-  .logout-icon { display: inline-block; }
-  .logout-btn { min-width: 0; padding: 0.2rem 0.5rem; }
   .hide-mobile { display: none !important; }
+  .show-mobile { display: flex !important; }
   .mobile-menu-btn { display: inline-flex !important; }
 }
 </style>
