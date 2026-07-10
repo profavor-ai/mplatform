@@ -1,7 +1,7 @@
 <template>
   <va-layout>
     <template #top>
-      <va-navbar color="primary">
+      <va-navbar :color="isDark ? '#1F2937' : 'primary'">
         <template #left>
           <div style="display: flex; align-items: center; gap: 0.5rem;">
             <va-icon name="menu" @click="showSidebar = !showSidebar" class="mobile-menu-btn" style="cursor: pointer; font-size: 28px;" />
@@ -77,7 +77,7 @@
     </template>
     
     <template #left>
-      <va-sidebar v-model="showSidebar" :minimized="false" class="responsive-sidebar">
+      <va-sidebar v-model="showSidebar" :minimized="false" class="responsive-sidebar" :class="{ 'dark-theme-sidebar': isDark }">
         <va-sidebar-item :active="$route.path === '/'" @click="router.push('/')">
           <va-sidebar-item-content>
             <va-icon name="dashboard" />
@@ -258,6 +258,15 @@ body {
   flex-direction: column;
 }
 .short-title { display: none; }
+
+/* Elegant Dark Theme Sidebar Active State */
+.dark-theme-sidebar .va-sidebar-item--active {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+}
+.dark-theme-sidebar .va-sidebar-item--active .va-sidebar-item-title,
+.dark-theme-sidebar .va-sidebar-item--active .va-icon {
+  color: #60A5FA !important;
+}
 
 @media (max-width: 768px) {
   body {

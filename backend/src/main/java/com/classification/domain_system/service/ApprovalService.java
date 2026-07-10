@@ -433,6 +433,21 @@ public class ApprovalService {
         // Create Steps based on dynamic request
         WorkflowConfig config = resolveWorkflow(record.getNode().getId(), "DELETE");
         buildDynamicSteps(approval, config);
+        
+        // Add Requester's DRAFT Step (stepOrder = 0)
+        ApprovalStep draftStep = new ApprovalStep();
+        draftStep.setApprovalRequest(approval);
+        draftStep.setStepType("DRAFT");
+        draftStep.setAssigneeId(request.getRequesterId());
+        draftStep.setStepOrder(0);
+        draftStep.setStatus("SUBMITTED");
+        draftStep.setComment(request.getComment() != null ? request.getComment() : "Deletion requested");
+        approval.getSteps().add(draftStep);
+        
+        // Update record status to PENDING_APPROVAL
+        record.setStatus("PENDING_APPROVAL");
+        recordRepository.save(record);
+        
         return approvalRepository.save(approval);
     }
     

@@ -72,18 +72,18 @@
             <!-- Workflows Tab -->
             <div v-show="activeTab === 1" style="flex: 1; display: flex; flex-direction: column; position: relative; min-height: 0;">
               <div style="flex: 1; overflow-y: auto; padding: 1rem; min-height: 0;">
-                <div v-for="action in ['CREATE', 'UPDATE', 'DELETE']" :key="action" style="margin-bottom: 1rem; padding: 0.75rem; border: 1px solid #e0e0e0; border-radius: 6px; background: #fff;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; margin-bottom: 0.75rem; padding-bottom: 0.25rem;">
-                    <h3 style="font-weight: 600; font-size: 1.1rem; color: #333; margin: 0;">{{ action }} Action</h3>
+                <div v-for="action in ['CREATE', 'UPDATE', 'DELETE']" :key="action" style="margin-bottom: 1rem; padding: 0.75rem; border: 1px solid var(--va-background-border); border-radius: 6px; background: var(--va-background-element);">
+                  <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--va-background-border); margin-bottom: 0.75rem; padding-bottom: 0.25rem;">
+                    <h3 style="font-weight: 600; font-size: 1.1rem; color: var(--va-text-primary); margin: 0;">{{ action }} Action</h3>
                   </div>
                   
                   <div style="display: flex; gap: 1rem; align-items: flex-start;">
                     <div style="flex: 2;">
-                      <h4 style="font-size: 0.9rem; margin-bottom: 0.25rem; color: #555;">결재선</h4>
-                      <div v-if="workflowConfigs[action].steps.length === 0" style="color: #999; font-size: 0.85rem; padding: 0.5rem 0;">결재 단계를 추가해주세요.</div>
-                      <div v-for="(step, sIdx) in workflowConfigs[action].steps" :key="step.id" style="border: 1px solid #ececec; padding: 0.5rem; border-radius: 4px; margin-bottom: 0.5rem; background: #fdfdfd; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; border-bottom: 1px dashed #eee; padding-bottom: 0.25rem;">
-                          <span style="font-size: 0.85rem; font-weight: bold; color: #666;">Step {{ sIdx + 1 }}</span>
+                      <h4 style="font-size: 0.9rem; margin-bottom: 0.25rem; color: var(--va-text-secondary);">결재선</h4>
+                      <div v-if="workflowConfigs[action].steps.length === 0" style="color: var(--va-text-secondary); font-size: 0.85rem; padding: 0.5rem 0;">결재 단계를 추가해주세요.</div>
+                      <div v-for="(step, sIdx) in workflowConfigs[action].steps" :key="step.id" style="border: 1px solid var(--va-background-border); padding: 0.5rem; border-radius: 4px; margin-bottom: 0.5rem; background: var(--va-background-primary); box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; border-bottom: 1px dashed var(--va-background-border); padding-bottom: 0.25rem;">
+                          <span style="font-size: 0.85rem; font-weight: bold; color: var(--va-text-secondary);">Step {{ sIdx + 1 }}</span>
                           <div style="display: flex; gap: 0.25rem;">
                             <va-button size="small" preset="secondary" icon="arrow_upward" @click="moveStepUp(action, sIdx)" :disabled="sIdx === 0" style="padding: 0; min-width: 24px; height: 24px;"></va-button>
                             <va-button size="small" preset="secondary" icon="arrow_downward" @click="moveStepDown(action, sIdx)" :disabled="sIdx === workflowConfigs[action].steps.length - 1" style="padding: 0; min-width: 24px; height: 24px;"></va-button>
@@ -102,8 +102,8 @@
                       <va-button size="small" preset="secondary" icon="add" @click="addStep(action)">단계 추가</va-button>
                     </div>
                     
-                    <div style="flex: 1; border-left: 1px solid #eee; padding-left: 1rem;">
-                      <h4 style="font-size: 0.9rem; margin-bottom: 0.25rem; color: #555;">통보자 지정</h4>
+                    <div style="flex: 1; border-left: 1px solid var(--va-background-border); padding-left: 1rem;">
+                      <h4 style="font-size: 0.9rem; margin-bottom: 0.25rem; color: var(--va-text-secondary);">통보자 지정</h4>
                       <va-select
                         v-model="workflowConfigs[action].observerIds"
                         :options="userOptions"
@@ -116,7 +116,7 @@
                   </div>
                 </div>
               </div>
-              <div style="padding: 1rem; border-top: 1px solid #ddd; background: #fafafa; display: flex; justify-content: flex-end;">
+              <div style="padding: 1rem; border-top: 1px solid var(--va-background-border); background: var(--va-background-element); display: flex; justify-content: flex-end;">
                 <va-button color="success" icon="save" @click="saveWorkflowConfigs" :outline="isDark">설정 저장</va-button>
               </div>
             </div>

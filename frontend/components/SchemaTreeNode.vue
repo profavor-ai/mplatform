@@ -1,6 +1,6 @@
 <template>
   <div class="custom-tree-node">
-    <div class="node-wrapper" @click="onNodeSelected(node)">
+    <div class="node-wrapper" :class="{ 'selected-node': node.id === selectedNode?.id }" @click="onNodeSelected(node)">
       <!-- Indentation -->
       <div :style="{ width: `${level * 20}px` }"></div>
       
@@ -11,7 +11,7 @@
       <div class="expand-icon-placeholder" v-else></div>
 
       <!-- Label -->
-      <span class="node-label" :style="{ fontWeight: node.id === selectedNode?.id ? 'bold' : 'normal', color: node.id === selectedNode?.id ? '#154ec1' : 'inherit' }">
+      <span class="node-label" :style="{ fontWeight: node.id === selectedNode?.id ? 'bold' : 'normal', color: node.id === selectedNode?.id ? 'var(--va-primary)' : 'inherit' }">
         {{ node.label }}
       </span>
 
@@ -76,8 +76,11 @@ const handleNodeEdit = (n) => emit('edit', n)
   padding: 4px 8px;
   border-radius: 4px;
 }
+.node-wrapper.selected-node {
+  background-color: rgba(21, 78, 193, 0.1);
+}
 .node-wrapper:hover {
-  background-color: #f4f6f8;
+  background-color: rgba(128, 128, 128, 0.15);
 }
 .expand-icon {
   width: 24px;

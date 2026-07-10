@@ -1,1 +1,0 @@
-﻿const token = '123'; fetch('http://localhost:8080/api/approval-requests/all', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()).then(d => console.log(JSON.stringify(d, null, 2))).catch(e => console.error(e));

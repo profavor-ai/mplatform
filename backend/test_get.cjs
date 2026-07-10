@@ -1,1 +1,0 @@
-const token = '123'; fetch('http://localhost:8080/api/workflow-configs/domain/11bb1ca0-a08a-4115-a1d6-e61c929d0ad1', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()).then(d => console.log(JSON.stringify(d, null, 2))).catch(e => console.error(e));

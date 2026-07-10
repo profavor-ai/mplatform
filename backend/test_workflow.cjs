@@ -1,1 +1,0 @@
-const { Client } = require('pg'); const client = new Client({ user: 'postgres', password: 'password', host: 'localhost', port: 5432, database: 'domain_system' }); client.connect().then(() => client.query('SELECT * FROM workflow_config')).then(res => { console.log(res.rows); client.end(); });

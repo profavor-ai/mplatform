@@ -55,7 +55,7 @@
         <va-card-content>
           <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; align-items: start;">
             <div v-for="field in searchableFields" :key="field.id" style="display: flex; flex-direction: column; gap: 0.4rem;">
-              <span style="font-size: 0.75rem; color: #154ec1; font-weight: bold; text-transform: uppercase;">{{ getTranslatedName(field.name) }}</span>
+              <span style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600; text-transform: uppercase;">{{ getTranslatedName(field.name) }}</span>
               
               <va-select
                 v-if="['SELECT', 'MULTI_SELECT'].includes(field.type)"
@@ -87,7 +87,7 @@
                       v-model="draftFiltersOp[field.key]" 
                       @click.stop
                       @mousedown.stop
-                      style="border: none; outline: none; background: transparent; font-weight: bold; color: #154ec1; cursor: pointer; padding-right: 0.2rem; margin-right: 0.5rem; border-right: 1px solid #ccc;"
+                      style="border: none; outline: none; background: transparent; font-weight: bold; color: var(--va-primary); cursor: pointer; padding-right: 0.2rem; margin-right: 0.5rem; border-right: 1px solid var(--va-background-border);"
                     >
                       <option value="EQ">=</option>
                       <option value="GT">&gt;</option>
@@ -130,7 +130,7 @@
       <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
         <va-card v-if="selectedNode" style="width: 100%; flex: 1; display: flex; flex-direction: column; min-height: 0;">
           <va-card-content style="padding: 0; flex: 1; display: flex; flex-direction: column; min-height: 0;">
-            <div class="ag-theme-alpine records-grid-wrapper">
+            <div :class="[isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine', 'records-grid-wrapper']">
               <ag-grid-vue
                 style="width: 100%; height: 100%;"
                 :columnDefs="columnDefs"
@@ -192,10 +192,10 @@
               color="background-element"
               style="margin-bottom: 0.5rem;"
             >
-              <div style="padding: 1rem;">
-                <div v-for="field in group.fields" :key="field.id" style="width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 1.25rem;">
+              <div style="padding: 0.5rem 1rem; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem;">
+                <div v-for="field in group.fields" :key="field.id" style="width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.5rem;">
                     <!-- Unified External Label -->
-                    <span style="font-size: 0.75rem; color: #154ec1; font-weight: bold; text-transform: uppercase;">
+                    <span style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600; text-transform: uppercase;">
                       {{ getTranslatedName(field.name) }}{{ field.required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}
                     </span>
 
@@ -209,8 +209,12 @@
                     
                     <!-- Multilingual -->
                     <div v-else-if="field.type === 'MULTILINGUAL'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row;">
-                      <va-input v-model="recordFormData[field.key].ko" label="한국어" style="flex: 1;" />
-                      <va-input v-model="recordFormData[field.key].en" label="English" style="flex: 1;" />
+                      <va-input v-model="recordFormData[field.key].ko" style="flex: 1;" class="slim-multilingual-input">
+                        <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">한국어</span></template>
+                      </va-input>
+                      <va-input v-model="recordFormData[field.key].en" style="flex: 1;" class="slim-multilingual-input">
+                        <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">English</span></template>
+                      </va-input>
                     </div>
                     <!-- Calculated -->
                     <va-input 
@@ -247,6 +251,38 @@
                       v-model="recordFormData[field.key]"
                       class="w-full"
                     />
+
+                    <!-- File Upload -->
+                    <div v-else-if="field.type === 'FILE'" class="w-full">
+                      <va-file-upload v-model="recordFormData[field.key]" :type="field.isMultiValue ? 'list' : 'single'" dropzone class="w-full file-upload-wrapper">
+                        <div style="display: flex; flex-direction: row; align-items: center; gap: 1rem; padding: 0.5rem; justify-content: center; width: 100%;">
+                          <span style="font-size: 0.9rem; color: #666;">여기로 파일을 드래그 하거나</span>
+                          <va-button size="small">내 PC에서 선택</va-button>
+                        </div>
+                      </va-file-upload>
+                      <transition-group name="flip-list" tag="div" v-if="recordFormData[field.key] && recordFormData[field.key].length > 0" class="custom-file-list" @dragover.prevent>
+                        <div 
+                          v-for="(fileObj, i) in recordFormData[field.key]" 
+                          :key="fileObj.url || fileObj.name" 
+                          class="custom-file-item"
+                          :draggable="field.isMultiValue"
+                          @dragstart="onDragStart($event, i, recordFormData[field.key])"
+                          @dragenter.prevent="onDragEnter($event, i, recordFormData[field.key])"
+                          @dragover.prevent
+                          @drop.prevent="onDrop($event, i, recordFormData[field.key])"
+                          @dragend="onDragEnd($event)"
+                          :style="field.isMultiValue ? 'cursor: grab;' : ''"
+                        >
+                          <div class="custom-file-info" style="display: flex; align-items: center;">
+                            <va-icon v-if="field.isMultiValue" name="drag_indicator" style="color: #666; margin-right: 8px; cursor: grab;" />
+                            {{ fileObj.name || extractFilename(fileObj.url || fileObj) }}
+                          </div>
+                          <div class="custom-file-actions">
+                            <va-icon name="delete" style="cursor: pointer; color: #E53935;" @click="removeFile(recordFormData[field.key], i)" />
+                          </div>
+                        </div>
+                      </transition-group>
+                    </div>
                   </div>
                 </div>
               </va-collapse>
@@ -305,55 +341,105 @@
               color="background-element"
               style="margin-bottom: 0.5rem;"
             >
-              <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+              <div style="padding: 0.5rem 1rem; display: flex; flex-direction: column; gap: 0.5rem; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem;">
                   <div v-for="field in group.fields" :key="field.id" style="width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 0.25rem;">
-                    <span style="font-size: 0.75rem; color: #154ec1; font-weight: bold; text-transform: uppercase;">{{ getTranslatedName(field.name) }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}</span>
-                    <div v-if="!isEditingRecord" style="padding: 0.75rem; background: #f9f9f9; border-radius: 4px; border: 1px solid #eee; word-break: break-all; min-height: 42px;" v-html="formatViewingValue(field, selectedRecordData[field.key])">
-                    </div>
+                    <span style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600; text-transform: uppercase;">{{ getTranslatedName(field.name) }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}</span>
                       <va-input 
-                        v-else-if="['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type)" 
+                        v-if="['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type)" 
                         v-model="selectedRecordData[field.key]" 
                         type="number"
+                        :readonly="!isEditingRecord"
                       />
-                      <div v-else-if="field.type === 'DOMAIN_REFERENCE' && isEditingRecord" style="display: flex; gap: 0.5rem; align-items: center;">
+                      <div v-else-if="field.type === 'DOMAIN_REFERENCE'" style="display: flex; gap: 0.5rem; align-items: center;">
                         <va-input 
                           :model-value="getDomainRefDisplayName(field.key, selectedRecordData[field.key])" 
                           readonly
                           style="flex: 1;"
                         />
-                        <va-button icon="search" @click="openDomainRefModal(field.key, false)" />
+                        <va-button v-if="isEditingRecord" icon="search" @click="openDomainRefModal(field.key, false)" />
                       </div>
                       <!-- Multilingual Edit -->
-                      <div v-else-if="field.type === 'MULTILINGUAL' && isEditingRecord" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row;">
-                        <va-input v-model="selectedRecordData[field.key].ko" label="한국어" style="flex: 1;" />
-                        <va-input v-model="selectedRecordData[field.key].en" label="English" style="flex: 1;" />
+                      <div v-else-if="field.type === 'MULTILINGUAL'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row;">
+                        <va-input v-model="selectedRecordData[field.key].ko" style="flex: 1;" :readonly="!isEditingRecord" class="slim-multilingual-input">
+                          <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">한국어</span></template>
+                        </va-input>
+                        <va-input v-model="selectedRecordData[field.key].en" style="flex: 1;" :readonly="!isEditingRecord" class="slim-multilingual-input">
+                          <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">English</span></template>
+                        </va-input>
                       </div>
                       <va-input 
-                        v-else-if="field.type === 'CALCULATED' && isEditingRecord"
+                        v-else-if="field.type === 'CALCULATED'"
                         v-model="selectedRecordData[field.key]"
                         readonly
                         style="background-color: #f4f6f8;"
                       />
                       <va-select 
-                        v-else-if="['SELECT', 'MULTI_SELECT'].includes(field.type) && isEditingRecord" 
+                        v-else-if="['SELECT', 'MULTI_SELECT'].includes(field.type)" 
                         v-model="selectedRecordData[field.key]" 
                         :options="parseOptions(field.options)" 
                         :multiple="field.type === 'MULTI_SELECT' || field.isMultiValue"
                         value-by="value"
                         class="w-full"
+                        :readonly="!isEditingRecord"
                       />
                       <va-checkbox
-                        v-else-if="field.type === 'BOOLEAN' && isEditingRecord"
+                        v-else-if="field.type === 'BOOLEAN'"
                         v-model="selectedRecordData[field.key]"
                         class="w-full"
+                        :readonly="!isEditingRecord"
                       />
-                      <div v-else-if="field.type === 'FILE' && isEditingRecord" class="w-full">
-                        <va-file-upload v-model="selectedRecordData[field.key]" type="single" class="w-full" />
+                      <div v-else-if="field.type === 'FILE'" class="w-full">
+                        <div v-if="!isEditingRecord" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                          <template v-if="selectedRecordData[field.key] && selectedRecordData[field.key].length > 0">
+                            <va-chip 
+                              v-for="(fileObj, i) in selectedRecordData[field.key]" 
+                              :key="i" 
+                              :href="fileObj.url || fileObj" 
+                              target="_blank" 
+                              outline 
+                              icon="download"
+                              color="primary"
+                              style="cursor: pointer;"
+                            >
+                              {{ fileObj.name || extractFilename(fileObj.url || fileObj) }}
+                            </va-chip>
+                          </template>
+                          <span v-else>-</span>
+                        </div>
+                        <va-file-upload v-else v-model="selectedRecordData[field.key]" :type="field.isMultiValue ? 'list' : 'single'" dropzone class="w-full file-upload-wrapper">
+                          <div style="display: flex; flex-direction: row; align-items: center; gap: 1rem; padding: 0.5rem; justify-content: center; width: 100%;">
+                            <span style="font-size: 0.9rem; color: #666;">여기로 파일을 드래그 하거나</span>
+                            <va-button size="small">내 PC에서 선택</va-button>
+                          </div>
+                        </va-file-upload>
+                        <transition-group name="flip-list" tag="div" v-if="isEditingRecord && selectedRecordData[field.key] && selectedRecordData[field.key].length > 0" class="custom-file-list" @dragover.prevent>
+                          <div 
+                            v-for="(fileObj, i) in selectedRecordData[field.key]" 
+                            :key="fileObj.url || fileObj.name" 
+                            class="custom-file-item"
+                            :draggable="field.isMultiValue"
+                            @dragstart="onDragStart($event, i, selectedRecordData[field.key])"
+                            @dragenter.prevent="onDragEnter($event, i, selectedRecordData[field.key])"
+                            @dragover.prevent
+                            @drop.prevent="onDrop($event, i, selectedRecordData[field.key])"
+                            @dragend="onDragEnd($event)"
+                            :style="field.isMultiValue ? 'cursor: grab;' : ''"
+                          >
+                            <div class="custom-file-info" style="display: flex; align-items: center;">
+                              <va-icon v-if="field.isMultiValue" name="drag_indicator" style="color: #666; margin-right: 8px; cursor: grab;" />
+                              {{ fileObj.name || extractFilename(fileObj.url || fileObj) }}
+                            </div>
+                            <div class="custom-file-actions">
+                              <va-icon name="delete" style="cursor: pointer; color: #E53935;" @click="removeFile(selectedRecordData[field.key], i)" />
+                            </div>
+                          </div>
+                        </transition-group>
                       </div>
                       <va-input 
-                        v-else-if="isEditingRecord"
+                        v-else
                         v-model="selectedRecordData[field.key]" 
                         type="text"
+                        :readonly="!isEditingRecord"
                       />
                   </div>
                 </div>
@@ -404,7 +490,7 @@
             <template #cell(diff)="{ row }">
               <div v-if="row.rowData.changeType === 'PENDING_APPROVAL' && row.rowData.rawRequest" style="padding: 0.25rem 0;">
                 <va-button size="small" outline @click="viewDiffDetails(row.rowData.rawRequest.changes, row.rowData.rawRequest.targetType, true)">변경 내역 보기</va-button>
-                <div style="margin-top: 0.25rem; font-size: 0.85rem; font-weight: bold; color: #154ec1; display: flex; align-items: center; gap: 0.25rem;">
+                <div style="margin-top: 0.25rem; font-size: 0.85rem; font-weight: bold; color: var(--va-primary); display: flex; align-items: center; gap: 0.25rem;">
                   <va-icon name="hourglass_empty" size="small" />
                   <span>대기중: {{ getUserName(row.rowData.rawRequest.steps.find(s => s.status === 'PENDING')?.assigneeId) }}</span>
                 </div>
@@ -412,7 +498,7 @@
               <div v-else-if="row.rowData.changeType === 'UPDATE'" style="padding: 0.25rem 0;">
                 <va-button size="small" outline @click="viewDiffDetails(row.rowData.previousData, row.rowData.newData, false)">변경 내역 보기</va-button>
               </div>
-              <div v-else-if="row.rowData.changeType === 'CREATE'" style="color: #1b5e20; font-size: 0.85rem; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
+              <div v-else-if="row.rowData.changeType === 'CREATE'" style="color: var(--va-success); font-size: 0.85rem; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
                 <va-badge color="success" text="CREATE" size="small" /> 초기 생성됨
               </div>
               <div v-else-if="row.rowData.changeType === 'DELETE'" style="color: #c62828; font-size: 0.85rem; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
@@ -494,7 +580,7 @@
                 <div style="font-weight: bold; color: #555;">상신 일시:</div>
                 <div>{{ new Date(selectedApprovalRequest.createdAt).toLocaleString() }}</div>
                 <div style="font-weight: bold; color: #555;">반영 일시:</div>
-                <div style="color: #154ec1; font-weight: bold;">{{ selectedReflectionTime ? new Date(selectedReflectionTime).toLocaleString() : '-' }}</div>
+                <div style="color: var(--va-text-secondary); font-weight: 600;">{{ selectedReflectionTime ? new Date(selectedReflectionTime).toLocaleString() : '-' }}</div>
               </div>
             </va-card-content>
           </va-card>
@@ -566,7 +652,7 @@
         <div style="margin-bottom: 1rem; color: #666; font-size: 0.9rem;">
           원하시는 레코드를 목록에서 더블 클릭하여 선택해 주세요.
         </div>
-        <div class="ag-theme-alpine" style="flex: 1; width: 100%;">
+        <div :class="isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'" style="flex: 1; width: 100%;">
           <AgGridVue
             style="width: 100%; height: 100%;"
             :columnDefs="domainRefColDefs"
@@ -591,6 +677,10 @@ import { AgGridVue } from 'ag-grid-vue3'
 import 'ag-grid-community/styles/ag-grid.css'
 import 'ag-grid-community/styles/ag-theme-alpine.css'
 import ExcelUploader from '~/components/ExcelUploader.vue'
+import { useColors } from 'vuestic-ui'
+
+const { currentPresetName } = useColors()
+const isDark = computed(() => currentPresetName.value === 'dark')
 
 // Global i18n sync
 const currentLocale = useCookie('locale', { default: () => 'ko' })
@@ -1095,13 +1185,19 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
     if (f.type === 'FILE') {
       colDef.cellRenderer = (params) => {
         if (!params.value) return ''
+        const getFilename = (url) => {
+          try {
+            if (url.includes('?name=')) return decodeURIComponent(url.split('?name=')[1].split('&')[0]);
+            return decodeURIComponent(url.split('/').pop().split('?')[0]) || 'Download';
+          } catch(e) { return 'Download'; }
+        };
         try {
           const arr = JSON.parse(params.value)
           if (Array.isArray(arr)) {
-            return arr.map(url => `<a href="${url}" target="_blank" style="color: blue; text-decoration: underline;">Download</a>`).join(' | ')
+            return arr.map(url => `<a href="${url}" target="_blank" style="color: blue; text-decoration: underline;">${getFilename(url)}</a>`).join('<br>')
           }
         } catch(e) {}
-        return `<a href="${params.value}" target="_blank" style="color: blue; text-decoration: underline;">Download</a>`
+        return `<a href="${params.value}" target="_blank" style="color: blue; text-decoration: underline;">${getFilename(params.value)}</a>`
       }
     } else if (f.type === 'MULTILINGUAL') {
       colDef.cellRenderer = (params) => {
@@ -1296,13 +1392,19 @@ const formatViewingValue = (field, val) => {
     }
   }
   if (field.type === 'FILE') {
+    const getFilename = (url) => {
+      try {
+        if (url.includes('?name=')) return decodeURIComponent(url.split('?name=')[1].split('&')[0]);
+        return decodeURIComponent(url.split('/').pop().split('?')[0]) || 'Download';
+      } catch(e) { return 'Download'; }
+    };
     try {
       const arr = JSON.parse(val);
       if (Array.isArray(arr)) {
-        return arr.map(url => `<a href="${url}" target="_blank" style="color: blue; text-decoration: underline;">Download</a>`).join(' | ');
+        return arr.map(url => `<a href="${url}" target="_blank" style="color: blue; text-decoration: underline;">${getFilename(url)}</a>`).join('<br>');
       }
     } catch(e) {}
-    return `<a href="${val}" target="_blank" style="color: blue; text-decoration: underline;">Download</a>`;
+    return `<a href="${val}" target="_blank" style="color: blue; text-decoration: underline;">${getFilename(val)}</a>`;
   }
   if (['SELECT', 'MULTI_SELECT'].includes(field.type)) {
     try {
@@ -1351,6 +1453,51 @@ const historyColumns = [
 const showApprovalHistoryModal = ref(false)
 const selectedApprovalRequest = ref(null)
 const selectedReflectionTime = ref(null)
+
+const extractFilename = (url) => {
+  if (!url) return 'Download';
+  try {
+    if (url.includes('?name=')) return decodeURIComponent(url.split('?name=')[1].split('&')[0]);
+    return decodeURIComponent(url.split('/').pop().split('?')[0]) || 'Download';
+  } catch(e) { return 'Download'; }
+};
+
+let draggedItemIndex = null;
+let currentArrayRef = null;
+
+const onDragStart = (event, index, arr) => {
+  draggedItemIndex = index;
+  currentArrayRef = arr;
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => {
+    if (event.target && event.target.style) event.target.style.opacity = '0.5';
+  }, 0);
+};
+
+const onDragEnter = (event, index, arr) => {
+  if (draggedItemIndex === null || currentArrayRef !== arr) return;
+  if (draggedItemIndex === index) return;
+  
+  const temp = arr[draggedItemIndex];
+  arr.splice(draggedItemIndex, 1);
+  arr.splice(index, 0, temp);
+  draggedItemIndex = index;
+};
+
+const onDrop = (event, index, arr) => {
+  // onDragEnter already swapped elements, nothing to do here
+};
+
+const onDragEnd = (event) => {
+  if (event.target && event.target.style) event.target.style.opacity = '1';
+  draggedItemIndex = null;
+  currentArrayRef = null;
+};
+
+const removeFile = (arr, index) => {
+  if (!arr || !Array.isArray(arr)) return;
+  arr.splice(index, 1);
+};
 
 const viewApprovalHistory = async (row) => {
   if (!row.approvalRequestId) return
@@ -1507,7 +1654,34 @@ const onRowDoubleClicked = (params) => {
   selectedRecordId.value = params.data.id
   const data = { ...params.data.data }
   nodeFields.value.forEach(f => {
-    if (f.type === 'MULTILINGUAL' && !data[f.key]) data[f.key] = { ko: '', en: '' }
+    if (f.type === 'MULTILINGUAL') {
+      if (!data[f.key]) {
+        data[f.key] = { ko: '', en: '' }
+      } else if (typeof data[f.key] === 'string') {
+        try {
+          data[f.key] = JSON.parse(data[f.key])
+        } catch (e) {
+          data[f.key] = { ko: data[f.key], en: '' }
+        }
+      }
+    } else if (f.type === 'FILE') {
+      if (data[f.key]) {
+        try {
+          const arr = JSON.parse(data[f.key])
+          if (Array.isArray(arr)) {
+            data[f.key] = arr.map(url => ({ name: extractFilename(url), url: url }))
+          } else if (typeof data[f.key] === 'string') {
+            data[f.key] = [{ name: extractFilename(data[f.key]), url: data[f.key] }]
+          }
+        } catch(e) {
+          if (typeof data[f.key] === 'string') {
+            data[f.key] = [{ name: extractFilename(data[f.key]), url: data[f.key] }]
+          }
+        }
+      } else {
+        data[f.key] = []
+      }
+    }
   })
   selectedRecordData.value = data
   originalRecordData.value = JSON.parse(JSON.stringify(data))
@@ -1551,11 +1725,10 @@ const saveEditedRecord = async () => {
     let reqId = currentUser.value?.uuid || '123e4567-e89b-12d3-a456-426614174000'
     const dataToSave = { ...selectedRecordData.value }
     for (const field of nodeFields.value) {
-      if (field.type === 'FILE' && selectedRecordData.value[field.key]) {
+      if (field.type === 'FILE') {
         let files = selectedRecordData.value[field.key]
-        if (!Array.isArray(files)) {
-          files = [files]
-        }
+        if (!files) files = []
+        if (!Array.isArray(files)) files = [files]
         
         const uploadedUrls = []
         for (const file of files) {
@@ -1568,11 +1741,19 @@ const saveEditedRecord = async () => {
               body: fd
             })
             uploadedUrls.push(res.url)
-          } else {
+          } else if (typeof file === 'string') {
             uploadedUrls.push(file)
+          } else if (file && file.url) {
+            uploadedUrls.push(file.url)
           }
         }
-        dataToSave[field.key] = JSON.stringify(uploadedUrls)
+        if (uploadedUrls.length > 0) {
+          dataToSave[field.key] = JSON.stringify(uploadedUrls)
+        } else {
+          dataToSave[field.key] = "[]"
+        }
+      } else {
+        dataToSave[field.key] = selectedRecordData.value[field.key]
       }
     }
     const payload = { requesterId: reqId, data: JSON.stringify(formatDataForSave(dataToSave)), comment: draftCommentText.value }
@@ -1839,15 +2020,69 @@ const saveRecord = async () => {
 }
 .file-upload-wrapper :deep(.va-file-upload-dropzone) {
   box-sizing: border-box !important;
-  overflow: hidden;
+  padding: 0.5rem 1rem !important;
+  min-height: 60px !important;
 }
 .file-upload-wrapper :deep(.va-file-upload-dropzone__content) {
   width: 100% !important;
   box-sizing: border-box !important;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
   text-align: center;
+  gap: 1rem;
+}
+.file-upload-wrapper :deep(.va-file-upload-list) {
+  display: none !important;
+}
+.custom-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.custom-file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background-color: var(--va-background-element);
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+}
+.custom-file-info {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.custom-file-actions {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+.flip-list-move {
+  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.5, 1);
+}
+
+.slim-multilingual-input :deep(.va-input-wrapper__field) {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  align-items: center;
+  min-height: 28px !important;
+  height: 28px !important;
+}
+.slim-multilingual-input :deep(.va-input-wrapper__container) {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  min-height: 28px !important;
+  height: 28px !important;
+}
+.slim-multilingual-input :deep(input) {
+  height: 100% !important;
+  line-height: 28px !important;
 }
 </style>

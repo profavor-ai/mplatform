@@ -74,7 +74,7 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
             
             if ("EQ".equals(op)) {
                 query.setParameter("searchValStr" + paramIndex, "{\"" + safeKey + "\": \"" + val.replace("\"", "\\\"") + "\"}");
-                if (val.matches("-?\\d+(\\.\\d+)?")) {
+                if (val.matches("-?(0|[1-9]\\d*)(\\.\\d+)?")) {
                     query.setParameter("searchValNum" + paramIndex, "{\"" + safeKey + "\": " + val + "}");
                 } else if ("true".equalsIgnoreCase(val) || "false".equalsIgnoreCase(val)) {
                     query.setParameter("searchValNum" + paramIndex, "{\"" + safeKey + "\": " + val.toLowerCase() + "}");

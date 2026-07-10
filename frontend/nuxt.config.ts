@@ -4,6 +4,14 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   unhead: { legacy: true },
   modules: ['@vuestic/nuxt', 'nuxt-auth-utils', '@nuxtjs/i18n'],
+  vuestic: {
+    config: {
+      i18n: {
+        dropzone: '여기로 파일을 드래그 하거나 ',
+        uploadFile: '내 PC에서 선택',
+      }
+    }
+  },
   i18n: {
     locales: [
       { code: 'ko', file: 'ko.json' },
