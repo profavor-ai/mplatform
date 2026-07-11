@@ -32,6 +32,7 @@ class ApprovalServiceTest extends BaseServiceTest {
     @Mock private DataQualityService dqService;
     @Mock private RecordHistoryRepository recordHistoryRepository;
     @Mock private FieldDefinitionService fieldDefinitionService;
+    @Mock private MatchingService matchingService;
 
     @InjectMocks
     private ApprovalService approvalService;
@@ -75,9 +76,14 @@ class ApprovalServiceTest extends BaseServiceTest {
             savedApproval.setId(UUID.randomUUID());
             savedApproval.setSteps(new ArrayList<>());
 
+            MatchingService.DuplicateResult dupResult = new MatchingService.DuplicateResult();
+            dupResult.hasDuplicates = false;
+            dupResult.duplicateRecordIds = new ArrayList<>();
+
             given(nodeRepository.findById(nodeId)).willReturn(Optional.of(node));
             given(dqService.validateData(eq(nodeId), any())).willReturn(dqResult);
             given(fieldDefinitionService.getEffectiveFields(nodeId)).willReturn(Collections.emptyList());
+            given(matchingService.checkDuplicates(eq(nodeId), any())).willReturn(dupResult);
             given(recordRepository.save(any(Record.class))).willReturn(savedRecord);
             given(workflowConfigRepository.findByNodeIdAndActionType(any(), eq("CREATE"))).willReturn(Optional.empty());
             given(workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(any(), eq("CREATE"))).willReturn(Optional.empty());
