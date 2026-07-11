@@ -81,6 +81,7 @@
                   placeholder="숫자 입력"
                   clearable
                   class="w-full"
+                  @keyup.enter="applyFilters"
                 >
                   <template #prependInner>
                     <select 
@@ -105,6 +106,7 @@
                   placeholder="최대값 (Max)"
                   clearable
                   class="w-full"
+                  @keyup.enter="applyFilters"
                 >
                   <template #prependInner>
                     <span style="font-weight: bold; color: #666; margin-right: 0.5rem; border-right: 1px solid #ccc; padding-right: 0.5rem;">~ 이하</span>
@@ -117,6 +119,7 @@
                 placeholder="검색어 입력"
                 clearable
                 class="w-full"
+                @keyup.enter="applyFilters"
               />
             </div>
           </div>
@@ -134,8 +137,9 @@
               <ag-grid-vue
                 style="width: 100%; height: 100%;"
                 :columnDefs="columnDefs"
-                :rowData="rowData"
                 :defaultColDef="defaultColDef"
+                rowModelType="infinite"
+                :cacheBlockSize="20"
                 rowSelection="single"
                 :pagination="true"
                 :paginationPageSize="20"
@@ -1174,10 +1178,21 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
     }
   ]
   
+  const groupMap = {}
+
   fields.forEach(f => {
     const colDef = {
       headerName: getTranslatedName(f.name),
       field: `data.${f.key}`,
+      valueGetter: (params) => {
+        if (!params.data || !params.data.data) return null;
+        if (params.data.data[f.key] !== undefined) return params.data.data[f.key];
+        const lowerKey = String(f.key).toLowerCase();
+        if (params.data.data[lowerKey] !== undefined) return params.data.data[lowerKey];
+        const upperKey = String(f.key).toUpperCase();
+        if (params.data.data[upperKey] !== undefined) return params.data.data[upperKey];
+        return null;
+      },
       sortable: true
     }
     if (f.gridWidth) colDef.width = f.gridWidth
@@ -1246,8 +1261,29 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
         return formatted;
       };
     }
-    defs.push(colDef)
+    
+    if (f.fieldGroup && f.fieldGroup.name) {
+      const gName = getTranslatedName(f.fieldGroup.name)
+      if (!groupMap[gName]) {
+        groupMap[gName] = {
+          headerName: gName,
+          _sortOrder: f.fieldGroup.sortOrder || 0,
+          children: []
+        }
+      }
+      groupMap[gName].children.push(colDef)
+    } else {
+      defs.push(colDef)
+    }
   })
+  
+  // Append sorted groups
+  Object.values(groupMap)
+    .sort((a, b) => a._sortOrder - b._sortOrder)
+    .forEach(g => {
+      delete g._sortOrder
+      defs.push(g)
+    })
   
   defs.push({ field: 'createdAt', headerName: 'Created At', sortable: true, width: 180 })
   return defs
@@ -1309,66 +1345,89 @@ const columnDefs = ref([])
     return val
   }
   
-  const fetchRecords = async () => {
-    if (!selectedNode.value) return
-    try {
-      const endpoint = selectedNode.value.isDomain 
-        ? `/api/records/domain/${selectedNode.value.id}` 
-        : `/api/nodes/${selectedNode.value.id}/records?includeChildren=true`
-      
-      const searchParams = new URLSearchParams()
-      if (endpoint.includes('?')) {
-        const parts = endpoint.split('?')
-        const qs = new URLSearchParams(parts[1])
-        qs.forEach((v, k) => searchParams.append(k, v))
-      }
-      Object.entries(activeFilters.value).forEach(([k, v]) => {
-        if (v !== null && v !== '') {
-          searchParams.append('search_' + k, v)
-          if (activeFiltersOp.value[k]) {
-            searchParams.append('search_op_' + k, activeFiltersOp.value[k])
-          }
-          if (activeFiltersOp.value[k] === 'BETWEEN' && activeFiltersMax.value[k]) {
-            searchParams.append('search_' + k + '_max', activeFiltersMax.value[k])
-          }
+  const createDatasource = () => {
+    return {
+      getRows: async (params) => {
+        if (!selectedNode.value) {
+          params.successCallback([], 0);
+          return;
         }
-      })
-      
-      const finalEndpoint = endpoint.split('?')[0] + '?' + searchParams.toString()
         
-      const records = await $fetch(finalEndpoint, {
-        headers: { Authorization: `Bearer ${token.value}` }
-      })
-    
-    rowData.value = records.map(r => {
-      let parsedData = {}
-      if (r.data) {
+        const size = params.endRow - params.startRow;
+        const page = Math.floor(params.startRow / size);
+        
         try {
-          parsedData = JSON.parse(r.data)
-        } catch(e) {}
+          const endpoint = selectedNode.value.isDomain 
+            ? `/api/records/domain/${selectedNode.value.id}` 
+            : `/api/nodes/${selectedNode.value.id}/records?includeChildren=true`
+          
+          const searchParams = new URLSearchParams()
+          if (endpoint.includes('?')) {
+            const parts = endpoint.split('?')
+            const qs = new URLSearchParams(parts[1])
+            qs.forEach((v, k) => searchParams.append(k, v))
+          }
+          Object.entries(activeFilters.value).forEach(([k, v]) => {
+            if (v !== null && v !== '') {
+              searchParams.append('search_' + k, v)
+              if (activeFiltersOp.value[k]) {
+                searchParams.append('search_op_' + k, activeFiltersOp.value[k])
+              }
+              if (activeFiltersOp.value[k] === 'BETWEEN' && activeFiltersMax.value[k]) {
+                searchParams.append('search_' + k + '_max', activeFiltersMax.value[k])
+              }
+            }
+          })
+          
+          searchParams.append('page', page);
+          searchParams.append('size', size);
+          
+          const finalEndpoint = endpoint.split('?')[0] + '?' + searchParams.toString();
+            
+          const pageData = await $fetch(finalEndpoint, {
+            headers: { Authorization: `Bearer ${token.value}` }
+          });
+          
+          const rows = pageData.content.map(r => {
+            let parsedData = {}
+            if (r.data) {
+              try {
+                parsedData = JSON.parse(r.data)
+              } catch(e) {}
+            }
+            
+            const nodeNameMap = r.node?.name || {}
+            const nodeName = parseName(nodeNameMap)?.[currentLocale.value] || parseName(nodeNameMap)?.ko || parseName(nodeNameMap)?.en || r.node?.id || 'Unknown'
+            
+            return { ...r, data: parsedData, nodeName }
+          });
+          
+          params.successCallback(rows, pageData.totalElements);
+          
+          setTimeout(() => {
+            if (gridApi.value) {
+              gridApi.value.sizeColumnsToFit();
+            }
+          }, 100);
+        } catch (e) {
+          console.error('Failed to load records:', e);
+          params.failCallback();
+        }
       }
-      
-      const nodeNameMap = r.node?.name || {}
-      const nodeName = parseName(nodeNameMap)?.[currentLocale.value] || parseName(nodeNameMap)?.ko || parseName(nodeNameMap)?.en || r.node?.id || 'Unknown'
-      
-      return { ...r, data: parsedData, nodeName }
-    })
-    setTimeout(() => {
-      if (gridApi.value) {
-        gridApi.value.sizeColumnsToFit()
-      }
-    }, 100)
-  } catch (e) {
-    console.error('Failed to load records:', e)
+    };
+  };
+
+  const fetchRecords = async () => {
+    if (gridApi.value) {
+      gridApi.value.setGridOption('datasource', createDatasource());
+    }
   }
-}
 
 const onGridReady = (params) => {
   gridApi.value = params.api
-  setTimeout(() => {
-    params.api.sizeColumnsToFit()
-  }, 100)
+  fetchRecords()
 }
+
 
 
 const formatNumber = (val) => {
@@ -1438,6 +1497,7 @@ const formatViewingValue = (field, val) => {
 
 const showDetailModal = ref(false)
 const showHistoryModal = ref(false)
+const { showLoading, hideLoading } = useLoading()
 const historyLogs = ref([])
 const showDiffModal = ref(false)
 const selectedDiffs = ref([])
@@ -1615,6 +1675,7 @@ const viewDiffDetails = (prev, next, isPendingCreation = false) => {
 
 const openHistory = async () => {
   if (!selectedRecordId.value) return
+  showLoading('이력을 불러오는 중입니다...')
   try {
     const res = await $fetch(`/api/records/${selectedRecordId.value}/history`, {
       headers: { Authorization: `Bearer ${token.value}` }
@@ -1626,19 +1687,21 @@ const openHistory = async () => {
       const pending = approvals.find(a => a.targetId === selectedRecordId.value && a.status === 'PENDING')
       if (pending) {
         const fullPending = await $fetch(`/api/approval-requests/${pending.id}`, { headers: { Authorization: `Bearer ${token.value}` } })
-        historyLogs.value = [
-          {
-            id: 'pending-approval-log',
-            changedAt: fullPending.createdAt,
-            changedBy: fullPending.requesterId,
-            changeType: 'PENDING_APPROVAL',
-            previousData: null,
-            newData: null,
-            approvalRequestId: fullPending.id,
-            rawRequest: fullPending
-          },
-          ...historyLogs.value
-        ]
+        if (!historyLogs.value.some(log => log.id === 'pending-approval-log')) {
+          historyLogs.value = [
+            {
+              id: 'pending-approval-log',
+              changedAt: fullPending.createdAt,
+              changedBy: fullPending.requesterId,
+              changeType: 'PENDING_APPROVAL',
+              previousData: null,
+              newData: null,
+              approvalRequestId: fullPending.id,
+              rawRequest: fullPending
+            },
+            ...historyLogs.value
+          ]
+        }
       }
     } catch (e) {}
     
@@ -1646,6 +1709,8 @@ const openHistory = async () => {
   } catch (e) {
     console.error('Failed to load history', e)
     alert('Failed to load history')
+  } finally {
+    hideLoading()
   }
 }
 
@@ -2085,4 +2150,5 @@ const saveRecord = async () => {
   height: 100% !important;
   line-height: 28px !important;
 }
+
 </style>

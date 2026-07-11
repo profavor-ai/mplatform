@@ -10,6 +10,11 @@ import lombok.RequiredArgsConstructor;
 import java.util.List;
 import java.util.UUID;
 import java.util.Map;
+import org.springframework.data.domain.Page;
+import com.classification.domain_system.dto.PageResponse;
+import org.springframework.data.domain.PageRequest;
+import com.classification.domain_system.dto.PageResponse;
+import org.springframework.data.domain.Pageable;
 
 @RestController
 @RequestMapping("/api/approval-requests")
@@ -26,23 +31,33 @@ public class ApprovalController {
     }
     
     @GetMapping
-    public ResponseEntity<List<ApprovalRequest>> getPendingRequests() {
-        return ResponseEntity.ok(approvalService.getPendingRequests());
+    public ResponseEntity<PageResponse<ApprovalRequest>> getPendingRequests(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(PageResponse.of(approvalService.getPendingRequests(PageRequest.of(page, size))));
     }
 
     @GetMapping("/all")
-    public ResponseEntity<List<ApprovalRequest>> getAllRequests() {
-        return ResponseEntity.ok(approvalService.getAllRequests());
+    public ResponseEntity<PageResponse<ApprovalRequest>> getAllRequests(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(PageResponse.of(approvalService.getAllRequests(PageRequest.of(page, size))));
     }
     
     @GetMapping("/todos")
-    public ResponseEntity<List<ApprovalStep>> getMyTodos(@RequestParam UUID assigneeId) {
-        return ResponseEntity.ok(approvalService.getMyTodos(assigneeId));
+    public ResponseEntity<PageResponse<ApprovalStep>> getMyTodos(
+            @RequestParam UUID assigneeId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(PageResponse.of(approvalService.getMyTodos(assigneeId, PageRequest.of(page, size))));
     }
 
     @GetMapping("/my-requests")
-    public ResponseEntity<List<ApprovalRequest>> getMyRequests(@RequestParam UUID requesterId) {
-        return ResponseEntity.ok(approvalService.getMyRequests(requesterId));
+    public ResponseEntity<PageResponse<ApprovalRequest>> getMyRequests(
+            @RequestParam UUID requesterId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(PageResponse.of(approvalService.getMyRequests(requesterId, PageRequest.of(page, size))));
     }
     
     @GetMapping("/{id}")

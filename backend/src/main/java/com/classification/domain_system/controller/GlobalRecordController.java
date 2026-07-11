@@ -7,6 +7,11 @@ import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
 
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import com.classification.domain_system.dto.PageResponse;
+import org.springframework.data.domain.PageRequest;
+import com.classification.domain_system.dto.PageResponse;
+import org.springframework.data.domain.Pageable;
 
 @RestController
 @RequestMapping("/api/records")
@@ -45,8 +50,10 @@ public class GlobalRecordController {
     }
 
     @GetMapping("/domain/{domainId}")
-    public ResponseEntity<java.util.List<Record>> getRecordsByDomain(
+    public ResponseEntity<PageResponse<Record>> getRecordsByDomain(
             @PathVariable UUID domainId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size,
             @RequestParam java.util.Map<String, String> allParams) {
         
         java.util.Map<String, String> searchParams = new java.util.HashMap<>();
@@ -56,15 +63,8 @@ public class GlobalRecordController {
             }
         }
 
-        if (searchParams.isEmpty()) {
-            java.util.List<Record> records = recordRepository.findByDomainId(domainId).stream()
-                    .filter(r -> !"REJECTED".equals(r.getStatus()) 
-                              && !"MISMATCHED".equals(r.getStatus()))
-                    .toList();
-            return ResponseEntity.ok(records);
-        } else {
-            java.util.List<Record> records = recordRepository.findDynamicRecordsByDomain(domainId, searchParams);
-            return ResponseEntity.ok(records);
-        }
+        Page<Record> records = recordRepository.findDynamicRecordsByDomain(
+                domainId, searchParams, PageRequest.of(page, size));
+        return ResponseEntity.ok(PageResponse.of(records));
     }
 }

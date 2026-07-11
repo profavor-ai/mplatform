@@ -3,6 +3,11 @@ package com.classification.domain_system.controller;
 import com.classification.domain_system.entity.Domain;
 import com.classification.domain_system.service.DomainService;
 import com.classification.domain_system.dto.DomainRequest;
+import com.classification.domain_system.dto.PageResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +48,20 @@ public class DomainController {
     @PutMapping("/{id}")
     public ResponseEntity<Domain> updateDomain(@PathVariable UUID id, @RequestBody DomainRequest request) {
         return ResponseEntity.ok(domainService.updateDomain(id, request));
+    }
+    
+    
+    @GetMapping("/{domainId}/fields/page")
+    public ResponseEntity<PageResponse<FieldDefinition>> getDomainFieldsPage(
+            @PathVariable UUID domainId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        List<FieldDefinition> allFields = fieldService.getDomainFields(domainId);
+        int start = Math.min(page * size, allFields.size());
+        int end = Math.min((page + 1) * size, allFields.size());
+        List<FieldDefinition> content = allFields.subList(start, end);
+        Page<FieldDefinition> p = new PageImpl<>(content, PageRequest.of(page, size), allFields.size());
+        return ResponseEntity.ok(PageResponse.of(p));
     }
     
     @GetMapping("/{domainId}/fields")

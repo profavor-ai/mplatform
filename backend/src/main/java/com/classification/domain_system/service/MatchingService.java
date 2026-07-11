@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 import java.util.*;
+import org.springframework.data.domain.Pageable;
 
 @Service
 @RequiredArgsConstructor
@@ -52,7 +53,7 @@ public class MatchingService {
                         searchParams.put(idDef.getKey(), val.toString());
                         searchParams.put("op_" + idDef.getKey(), "EQ");
                         
-                        List<Record> duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams);
+                        List<Record> duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
                         if (!duplicates.isEmpty()) {
                             result.hasDuplicates = true;
                             duplicates.forEach(d -> result.duplicateRecordIds.add(d.getId()));
@@ -91,7 +92,7 @@ public class MatchingService {
                 if (hasAllFields) {
                     // Search for existing records matching these fields EXACTLY
                     // Using findDynamicRecords which utilizes GIN index
-                    List<Record> duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams);
+                    List<Record> duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
                     if (!duplicates.isEmpty()) {
                         result.hasDuplicates = true;
                         duplicates.forEach(d -> result.duplicateRecordIds.add(d.getId()));

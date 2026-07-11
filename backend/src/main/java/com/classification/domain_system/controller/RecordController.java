@@ -16,6 +16,11 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import com.classification.domain_system.entity.ClassificationNode;
 import com.classification.domain_system.repository.ClassificationNodeRepository;
+import org.springframework.data.domain.Page;
+import com.classification.domain_system.dto.PageResponse;
+import org.springframework.data.domain.PageRequest;
+import com.classification.domain_system.dto.PageResponse;
+import org.springframework.data.domain.Pageable;
 
 @RestController
 @RequestMapping("/api/nodes/{nodeId}/records")
@@ -45,10 +50,12 @@ public class RecordController {
     }
     
     @GetMapping
-    public ResponseEntity<List<Record>> getRecords(
+    public ResponseEntity<PageResponse<Record>> getRecords(
             @PathVariable UUID nodeId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false, defaultValue = "false") boolean includeChildren,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size,
             @RequestParam Map<String, String> allParams) {
         
         List<UUID> targetNodeIds = new ArrayList<>();
@@ -66,22 +73,8 @@ public class RecordController {
             }
         }
 
-        if (searchParams.isEmpty()) {
-            if (status != null && !status.isEmpty()) {
-                List<Record> records = recordRepository.findByNodeIdIn(targetNodeIds).stream()
-                        .filter(r -> status.equals(r.getStatus()))
-                        .toList();
-                return ResponseEntity.ok(records);
-            }
-            
-            List<Record> records = recordRepository.findByNodeIdIn(targetNodeIds).stream()
-                    .filter(r -> !"REJECTED".equals(r.getStatus()) 
-                              && !"MISMATCHED".equals(r.getStatus()))
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(records);
-        } else {
-            List<Record> records = recordRepository.findDynamicRecords(targetNodeIds, status, searchParams);
-            return ResponseEntity.ok(records);
-        }
+        Page<Record> records = recordRepository.findDynamicRecords(
+                targetNodeIds, status, searchParams, PageRequest.of(page, size));
+        return ResponseEntity.ok(PageResponse.of(records));
     }
 }

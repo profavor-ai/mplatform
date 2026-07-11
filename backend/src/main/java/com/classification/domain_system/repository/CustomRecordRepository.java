@@ -5,7 +5,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 public interface CustomRecordRepository {
-    List<Record> findDynamicRecords(List<UUID> nodeIds, String status, Map<String, String> searchParams);
-    List<Record> findDynamicRecordsByDomain(UUID domainId, Map<String, String> searchParams);
+    Page<Record> findDynamicRecords(List<UUID> nodeIds, String status, Map<String, String> searchParams, Pageable pageable);
+    Page<Record> findDynamicRecordsByDomain(UUID domainId, Map<String, String> searchParams, Pageable pageable);
 }

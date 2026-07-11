@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import java.util.Map;
 import java.util.HashMap;
+import org.springframework.data.domain.Pageable;
 
 @Service
 @RequiredArgsConstructor
@@ -20,7 +21,7 @@ public class DashboardService {
     public Map<String, Long> getStats() {
         Map<String, Long> stats = new HashMap<>();
         stats.put("totalDomains", domainRepository.count());
-        stats.put("pendingApprovals", (long) approvalRepository.findByStatusOrderByCreatedAtDesc("PENDING").size());
+        stats.put("pendingApprovals", approvalRepository.findByStatusOrderByCreatedAtDesc("PENDING", Pageable.unpaged()).getTotalElements());
         stats.put("activeRecords", recordRepository.findAll().stream().filter(r -> "ACTIVE".equals(r.getStatus())).count());
         return stats;
     }

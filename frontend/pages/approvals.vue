@@ -26,6 +26,7 @@
         :columnDefs="pendingColumnDefs"
         :rowData="pendingSteps"
         :gridOptions="pendingGridOptions"
+        @grid-ready="onPendingGridReady"
       />
     </div>
 
@@ -243,6 +244,7 @@
         :columnDefs="myRequestsColumnDefs"
         :rowData="myRequests"
         :gridOptions="myRequestsGridOptions"
+        @grid-ready="onMyRequestsGridReady"
       />
     </div>
 
@@ -484,7 +486,25 @@ const pendingColumnDefs = computed(() => [
   }
 ])
 
+const { showLoading, hideLoading } = useLoading()
+const pendingGridApi = ref(null)
+const myRequestsGridApi = ref(null)
+
+
+
+const onPendingGridReady = (params) => {
+  pendingGridApi.value = params.api
+  loadRequests()
+}
+
+const onMyRequestsGridReady = (params) => {
+  myRequestsGridApi.value = params.api
+  // loadRequests loads both
+}
+
 const pendingGridOptions = ref({
+  rowModelType: 'infinite',
+  cacheBlockSize: 100,
   rowSelection: 'multiple',
   onSelectionChanged: (event) => {
     pendingSelectedRows.value = event.api.getSelectedRows()
@@ -494,17 +514,27 @@ const pendingGridOptions = ref({
 const bulkApprove = async () => {
   if (!pendingSelectedRows.value.length) return
   if (!confirm('선택한 ' + pendingSelectedRows.value.length + '건을 일괄 승인하시겠습니까?')) return
-  await Promise.all(pendingSelectedRows.value.map(row => handleAction(row.id, 'approve', true)))
-  pendingSelectedRows.value = []
-  await loadRequests()
+  showLoading('일괄 승인 처리 중입니다...')
+  try {
+    await Promise.all(pendingSelectedRows.value.map(row => handleAction(row.id, 'approve', true)))
+    pendingSelectedRows.value = []
+    await loadRequests()
+  } finally {
+    hideLoading()
+  }
 }
 
 const bulkReject = async () => {
   if (!pendingSelectedRows.value.length) return
   if (!confirm('선택한 ' + pendingSelectedRows.value.length + '건을 일괄 반려하시겠습니까?')) return
-  await Promise.all(pendingSelectedRows.value.map(row => handleAction(row.id, 'reject', true)))
-  pendingSelectedRows.value = []
-  await loadRequests()
+  showLoading('일괄 반려 처리 중입니다...')
+  try {
+    await Promise.all(pendingSelectedRows.value.map(row => handleAction(row.id, 'reject', true)))
+    pendingSelectedRows.value = []
+    await loadRequests()
+  } finally {
+    hideLoading()
+  }
 }
 
 const handleSingleAction = async (stepId, action) => {
@@ -574,6 +604,8 @@ const myRequestsColumnDefs = computed(() => [
 ])
 
 const myRequestsGridOptions = ref({
+  rowModelType: 'infinite',
+  cacheBlockSize: 100,
   rowSelection: 'single'
 })
 
@@ -1049,61 +1081,87 @@ const getCurrentStepIndex = (steps) => {
   return currentIndex;
 }
 
-const loadRequests = async () => {
-  try {
-    const reqs = await $fetch(`/api/approval-requests/todos?assigneeId=${myUuid.value}`, {
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
-    
-    // Fetch full request details to populate the steps array for the approval line view
-    if (reqs && reqs.length > 0) {
-      for (const step of reqs) {
-        if (step.approvalRequest && !step.approvalRequest.steps) {
-          try {
-            const fullReq = await $fetch(`/api/approval-requests/${step.approvalRequest.id}`, {
-              headers: { Authorization: `Bearer ${token.value}` }
-            })
-            step.approvalRequest.steps = fullReq.steps
-            step.approvalRequest.observerIds = fullReq.observerIds
-          } catch (e) {
-            console.error('Failed to load full request for approval line', e)
+
+const createPendingDatasource = () => {
+  return {
+    getRows: async (params) => {
+      const size = params.endRow - params.startRow;
+      const page = Math.floor(params.startRow / size);
+      
+      try {
+        const pageData = await $fetch(`/api/approval-requests/todos?assigneeId=${myUuid.value}&page=${page}&size=${size}`, {
+          headers: { Authorization: `Bearer ${token.value}` }
+        });
+        
+        if (pageData && pageData.content) {
+          for (const step of pageData.content) {
+            if (step.approvalRequest && !step.approvalRequest.steps) {
+              try {
+                const fullReq = await $fetch(`/api/approval-requests/${step.approvalRequest.id}`, { headers: { Authorization: `Bearer ${token.value}` } });
+                step.approvalRequest.steps = fullReq.steps;
+                step.approvalRequest.observerIds = fullReq.observerIds;
+              } catch (e) {}
+            }
+          }
+          
+          for (const step of pageData.content) {
+             if (['RECORD', 'RECORD_UPDATE', 'RECORD_DELETE'].includes(step.approvalRequest?.targetType) && step.approvalRequest.targetId) {
+                 await loadFieldNamesForRecord(step.approvalRequest.targetId);
+             }
           }
         }
+        
+        params.successCallback(pageData?.content || [], pageData?.totalElements || 0);
+      } catch (e) {
+        console.error('Failed to load pending approvals:', e);
+        params.failCallback();
       }
     }
-    pendingSteps.value = reqs || []
+  };
+};
 
-    const myReqs = await $fetch(`/api/approval-requests/my-requests?requesterId=${myUuid.value}`, {
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
-    myRequests.value = myReqs || []
-
-    const recordIds = new Set()
-    pendingSteps.value.forEach(step => {
-      if (['RECORD', 'RECORD_UPDATE', 'RECORD_DELETE'].includes(step.approvalRequest?.targetType) && step.approvalRequest.targetId) {
-        recordIds.add(step.approvalRequest.targetId)
+const createMyRequestsDatasource = () => {
+  return {
+    getRows: async (params) => {
+      const size = params.endRow - params.startRow;
+      const page = Math.floor(params.startRow / size);
+      
+      try {
+        const pageData = await $fetch(`/api/approval-requests/my-requests?requesterId=${myUuid.value}&page=${page}&size=${size}`, {
+          headers: { Authorization: `Bearer ${token.value}` }
+        });
+        
+        if (pageData && pageData.content) {
+          for (const req of pageData.content) {
+             if (['RECORD', 'RECORD_UPDATE', 'RECORD_DELETE'].includes(req.targetType) && req.targetId) {
+                 await loadFieldNamesForRecord(req.targetId);
+             }
+          }
+        }
+        
+        params.successCallback(pageData?.content || [], pageData?.totalElements || 0);
+      } catch (e) {
+        console.error('Failed to load my requests:', e);
+        params.failCallback();
       }
-    })
-    myRequests.value.forEach(req => {
-      if (['RECORD', 'RECORD_UPDATE', 'RECORD_DELETE'].includes(req.targetType) && req.targetId) {
-        recordIds.add(req.targetId)
-      }
-    })
-    
-    for (const rid of recordIds) {
-      await loadFieldNamesForRecord(rid)
     }
-  } catch (error) {
-    console.error('Failed to load approval requests:', error.message || error)
-    init({ message: 'Failed to load requests.', color: 'danger' })
+  };
+};
+
+const loadRequests = async () => {
+  if (pendingGridApi.value) {
+    pendingGridApi.value.setGridOption('datasource', createPendingDatasource());
+  }
+  if (myRequestsGridApi.value) {
+    myRequestsGridApi.value.setGridOption('datasource', createMyRequestsDatasource());
   }
 }
-
 const handleAction = async (stepId, action, isBulk = false) => {
   if (!isBulk && !confirm(`Are you sure you want to ${action} this step?`)) return
   
   const comment = commentData.value[stepId] || ''
   
+  showLoading('처리 중입니다...')
   try {
     await $fetch(`/api/approval-requests/steps/${stepId}/${action}?approverId=${myUuid.value}`, {
       method: 'POST',
@@ -1117,6 +1175,8 @@ const handleAction = async (stepId, action, isBulk = false) => {
   } catch (error) {
     console.error(`Failed to ${action}:`, error)
     init({ message: `Error: ${error.response?._data?.message || error.message}`, color: 'danger' })
+  } finally {
+    hideLoading()
   }
 }
 

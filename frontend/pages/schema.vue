@@ -1,8 +1,8 @@
 <template>
-  <div>
-    <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem;">Domain Schema Management</h1>
+  <div style="display: flex; flex-direction: column; height: 100%; min-height: 0;">
+    <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem; flex: 0 0 auto;">Domain Schema Management</h1>
     
-    <div class="schema-layout">
+    <div class="schema-layout" style="flex: 1; min-height: 0;">
       <!-- Tree Column -->
       <div class="schema-tree-column">
         <va-card>
@@ -54,11 +54,11 @@
                 <ag-grid-vue
                   style="width: 100%; height: 100%;"
                   :columnDefs="columnDefs"
-                  :rowData="fields"
                   rowSelection="single"
+                  rowModelType="infinite"
                   :pagination="true"
                   :paginationPageSize="20"
-                  :paginationPageSizeSelector="[10, 20, 50]"
+                  :cacheBlockSize="20"
                   @grid-ready="onGridReady"
                   @rowDoubleClicked="onRowDoubleClicked"
                 />
@@ -369,6 +369,40 @@ const unitOptions = ref([])
 const treeNodes = ref([])
 const selectedNode = ref(null)
 const fields = ref([])
+
+const createFieldsDatasource = () => {
+  return {
+    getRows: async (params) => {
+      if (!selectedNode.value) {
+        params.successCallback([], 0);
+        return;
+      }
+      
+      const size = params.endRow - params.startRow;
+      const page = Math.floor(params.startRow / size);
+      
+      try {
+        const endpoint = selectedNode.value.isDomain 
+          ? `/api/domains/${selectedNode.value.id}/fields/page?page=${page}&size=${size}`
+          : `/api/nodes/${selectedNode.value.id}/fields/effective/page?page=${page}&size=${size}`;
+          
+        const pageData = await $fetch(endpoint, { headers: getAuthHeaders() });
+        params.successCallback(pageData.content, pageData.totalElements);
+      } catch (e) {
+        console.error('Failed to load fields page:', e);
+        params.failCallback();
+      }
+    }
+  };
+};
+
+const fetchFields = () => {
+  if (fieldsGridApi.value) {
+    fieldsGridApi.value.setGridOption('datasource', createFieldsDatasource());
+  }
+}
+
+const fieldsGridApi = ref(null)
 const gridApi = ref(null)
 
 const showDomainModal = ref(false)
@@ -611,6 +645,8 @@ const onRowDoubleClicked = (params) => {
 }
 
 const onGridReady = (params) => {
+  fieldsGridApi.value = params.api
+  fetchFields()
   gridApi.value = params.api
   setTimeout(() => {
     params.api.sizeColumnsToFit()
@@ -864,16 +900,7 @@ const onNodeSelected = async (nodes) => {
     console.error('Failed to load node data', e)
   }
   
-  try {
-    if (node.isDomain) {
-      fields.value = await $fetch(`/api/domains/${node.id}/fields`, { headers: getAuthHeaders() })
-    } else {
-      fields.value = await $fetch(`/api/nodes/${node.id}/fields/effective`, { headers: getAuthHeaders() })
-    }
-  } catch(e) {
-    console.error('Failed to load fields', e)
-    fields.value = []
-  }
+  fetchFields();
 }
 
 const handleNodeEdit = async (node) => {

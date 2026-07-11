@@ -7,7 +7,10 @@ import org.springframework.stereotype.Repository;
 import java.util.UUID;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 @Repository
 public interface ApprovalStepRepository extends JpaRepository<ApprovalStep, UUID> {
-    List<ApprovalStep> findByAssigneeIdAndStatus(UUID assigneeId, String status);
+    Page<ApprovalStep> findByAssigneeIdAndStatus(UUID assigneeId, String status, Pageable pageable);
 }

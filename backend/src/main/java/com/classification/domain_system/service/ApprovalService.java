@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.ArrayList;
 import java.util.Map;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import com.classification.domain_system.entity.FieldDefinition;
@@ -569,23 +571,23 @@ public class ApprovalService {
     }
     
     @Transactional(readOnly = true)
-    public List<ApprovalRequest> getPendingRequests() {
-        return approvalRepository.findByStatusOrderByCreatedAtDesc("PENDING");
+    public Page<ApprovalRequest> getPendingRequests(Pageable pageable) {
+        return approvalRepository.findByStatusOrderByCreatedAtDesc("PENDING", pageable);
     }
 
     @Transactional(readOnly = true)
-    public List<ApprovalRequest> getAllRequests() {
-        return approvalRepository.findAll();
+    public Page<ApprovalRequest> getAllRequests(Pageable pageable) {
+        return approvalRepository.findAll(pageable);
     }
     
     @Transactional(readOnly = true)
-    public List<ApprovalStep> getMyTodos(UUID assigneeId) {
-        return stepRepository.findByAssigneeIdAndStatus(assigneeId, "PENDING");
+    public Page<ApprovalStep> getMyTodos(UUID assigneeId, Pageable pageable) {
+        return stepRepository.findByAssigneeIdAndStatus(assigneeId, "PENDING", pageable);
     }
 
     @Transactional(readOnly = true)
-    public List<ApprovalRequest> getMyRequests(UUID requesterId) {
-        return approvalRepository.findByRequesterIdOrderByCreatedAtDesc(requesterId);
+    public Page<ApprovalRequest> getMyRequests(UUID requesterId, Pageable pageable) {
+        return approvalRepository.findByRequesterIdOrderByCreatedAtDesc(requesterId, pageable);
     }
 
     @Transactional(readOnly = true)

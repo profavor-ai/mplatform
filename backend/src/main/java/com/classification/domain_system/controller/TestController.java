@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.classification.domain_system.repository.RecordRepository;
 import com.classification.domain_system.entity.Record;
 import java.util.*;
+import org.springframework.data.domain.Pageable;
 
 @RestController
 @RequestMapping("/api/dev")
@@ -19,7 +20,7 @@ public class TestController {
         searchParams.put(key, val);
         searchParams.put("op_" + key, "EQ");
         
-        List<Record> duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams);
+        List<Record> duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
         
         Map<String, Object> result = new HashMap<>();
         result.put("found_count", duplicates.size());
