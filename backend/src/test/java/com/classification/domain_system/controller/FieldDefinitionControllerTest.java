@@ -12,6 +12,9 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
 import java.util.UUID;
@@ -86,16 +89,17 @@ class FieldDefinitionControllerTest {
     }
 
     @Test
-    @DisplayName("getEffectiveFieldsPage - 메모리 페이징 슬라이싱 정상 작동")
-    void getEffectiveFieldsPage_ManualSlicing() throws Exception {
+    @DisplayName("getEffectiveFieldsPage - DB 페이징 정상 작동")
+    void getEffectiveFieldsPage_DBPagination() throws Exception {
         UUID nodeId = UUID.randomUUID();
         FieldDefinition def1 = new FieldDefinition(); def1.setKey("f1");
         FieldDefinition def2 = new FieldDefinition(); def2.setKey("f2");
         FieldDefinition def3 = new FieldDefinition(); def3.setKey("f3");
 
-        when(fieldService.getEffectiveFields(nodeId)).thenReturn(List.of(def1, def2, def3));
-
         // page 0, size 2 -> f1, f2
+        when(fieldService.getEffectiveFieldsPage(eq(nodeId), eq(PageRequest.of(0, 2))))
+                .thenReturn(new PageImpl<>(List.of(def1, def2), PageRequest.of(0, 2), 3));
+
         mockMvc.perform(get("/api/nodes/{nodeId}/fields/effective/page", nodeId)
                 .param("page", "0")
                 .param("size", "2"))
@@ -105,6 +109,9 @@ class FieldDefinitionControllerTest {
                 .andExpect(jsonPath("$.content[0].key").value("f1"));
 
         // page 1, size 2 -> f3
+        when(fieldService.getEffectiveFieldsPage(eq(nodeId), eq(PageRequest.of(1, 2))))
+                .thenReturn(new PageImpl<>(List.of(def3), PageRequest.of(1, 2), 3));
+
         mockMvc.perform(get("/api/nodes/{nodeId}/fields/effective/page", nodeId)
                 .param("page", "1")
                 .param("size", "2"))

@@ -22,7 +22,7 @@ public class DashboardService {
         Map<String, Long> stats = new HashMap<>();
         stats.put("totalDomains", domainRepository.count());
         stats.put("pendingApprovals", approvalRepository.findByStatusOrderByCreatedAtDesc("PENDING", Pageable.unpaged()).getTotalElements());
-        stats.put("activeRecords", recordRepository.findAll().stream().filter(r -> "ACTIVE".equals(r.getStatus())).count());
+        stats.put("activeRecords", recordRepository.countByStatus("ACTIVE"));
         return stats;
     }
 }

@@ -1,7 +1,7 @@
 package com.classification.domain_system.controller;
 
-import com.classification.domain_system.entity.User;
-import com.classification.domain_system.repository.UserRepository;
+import com.classification.domain_system.controller.UserController.UserDto;
+import com.classification.domain_system.service.UserService;
 import com.classification.domain_system.security.JwtUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,7 +12,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
-import java.util.UUID;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -27,18 +26,18 @@ class UserControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private UserRepository userRepository;
+    private UserService userService;
 
     @MockitoBean
     private JwtUtil jwtUtil;
 
     @Test
-    @DisplayName("getAllUsers - 전체 유저를 UserDto로 변환하여 응답")
+    @DisplayName("getAllUsers - 전체 유저를 UserDto로 반환하는 서비스 호출")
     void getAllUsers_ReturnsMappedUserDtos() throws Exception {
-        User u1 = new User("user-1-id", "alice", "pass1", "ADMIN");
-        User u2 = new User("user-2-id", "bob", "pass2", "USER");
+        UserDto u1 = new UserDto("user-1-id", "alice", "ADMIN");
+        UserDto u2 = new UserDto("user-2-id", "bob", "USER");
 
-        when(userRepository.findAll()).thenReturn(List.of(u1, u2));
+        when(userService.getAllUsers()).thenReturn(List.of(u1, u2));
 
         mockMvc.perform(get("/api/users"))
                 .andExpect(status().isOk())

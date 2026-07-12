@@ -8,6 +8,8 @@ import com.classification.domain_system.repository.DomainRepository;
 import com.classification.domain_system.dto.FieldDefinitionRequest;
 import com.classification.domain_system.entity.Domain;
 import com.classification.domain_system.repository.FieldGroupRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +37,6 @@ public class FieldDefinitionService {
             try {
                 jdbcTemplate.execute(sql);
             } catch (Exception e) {
-                // Ignore index already exists or syntax issues depending on DB dialect
                 System.err.println("Failed to create index: " + e.getMessage());
             }
         } else {
@@ -48,13 +49,7 @@ public class FieldDefinitionService {
         }
     }
     
-    @Transactional
-    public FieldDefinition addField(UUID nodeId, FieldDefinitionRequest request) {
-        ClassificationNode node = nodeRepository.findById(nodeId)
-                .orElseThrow(() -> new RuntimeException("Node not found"));
-                
-        FieldDefinition field = new FieldDefinition();
-        field.setDefinedAtNode(node);
+    private void populateFieldProperties(FieldDefinition field, FieldDefinitionRequest request, boolean isUpdate) {
         field.setName(request.getName());
         
         if (request.getFieldGroupId() != null) {
@@ -63,25 +58,111 @@ public class FieldDefinitionService {
         } else {
             field.setFieldGroup(null);
         }
+        
         field.setKey(request.getKey());
         field.setType(request.getType());
+        
+        if (isUpdate) {
+            field.setUnit(request.getUnit() != null ? request.getUnit() : field.getUnit());
+            field.setGridWidth(request.getGridWidth() != null ? request.getGridWidth() : field.getGridWidth());
+        } else {
+            field.setGridWidth(request.getGridWidth());
+            field.setIsRemoved(false);
+        }
+        
         field.setOptions(normalizeJsonStr(request.getOptions()));
-        field.setRequired(request.getRequired() != null ? request.getRequired() : false);
         field.setDefaultValue(normalizeJsonStr(request.getDefaultValue()));
-        field.setOrder(request.getOrder() != null ? request.getOrder() : 0);
-        field.setGridWidth(request.getGridWidth());
-        field.setIsRemoved(false);
-        field.setIsMultiValue(request.getIsMultiValue() != null ? request.getIsMultiValue() : false);
-        field.setIsTable(request.getIsTable() != null ? request.getIsTable() : false);
-        field.setIsEncrypted(request.getIsEncrypted() != null ? request.getIsEncrypted() : false);
+        
+        field.setRequired(request.getRequired() != null ? request.getRequired() : (isUpdate ? field.getRequired() : false));
+        field.setOrder(request.getOrder() != null ? request.getOrder() : (isUpdate ? field.getOrder() : 0));
+        field.setIsMultiValue(request.getIsMultiValue() != null ? request.getIsMultiValue() : (isUpdate ? field.getIsMultiValue() : false));
+        field.setIsTable(request.getIsTable() != null ? request.getIsTable() : (isUpdate ? field.getIsTable() : false));
+        field.setIsEncrypted(request.getIsEncrypted() != null ? request.getIsEncrypted() : (isUpdate ? field.getIsEncrypted() : false));
+        field.setIsReadOnly(request.getIsReadOnly() != null ? request.getIsReadOnly() : (isUpdate ? field.getIsReadOnly() : false));
+        field.setIsImmutable(request.getIsImmutable() != null ? request.getIsImmutable() : (isUpdate ? field.getIsImmutable() : false));
+        field.setIsHidden(request.getIsHidden() != null ? request.getIsHidden() : (isUpdate ? field.getIsHidden() : false));
+    }
+    
+    @Transactional
+    public FieldDefinition addField(UUID nodeId, FieldDefinitionRequest request) {
+        ClassificationNode node = nodeRepository.findById(nodeId)
+                .orElseThrow(() -> new RuntimeException("Node not found"));
+                
+        FieldDefinition field = new FieldDefinition();
+        field.setDefinedAtNode(node);
+        populateFieldProperties(field, request, false);
         field.setIsSearchable(request.getIsSearchable() != null ? request.getIsSearchable() : false);
-        field.setIsReadOnly(request.getIsReadOnly() != null ? request.getIsReadOnly() : false);
-        field.setIsImmutable(request.getIsImmutable() != null ? request.getIsImmutable() : false);
-        field.setIsHidden(request.getIsHidden() != null ? request.getIsHidden() : false);
         
         FieldDefinition savedField = fieldRepository.save(field);
         if (Boolean.TRUE.equals(request.getIsSearchable())) {
             manageIndex(savedField.getKey(), true);
+        }
+        return savedField;
+    }
+    
+    @Transactional
+    public FieldDefinition addDomainField(UUID domainId, FieldDefinitionRequest request) {
+        Domain domain = domainRepository.findById(domainId)
+                .orElseThrow(() -> new RuntimeException("Domain not found"));
+                
+        FieldDefinition field = new FieldDefinition();
+        field.setDomain(domain);
+        populateFieldProperties(field, request, false);
+        field.setIsSearchable(request.getIsSearchable() != null ? request.getIsSearchable() : false);
+        
+        FieldDefinition savedField = fieldRepository.save(field);
+        if (Boolean.TRUE.equals(request.getIsSearchable())) {
+            manageIndex(savedField.getKey(), true);
+        }
+        return savedField;
+    }
+    
+    @Transactional
+    public FieldDefinition updateField(UUID nodeId, UUID fieldId, FieldDefinitionRequest request) {
+        FieldDefinition field = fieldRepository.findById(fieldId)
+                .orElseThrow(() -> new RuntimeException("Field not found"));
+                
+        if (field.getDefinedAtNode() == null || !field.getDefinedAtNode().getId().equals(nodeId)) {
+            throw new RuntimeException("Field does not belong to the specified node");
+        }
+        
+        populateFieldProperties(field, request, true);
+        
+        Boolean wasSearchable = field.getIsSearchable();
+        Boolean willBeSearchable = request.getIsSearchable() != null ? request.getIsSearchable() : field.getIsSearchable();
+        field.setIsSearchable(willBeSearchable);
+        
+        FieldDefinition savedField = fieldRepository.save(field);
+        
+        if (Boolean.TRUE.equals(willBeSearchable) && !Boolean.TRUE.equals(wasSearchable)) {
+            manageIndex(savedField.getKey(), true);
+        } else if (!Boolean.TRUE.equals(willBeSearchable) && Boolean.TRUE.equals(wasSearchable)) {
+            manageIndex(savedField.getKey(), false);
+        }
+        return savedField;
+    }
+    
+    @Transactional
+    public FieldDefinition updateDomainField(UUID domainId, UUID fieldId, FieldDefinitionRequest request) {
+        FieldDefinition field = fieldRepository.findById(fieldId)
+                .orElseThrow(() -> new RuntimeException("Field not found"));
+                
+        if (field.getDomain() == null || !field.getDomain().getId().equals(domainId)) {
+            throw new RuntimeException("Field does not belong to the specified domain");
+        }
+        
+        populateFieldProperties(field, request, true);
+        
+        Boolean wasSearchable = field.getIsSearchable();
+        Boolean willBeSearchable = request.getIsSearchable() != null ? request.getIsSearchable() : field.getIsSearchable();
+        field.setIsSearchable(willBeSearchable);
+        
+        FieldDefinition savedField = fieldRepository.save(field);
+        
+        if (Boolean.TRUE.equals(willBeSearchable) && !Boolean.TRUE.equals(wasSearchable)) {
+            manageIndex(savedField.getKey(), true);
+        } else if (!Boolean.TRUE.equals(willBeSearchable) && Boolean.TRUE.equals(wasSearchable)) {
+            manageIndex(savedField.getKey(), false);
         }
         return savedField;
     }
@@ -99,6 +180,13 @@ public class FieldDefinitionService {
         effectiveFields.addAll(nodeFields);
         return effectiveFields;
     }
+
+    @Transactional(readOnly = true)
+    public Page<FieldDefinition> getEffectiveFieldsPage(UUID nodeId, Pageable pageable) {
+        ClassificationNode node = nodeRepository.findById(nodeId)
+                .orElseThrow(() -> new RuntimeException("Node not found"));
+        return fieldRepository.findEffectiveFieldsWithPagination(nodeId, node.getDomain().getId(), pageable);
+    }
     
     @Transactional(readOnly = true)
     public List<FieldDefinition> getDomainFields(UUID domainId) {
@@ -110,11 +198,9 @@ public class FieldDefinitionService {
             return null;
         }
         val = val.trim();
-        // If it looks like JSON (starts with { or [), keep it
         if (val.startsWith("{") || val.startsWith("[")) {
             return val;
         }
-        // Otherwise, assume it's a comma separated list and convert to JSON array
         String[] parts = val.split("\\s*,\\s*");
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < parts.length; i++) {
@@ -123,138 +209,5 @@ public class FieldDefinitionService {
         }
         sb.append("]");
         return sb.toString();
-    }
-    
-    @Transactional
-    public FieldDefinition addDomainField(UUID domainId, FieldDefinitionRequest request) {
-        Domain domain = domainRepository.findById(domainId)
-                .orElseThrow(() -> new RuntimeException("Domain not found"));
-                
-        FieldDefinition field = new FieldDefinition();
-        field.setDomain(domain);
-        field.setName(request.getName());
-        
-        if (request.getFieldGroupId() != null) {
-            field.setFieldGroup(fieldGroupRepository.findById(request.getFieldGroupId())
-                .orElseThrow(() -> new RuntimeException("FieldGroup not found")));
-        } else {
-            field.setFieldGroup(null);
-        }
-        field.setKey(request.getKey());
-        field.setType(request.getType());
-        field.setOptions(normalizeJsonStr(request.getOptions()));
-        field.setRequired(request.getRequired() != null ? request.getRequired() : false);
-        field.setDefaultValue(normalizeJsonStr(request.getDefaultValue()));
-        field.setOrder(request.getOrder() != null ? request.getOrder() : 0);
-        field.setGridWidth(request.getGridWidth());
-        field.setIsRemoved(false);
-        field.setIsMultiValue(request.getIsMultiValue() != null ? request.getIsMultiValue() : false);
-        field.setIsTable(request.getIsTable() != null ? request.getIsTable() : false);
-        field.setIsEncrypted(request.getIsEncrypted() != null ? request.getIsEncrypted() : false);
-        field.setIsSearchable(request.getIsSearchable() != null ? request.getIsSearchable() : false);
-        field.setIsReadOnly(request.getIsReadOnly() != null ? request.getIsReadOnly() : false);
-        field.setIsImmutable(request.getIsImmutable() != null ? request.getIsImmutable() : false);
-        field.setIsHidden(request.getIsHidden() != null ? request.getIsHidden() : false);
-        
-        FieldDefinition savedField = fieldRepository.save(field);
-        if (Boolean.TRUE.equals(request.getIsSearchable())) {
-            manageIndex(savedField.getKey(), true);
-        }
-        return savedField;
-    }
-    
-    @Transactional
-    public FieldDefinition updateDomainField(UUID domainId, UUID fieldId, FieldDefinitionRequest request) {
-        FieldDefinition field = fieldRepository.findById(fieldId)
-                .orElseThrow(() -> new RuntimeException("Field not found"));
-                
-        if (field.getDomain() == null || !field.getDomain().getId().equals(domainId)) {
-            throw new RuntimeException("Field does not belong to the specified domain");
-        }
-        
-        field.setName(request.getName());
-        
-        if (request.getFieldGroupId() != null) {
-            field.setFieldGroup(fieldGroupRepository.findById(request.getFieldGroupId())
-                .orElseThrow(() -> new RuntimeException("FieldGroup not found")));
-        } else {
-            field.setFieldGroup(null);
-        }
-        field.setKey(request.getKey());
-        field.setType(request.getType());
-        field.setUnit(request.getUnit());
-        field.setOptions(normalizeJsonStr(request.getOptions()));
-        field.setRequired(request.getRequired() != null ? request.getRequired() : field.getRequired());
-        field.setDefaultValue(normalizeJsonStr(request.getDefaultValue()));
-        field.setOrder(request.getOrder() != null ? request.getOrder() : field.getOrder());
-        field.setGridWidth(request.getGridWidth() != null ? request.getGridWidth() : field.getGridWidth());
-        field.setIsMultiValue(request.getIsMultiValue() != null ? request.getIsMultiValue() : field.getIsMultiValue());
-        field.setIsTable(request.getIsTable() != null ? request.getIsTable() : field.getIsTable());
-        Boolean wasSearchable = field.getIsSearchable();
-        Boolean willBeSearchable = request.getIsSearchable() != null ? request.getIsSearchable() : field.getIsSearchable();
-        
-        field.setIsEncrypted(request.getIsEncrypted() != null ? request.getIsEncrypted() : field.getIsEncrypted());
-        field.setIsSearchable(willBeSearchable);
-        field.setIsReadOnly(request.getIsReadOnly() != null ? request.getIsReadOnly() : field.getIsReadOnly());
-        field.setIsImmutable(request.getIsImmutable() != null ? request.getIsImmutable() : field.getIsImmutable());
-        field.setIsHidden(request.getIsHidden() != null ? request.getIsHidden() : field.getIsHidden());
-        
-        FieldDefinition savedField = fieldRepository.save(field);
-        
-        if (Boolean.TRUE.equals(willBeSearchable) && !Boolean.TRUE.equals(wasSearchable)) {
-            manageIndex(savedField.getKey(), true);
-        } else if (!Boolean.TRUE.equals(willBeSearchable) && Boolean.TRUE.equals(wasSearchable)) {
-            manageIndex(savedField.getKey(), false);
-        }
-        
-        return savedField;
-    }
-    
-    @Transactional
-    public FieldDefinition updateField(UUID nodeId, UUID fieldId, FieldDefinitionRequest request) {
-        FieldDefinition field = fieldRepository.findById(fieldId)
-                .orElseThrow(() -> new RuntimeException("Field not found"));
-                
-        if (field.getDefinedAtNode() == null || !field.getDefinedAtNode().getId().equals(nodeId)) {
-            throw new RuntimeException("Field does not belong to the specified node");
-        }
-        
-        field.setName(request.getName());
-        
-        if (request.getFieldGroupId() != null) {
-            field.setFieldGroup(fieldGroupRepository.findById(request.getFieldGroupId())
-                .orElseThrow(() -> new RuntimeException("FieldGroup not found")));
-        } else {
-            field.setFieldGroup(null);
-        }
-        field.setKey(request.getKey());
-        field.setType(request.getType());
-        field.setUnit(request.getUnit() != null ? request.getUnit() : field.getUnit());
-        field.setOptions(normalizeJsonStr(request.getOptions()));
-        field.setRequired(request.getRequired() != null ? request.getRequired() : field.getRequired());
-        field.setDefaultValue(normalizeJsonStr(request.getDefaultValue()));
-        field.setOrder(request.getOrder() != null ? request.getOrder() : field.getOrder());
-        field.setGridWidth(request.getGridWidth() != null ? request.getGridWidth() : field.getGridWidth());
-        field.setIsMultiValue(request.getIsMultiValue() != null ? request.getIsMultiValue() : field.getIsMultiValue());
-        field.setIsTable(request.getIsTable() != null ? request.getIsTable() : field.getIsTable());
-        
-        Boolean wasSearchable = field.getIsSearchable();
-        Boolean willBeSearchable = request.getIsSearchable() != null ? request.getIsSearchable() : field.getIsSearchable();
-        
-        field.setIsEncrypted(request.getIsEncrypted() != null ? request.getIsEncrypted() : field.getIsEncrypted());
-        field.setIsSearchable(willBeSearchable);
-        field.setIsReadOnly(request.getIsReadOnly() != null ? request.getIsReadOnly() : field.getIsReadOnly());
-        field.setIsImmutable(request.getIsImmutable() != null ? request.getIsImmutable() : field.getIsImmutable());
-        field.setIsHidden(request.getIsHidden() != null ? request.getIsHidden() : field.getIsHidden());
-        
-        FieldDefinition savedField = fieldRepository.save(field);
-        
-        if (Boolean.TRUE.equals(willBeSearchable) && !Boolean.TRUE.equals(wasSearchable)) {
-            manageIndex(savedField.getKey(), true);
-        } else if (!Boolean.TRUE.equals(willBeSearchable) && Boolean.TRUE.equals(wasSearchable)) {
-            manageIndex(savedField.getKey(), false);
-        }
-        
-        return savedField;
     }
 }

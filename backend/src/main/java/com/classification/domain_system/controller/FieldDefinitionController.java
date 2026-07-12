@@ -35,11 +35,7 @@ public class FieldDefinitionController {
             @PathVariable UUID nodeId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
-        List<FieldDefinition> allFields = fieldService.getEffectiveFields(nodeId);
-        int start = Math.min(page * size, allFields.size());
-        int end = Math.min((page + 1) * size, allFields.size());
-        List<FieldDefinition> content = allFields.subList(start, end);
-        Page<FieldDefinition> p = new PageImpl<>(content, PageRequest.of(page, size), allFields.size());
+        Page<FieldDefinition> p = fieldService.getEffectiveFieldsPage(nodeId, PageRequest.of(page, size));
         return ResponseEntity.ok(PageResponse.of(p));
     }
     

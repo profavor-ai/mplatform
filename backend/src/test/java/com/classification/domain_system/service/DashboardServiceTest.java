@@ -47,10 +47,7 @@ class DashboardServiceTest {
         when(approvalRepository.findByStatusOrderByCreatedAtDesc(eq("PENDING"), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(req1, req1, req1)));
 
-        Record active1 = new Record(); active1.setStatus("ACTIVE");
-        Record active2 = new Record(); active2.setStatus("ACTIVE");
-        Record inactive = new Record(); inactive.setStatus("INACTIVE");
-        when(recordRepository.findAll()).thenReturn(List.of(active1, active2, inactive));
+        when(recordRepository.countByStatus("ACTIVE")).thenReturn(2L);
 
         // when
         Map<String, Long> stats = dashboardService.getStats();

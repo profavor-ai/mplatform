@@ -284,6 +284,14 @@ class FieldDefinitionServiceTest {
             f.setKey("ticker");
             f.setIsSearchable(currentSearchable);
             f.setDefinedAtNode(node);
+            f.setOrder(1);
+            f.setRequired(false);
+            f.setIsMultiValue(false);
+            f.setIsTable(false);
+            f.setIsEncrypted(false);
+            f.setIsReadOnly(false);
+            f.setIsImmutable(false);
+            f.setIsHidden(false);
             return f;
         }
 

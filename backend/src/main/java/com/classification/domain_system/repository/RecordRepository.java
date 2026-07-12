@@ -19,4 +19,6 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, CustomRec
 
     @org.springframework.data.jpa.repository.Query(value = "SELECT r FROM Record r JOIN FETCH r.node WHERE r.node.domain.id = :domainId AND r.status NOT IN ('REJECTED', 'MISMATCHED')", countQuery = "SELECT count(r) FROM Record r WHERE r.node.domain.id = :domainId AND r.status NOT IN ('REJECTED', 'MISMATCHED')")
     Page<Record> findByDomainId(@org.springframework.data.repository.query.Param("domainId") UUID domainId, Pageable pageable);
+    
+    long countByStatus(String status);
 }
