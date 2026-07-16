@@ -22,11 +22,8 @@ export function useAgGridTheme() {
       : themeQuartz
   })
 
-  /** 그리드 크기 변경 시 컬럼을 자동으로 그리드 너비에 맞춤 */
-  const autoSizeStrategy = {
-    type: 'fitGridWidth' as const,
-    defaultMinWidth: 80,
-  }
+  /** 자동 리사이즈 끄기: 명시적 컬럼 너비(width)와 flex 설정을 존중하고 가로 스크롤을 활성화하기 위해 */
+  const autoSizeStrategy = null
 
   return { gridTheme, autoSizeStrategy }
 }
