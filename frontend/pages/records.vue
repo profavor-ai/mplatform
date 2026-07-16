@@ -198,8 +198,8 @@
               color="background-element"
               style="margin-bottom: 0.5rem;"
             >
-              <div style="padding: 0.5rem 1rem; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem; display: grid; grid-template-columns: repeat(12, 1fr); column-gap: 1rem; row-gap: 1.25rem;">
-                <div v-for="field in group.fields" :key="field.id" :style="{ gridColumn: 'span ' + (field.gridWidth || 12), boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '0.25rem' }">
+              <div style="padding: 0.5rem; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem; display: flex; flex-wrap: wrap; margin-left: -0.5rem; margin-right: -0.5rem; row-gap: 1.25rem;">
+                <div v-for="field in group.fields" :key="field.id" :style="{ flex: '0 0 ' + ((field.gridWidth || 12) / 12 * 100) + '%', maxWidth: ((field.gridWidth || 12) / 12 * 100) + '%', paddingLeft: '0.5rem', paddingRight: '0.5rem', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '0.25rem' }">
                     <!-- Unified External Label -->
                     <span style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600; text-transform: uppercase;">
                       {{ getTranslatedName(field.name) }}{{ field.required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}
