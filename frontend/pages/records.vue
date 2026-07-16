@@ -198,12 +198,14 @@
               color="background-element"
               style="margin-bottom: 0.5rem;"
             >
-              <div class="row" style="padding: 0.5rem; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem; row-gap: 1.25rem;">
-                <div v-for="field in group.fields" :key="field.id" :class="['flex', 'xs' + (field.gridWidth || 12)]" style="display: flex; flex-direction: column; gap: 0.25rem;">
-                    <!-- Unified External Label -->
-                    <span style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600; text-transform: uppercase;">
-                      {{ getTranslatedName(field.name) }}{{ field.required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}
-                    </span>
+              <div style="padding: 0.5rem 1rem; overflow-x: hidden; box-sizing: border-box;">
+                <div class="row" style="row-gap: 1.25rem;">
+                  <div v-for="field in group.fields" :key="field.id" :class="['flex', 'xs' + (field.gridWidth || 12)]">
+                    <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem;">
+                      <!-- Unified External Label -->
+                      <span style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600; text-transform: uppercase;">
+                        {{ getTranslatedName(field.name) }}{{ field.required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}
+                      </span>
 
                     <!-- Text / Number -->
                     <va-input 
@@ -289,6 +291,7 @@
                         </div>
                       </transition-group>
                     </div>
+                    </div>
                   </div>
                 </div>
               </va-collapse>
@@ -347,9 +350,11 @@
               color="background-element"
               style="margin-bottom: 0.5rem;"
             >
-              <div class="row" style="padding: 0.5rem; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem; row-gap: 1.25rem;">
-                  <div v-for="field in group.fields" :key="field.id" :class="['flex', 'xs' + (field.gridWidth || 12)]" style="display: flex; flex-direction: column; gap: 0.25rem;">
-                    <span style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600; text-transform: uppercase;">{{ getTranslatedName(field.name) }}{{ field.required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}</span>
+              <div style="padding: 0.5rem 1rem; overflow-x: hidden; box-sizing: border-box;">
+                <div class="row" style="row-gap: 1.25rem;">
+                  <div v-for="field in group.fields" :key="field.id" :class="['flex', 'xs' + (field.gridWidth || 12)]">
+                    <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem;">
+                      <span style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600; text-transform: uppercase;">{{ getTranslatedName(field.name) }}{{ field.required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}</span>
                       <va-input 
                         v-if="['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type)" 
                         v-model="selectedRecordData[field.key]" 
@@ -447,6 +452,7 @@
                         type="text"
                         :readonly="!isEditingRecord"
                       />
+                    </div>
                   </div>
                 </div>
               </va-collapse>
