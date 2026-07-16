@@ -1219,11 +1219,19 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
       sortable: true, 
       width: 150,
       cellRenderer: (params) => {
-        if (params.value === undefined || params.value === null || params.value === '') {
+        if (!params || params.value === undefined || params.value === null || params.value === '') {
           return '';
         }
         const color = params.value === 'ACTIVE' ? '#2c82e0' : (params.value === 'PENDING_APPROVAL' ? '#e6a23c' : '#f56c6c')
-        return `<span style="padding: 2px 8px; border-radius: 4px; background: ${color}; color: white; font-size: 12px; font-weight: bold;">${params.value}</span>`
+        const span = document.createElement('span');
+        span.style.padding = '2px 8px';
+        span.style.borderRadius = '4px';
+        span.style.background = color;
+        span.style.color = 'white';
+        span.style.fontSize = '12px';
+        span.style.fontWeight = 'bold';
+        span.innerText = params.value;
+        return span;
       }
     }
   ]
@@ -1249,20 +1257,39 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
     else colDef.flex = 1
     if (f.type === 'FILE') {
       colDef.cellRenderer = (params) => {
-        if (!params.value) return ''
+        if (!params || !params.value) return ''
         const getFilename = (url) => {
           try {
             if (url.includes('?name=')) return decodeURIComponent(url.split('?name=')[1].split('&')[0]);
             return decodeURIComponent(url.split('/').pop().split('?')[0]) || 'Download';
           } catch(e) { return 'Download'; }
         };
+
+        const createLink = (url) => {
+          const a = document.createElement('a');
+          a.href = url;
+          a.target = '_blank';
+          a.style.color = 'blue';
+          a.style.textDecoration = 'underline';
+          a.innerText = getFilename(url);
+          return a;
+        };
+
+        const container = document.createElement('div');
         try {
           const arr = JSON.parse(params.value)
           if (Array.isArray(arr)) {
-            return arr.map(url => `<a href="${url}" target="_blank" style="color: blue; text-decoration: underline;">${getFilename(url)}</a>`).join('<br>')
+            arr.forEach((url, index) => {
+              if (index > 0) {
+                container.appendChild(document.createElement('br'));
+              }
+              container.appendChild(createLink(url));
+            });
+            return container;
           }
         } catch(e) {}
-        return `<a href="${params.value}" target="_blank" style="color: blue; text-decoration: underline;">${getFilename(params.value)}</a>`
+
+        return createLink(params.value);
       }
     } else if (f.type === 'MULTILINGUAL') {
       colDef.cellRenderer = (params) => {

@@ -625,9 +625,21 @@ const columnDefs = computed(() => [
     sortable: true,
     width: 120,
     cellRenderer: (params) => {
-      return params.value 
-        ? '<span style="padding: 2px 6px; border-radius: 4px; background: #e42222; color: white; font-size: 12px; font-weight: bold;">Yes</span>' 
-        : '<span style="padding: 2px 6px; border-radius: 4px; background: #2c82e0; color: white; font-size: 12px; font-weight: bold;">No</span>';
+      if (!params || params.value === undefined) return '';
+      const span = document.createElement('span');
+      span.style.padding = '2px 6px';
+      span.style.borderRadius = '4px';
+      span.style.color = 'white';
+      span.style.fontSize = '12px';
+      span.style.fontWeight = 'bold';
+      if (params.value) {
+        span.style.background = '#e42222';
+        span.innerText = 'Yes';
+      } else {
+        span.style.background = '#2c82e0';
+        span.innerText = 'No';
+      }
+      return span;
     }
   },
   { 
@@ -635,12 +647,22 @@ const columnDefs = computed(() => [
     field: 'id',
     width: 100,
     cellRenderer: (params) => {
+      if (!params || !params.data) return '';
+      const span = document.createElement('span');
       if (params.data.domainId && !selectedNode.value.isDomain) {
-        return '<span style="color: #666; font-style: italic;">Inherited</span>';
+        span.style.color = '#666';
+        span.style.fontStyle = 'italic';
+        span.innerText = 'Inherited';
+      } else {
+        span.style.cursor = 'pointer';
+        span.style.color = '#2c82e0';
+        span.style.textDecoration = 'underline';
+        span.innerText = 'Edit';
       }
-      return '<span style="cursor: pointer; color: #2c82e0; text-decoration: underline;">Edit</span>';
+      return span;
     },
     onCellClicked: (params) => {
+      if (!params || !params.data) return;
       if (params.data.domainId && !selectedNode.value.isDomain) return;
       openFieldModal(params.data);
     }

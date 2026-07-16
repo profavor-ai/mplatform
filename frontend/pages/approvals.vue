@@ -734,9 +734,17 @@ const getMyRequestsColumnDefs = () => [
   { colId: 'm_createdAt', field: 'createdAt', headerName: t('created'), width: 180, minWidth: 150, valueFormatter: params => params.value ? formatDate(params.value) : '' },
   { colId: 'm_status', field: 'status', headerName: t('status'), width: 110, minWidth: 90, 
     cellRenderer: params => {
-      if (!params.value) return '';
+      if (!params || !params.value) return '';
       const color = params.value === 'PENDING' ? '#fbbf24' : (params.value === 'APPROVED' ? '#22c55e' : '#ef4444');
-      return `<span style="color: white; background-color: ${color}; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;">${params.value}</span>`;
+      const span = document.createElement('span');
+      span.style.color = 'white';
+      span.style.backgroundColor = color;
+      span.style.padding = '2px 8px';
+      span.style.borderRadius = '4px';
+      span.style.fontSize = '0.8rem';
+      span.style.fontWeight = 'bold';
+      span.innerText = params.value;
+      return span;
     }
   },
   {
