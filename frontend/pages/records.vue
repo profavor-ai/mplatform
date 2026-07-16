@@ -199,9 +199,9 @@
               style="margin-bottom: 0.5rem;"
             >
               <div style="padding: 0.5rem 1rem; overflow-x: hidden; box-sizing: border-box;">
-                <div class="row" style="row-gap: 1.25rem;">
-                  <div v-for="field in group.fields" :key="field.id" :class="['flex', 'xs' + (field.gridWidth || 12)]">
-                    <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem;">
+                <div class="row" style="row-gap: 1.25rem; margin: 0 -0.5rem;">
+                  <div v-for="field in group.fields" :key="field.id" :class="['flex', 'xs' + (field.gridWidth || 12)]" style="padding: 0 0.5rem; min-width: 0;">
+                    <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; min-width: 0; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem;">
                       <!-- Unified External Label -->
                       <span style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600; text-transform: uppercase;">
                         {{ getTranslatedName(field.name) }}{{ field.required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}
@@ -216,11 +216,11 @@
                     />
                     
                     <!-- Multilingual -->
-                    <div v-else-if="field.type === 'MULTILINGUAL'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row;">
-                      <va-input v-model="recordFormData[field.key].ko" style="flex: 1;" class="slim-multilingual-input">
+                    <div v-else-if="field.type === 'MULTILINGUAL'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
+                      <va-input v-model="recordFormData[field.key].ko" style="flex: 1; min-width: 0;" class="slim-multilingual-input">
                         <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">한국어</span></template>
                       </va-input>
-                      <va-input v-model="recordFormData[field.key].en" style="flex: 1;" class="slim-multilingual-input">
+                      <va-input v-model="recordFormData[field.key].en" style="flex: 1; min-width: 0;" class="slim-multilingual-input">
                         <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">English</span></template>
                       </va-input>
                     </div>
@@ -352,9 +352,9 @@
               style="margin-bottom: 0.5rem;"
             >
               <div style="padding: 0.5rem 1rem; overflow-x: hidden; box-sizing: border-box;">
-                <div class="row" style="row-gap: 1.25rem;">
-                  <div v-for="field in group.fields" :key="field.id" :class="['flex', 'xs' + (field.gridWidth || 12)]">
-                    <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem;">
+                <div class="row" style="row-gap: 1.25rem; margin: 0 -0.5rem;">
+                  <div v-for="field in group.fields" :key="field.id" :class="['flex', 'xs' + (field.gridWidth || 12)]" style="padding: 0 0.5rem; min-width: 0;">
+                    <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; min-width: 0; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem;">
                       <span style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600; text-transform: uppercase;">{{ getTranslatedName(field.name) }}{{ field.required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}</span>
                       <va-input 
                         v-if="['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type)" 
@@ -372,11 +372,11 @@
                         <va-button v-if="isEditingRecord" icon="search" @click="openDomainRefModal(field.key, false)" />
                       </div>
                       <!-- Multilingual Edit -->
-                      <div v-else-if="field.type === 'MULTILINGUAL'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row;">
-                        <va-input v-model="selectedRecordData[field.key].ko" style="flex: 1;" :readonly="!isEditingRecord" class="slim-multilingual-input">
+                      <div v-else-if="field.type === 'MULTILINGUAL'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
+                        <va-input v-model="selectedRecordData[field.key].ko" style="flex: 1; min-width: 0;" :readonly="!isEditingRecord" class="slim-multilingual-input">
                           <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">한국어</span></template>
                         </va-input>
-                        <va-input v-model="selectedRecordData[field.key].en" style="flex: 1;" :readonly="!isEditingRecord" class="slim-multilingual-input">
+                        <va-input v-model="selectedRecordData[field.key].en" style="flex: 1; min-width: 0;" :readonly="!isEditingRecord" class="slim-multilingual-input">
                           <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">English</span></template>
                         </va-input>
                       </div>
