@@ -829,8 +829,15 @@ const openDomainRefModal = (fieldKey, isCreate = false) => {
       headerName: getTranslatedName(field.name),
       field: `data.${field.key}`,
     }
-    if (field.gridWidth) def.width = field.gridWidth
-    else def.flex = 1
+    if (field.gridWidth) {
+      if (field.gridWidth <= 15) {
+        def.flex = field.gridWidth
+      } else {
+        def.width = field.gridWidth
+      }
+    } else {
+      def.flex = 1
+    }
     
     def.valueFormatter = (params) => {
       if (!params.value) return ''
@@ -1253,8 +1260,15 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
       },
       sortable: true
     }
-    if (f.gridWidth) colDef.width = f.gridWidth
-    else colDef.flex = 1
+    if (f.gridWidth) {
+      if (f.gridWidth <= 15) {
+        colDef.flex = f.gridWidth
+      } else {
+        colDef.width = f.gridWidth
+      }
+    } else {
+      colDef.flex = 1
+    }
     if (f.type === 'FILE') {
       colDef.cellRenderer = (params) => {
         if (!params || !params.value) return ''
