@@ -1497,11 +1497,6 @@ const columnDefs = ref([])
           
           params.successCallback(rows, pageData.totalElements);
           
-          setTimeout(() => {
-            if (gridApi.value) {
-              gridApi.value.sizeColumnsToFit();
-            }
-          }, 100);
         } catch (e) {
           console.error('Failed to load records:', e);
           params.failCallback();
