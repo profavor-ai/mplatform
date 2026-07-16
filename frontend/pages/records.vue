@@ -829,12 +829,8 @@ const openDomainRefModal = (fieldKey, isCreate = false) => {
       headerName: getTranslatedName(field.name),
       field: `data.${field.key}`,
     }
-    if (field.gridWidth) {
-      if (field.gridWidth <= 15) {
-        def.flex = field.gridWidth
-      } else {
-        def.width = field.gridWidth
-      }
+    if (field.tableColumnWidth) {
+      def.width = field.tableColumnWidth
     } else {
       def.flex = 1
     }
@@ -1260,12 +1256,8 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
       },
       sortable: true
     }
-    if (f.gridWidth) {
-      if (f.gridWidth <= 15) {
-        colDef.flex = f.gridWidth
-      } else {
-        colDef.width = f.gridWidth
-      }
+    if (f.tableColumnWidth) {
+      colDef.width = f.tableColumnWidth
     } else {
       colDef.flex = 1
     }

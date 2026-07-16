@@ -271,7 +271,8 @@
       </div>
 
       <div style="display: flex; gap: 1rem; margin-top: 1rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
-        <va-input v-model="newField.gridWidth" type="number" label="Grid Width (px)" class="w-full" style="max-width: 150px;" placeholder="Auto" clearable />
+        <va-input v-model="newField.gridWidth" type="number" label="Form Grid Width (1-12)" class="w-full" style="max-width: 170px;" placeholder="Auto" clearable />
+        <va-input v-model="newField.tableColumnWidth" type="number" label="AG-Grid Width (px)" class="w-full" style="max-width: 170px;" placeholder="Auto" clearable />
       </div>
       <div style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
         <va-checkbox v-model="newField.required" :label="t('required')" />
@@ -618,6 +619,7 @@ const columnDefs = computed(() => [
   { headerName: 'Key', field: 'key', sortable: true, flex: 1 },
   { headerName: 'Order', field: 'order', sortable: true, width: 90 },
   { headerName: 'Grid Width', field: 'gridWidth', sortable: true, width: 120 },
+  { headerName: 'AG-Grid Width', field: 'tableColumnWidth', sortable: true, width: 130 },
   { headerName: 'Type', field: 'type', sortable: true, width: 150 },
   { 
     headerName: 'Required', 
@@ -996,7 +998,8 @@ const openFieldModal = (rowData = null) => {
       formula: rowData.formula || '', 
       unit: rowData.unit || '',
       fieldGroupId: rowData.fieldGroup?.id || null,
-      gridWidth: rowData.gridWidth || null
+      gridWidth: rowData.gridWidth || null,
+      tableColumnWidth: rowData.tableColumnWidth || null
     }
     if (['SELECT', 'MULTI_SELECT'].includes(rowData.type)) {
       try {
@@ -1026,7 +1029,7 @@ const openFieldModal = (rowData = null) => {
   } else {
     isEditMode.value = false
     editingId.value = null
-    newField.value = { name: {ko:'', en:''}, key: '', type: 'STRING', required: false, order: 0, fieldGroupId: null, targetDomainId: null, isMultiValue: false, isSearchable: true, isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, formula: '', unit: '', gridWidth: null }
+    newField.value = { name: {ko:'', en:''}, key: '', type: 'STRING', required: false, order: 0, fieldGroupId: null, targetDomainId: null, isMultiValue: false, isSearchable: true, isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, formula: '', unit: '', gridWidth: null, tableColumnWidth: null }
     newFieldOptionsList.value = []
   }
   showFieldModal.value = true
@@ -1136,6 +1139,7 @@ const saveField = async () => {
       defaultValue: newField.value.defaultValue,
       order: newField.value.order,
       gridWidth: newField.value.gridWidth ? Number(newField.value.gridWidth) : null,
+      tableColumnWidth: newField.value.tableColumnWidth ? Number(newField.value.tableColumnWidth) : null,
       isMultiValue: newField.value.isMultiValue,
       isTable: newField.value.isTable,
       isEncrypted: newField.value.isEncrypted,
