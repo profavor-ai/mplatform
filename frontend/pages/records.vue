@@ -360,9 +360,10 @@
                         v-if="['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type)" 
                         v-model="selectedRecordData[field.key]" 
                         type="number"
+                        class="w-full"
                         :readonly="!isEditingRecord"
                       />
-                      <div v-else-if="field.type === 'DOMAIN_REFERENCE'" style="display: flex; gap: 0.5rem; align-items: center;">
+                      <div v-else-if="field.type === 'DOMAIN_REFERENCE'" class="w-full" style="display: flex; gap: 0.5rem; align-items: center;">
                         <va-input 
                           :model-value="getDomainRefDisplayName(field.key, selectedRecordData[field.key])" 
                           readonly
@@ -383,6 +384,7 @@
                         v-else-if="field.type === 'CALCULATED'"
                         v-model="selectedRecordData[field.key]"
                         readonly
+                        class="w-full"
                         style="background-color: #f4f6f8;"
                       />
                       <va-select 
@@ -451,6 +453,7 @@
                         v-else
                         v-model="selectedRecordData[field.key]" 
                         type="text"
+                        class="w-full"
                         :readonly="!isEditingRecord"
                       />
                     </div>
