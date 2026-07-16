@@ -1361,9 +1361,16 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
         groupMap[gName] = {
           headerName: gName,
           _sortOrder: f.fieldGroup.sortOrder || 0,
+          openByDefault: f.fieldGroup.isDefaultOpen !== false,
           children: []
         }
       }
+      
+      // 그룹을 접었을 때 그룹 자체가 사라지지 않도록, 첫 번째 컬럼은 항상 보이게 하고 나머지는 열렸을 때만 보이게 설정
+      if (groupMap[gName].children.length > 0) {
+        colDef.columnGroupShow = 'open';
+      }
+      
       groupMap[gName].children.push(colDef)
     } else {
       defs.push(colDef)
