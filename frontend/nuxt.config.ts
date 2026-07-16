@@ -6,6 +6,7 @@ export default defineNuxtConfig({
   modules: ['@vuestic/nuxt', 'nuxt-auth-utils', '@nuxtjs/i18n'],
   css: ['~/assets/main.css'],
   vuestic: {
+    css: ['typography', 'grid', 'reset'],
     config: {
       i18n: {
         dropzone: '여기로 파일을 드래그 하거나 ',
