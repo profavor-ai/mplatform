@@ -4,6 +4,7 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   unhead: { legacy: true },
   modules: ['@vuestic/nuxt', 'nuxt-auth-utils', '@nuxtjs/i18n'],
+  css: ['~/assets/main.css'],
   vuestic: {
     config: {
       i18n: {
@@ -34,7 +35,8 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:8080'
+      apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:8080',
+      agGridLicense: process.env.AG_GRID_LICENSE
     }
   },
   routeRules: {

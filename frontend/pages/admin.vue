@@ -28,7 +28,7 @@
 
             <div style="font-size: 0.9rem; color: #555; margin-bottom: 1.5rem;">
               <strong>Requester:</strong> {{ flow.requesterId }} <br/>
-              <strong>Created At:</strong> {{ new Date(flow.createdAt).toLocaleString() }}
+              <strong>Created At:</strong> {{ formatDate(flow.createdAt) }}
             </div>
 
             <!-- Pipeline Visualizer -->
@@ -92,6 +92,32 @@ const loadWorkflows = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const parseDate = (dateString) => {
+  if (!dateString) return null
+  let str = String(dateString).trim()
+  if (/^\d+$/.test(str)) {
+    return new Date(parseInt(str, 10))
+  }
+  if (!str.endsWith('Z') && !str.includes('+') && !/[-+]\d{2}:\d{2}$/.test(str)) {
+    if (str.includes(' ') && !str.includes('T')) {
+      str = str.replace(' ', 'T')
+    }
+    const serverOffset = useCookie('server_offset', { default: () => '+09:00' }).value
+    str += serverOffset
+  }
+  const d = new Date(str)
+  return isNaN(d.getTime()) ? new Date(dateString) : d
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = parseDate(dateString)
+  if (!date) return ''
+  const tz = useCookie('timezone', { default: () => 'Asia/Seoul' }).value
+  const formatted = date.toLocaleString(undefined, { timeZone: tz })
+  return formatted.replace(/\s*(GMT|UTC|KST|PST|EST|CET)[-+0-9:]*/gi, '').trim()
 }
 
 onMounted(() => {

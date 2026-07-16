@@ -65,6 +65,9 @@ public class FieldDefinition {
     @Column(name = "grid_width")
     private Integer gridWidth;
 
+    @Column(name = "table_column_width")
+    private Integer tableColumnWidth;
+
     @Column(name = "is_removed", nullable = false)
     private Boolean isRemoved = false;
 
@@ -104,5 +107,17 @@ public class FieldDefinition {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    @Transient
+    @com.fasterxml.jackson.annotation.JsonProperty("domainId")
+    public UUID getDomainId() {
+        return domain != null ? domain.getId() : null;
+    }
+
+    @Transient
+    @com.fasterxml.jackson.annotation.JsonProperty("definedAtNodeId")
+    public UUID getDefinedAtNodeId() {
+        return definedAtNode != null ? definedAtNode.getId() : null;
     }
 }

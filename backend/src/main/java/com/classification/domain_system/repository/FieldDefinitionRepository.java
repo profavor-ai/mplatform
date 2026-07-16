@@ -9,11 +9,14 @@ import java.util.UUID;
 
 @Repository
 public interface FieldDefinitionRepository extends JpaRepository<FieldDefinition, UUID> {
-    List<FieldDefinition> findByDefinedAtNodeIdOrderByOrderAsc(UUID nodeId);
-    List<FieldDefinition> findByDomainIdOrderByOrderAsc(UUID domainId);
-    List<FieldDefinition> findByDefinedAtNodeIdIn(List<UUID> nodeIds);
+    @org.springframework.data.jpa.repository.Query("SELECT f FROM FieldDefinition f LEFT JOIN f.fieldGroup fg LEFT JOIN fg.sector s WHERE f.definedAtNode.id = :nodeId ORDER BY COALESCE(s.sortOrder, 9999) ASC, COALESCE(fg.sortOrder, 9999) ASC, f.order ASC")
+    List<FieldDefinition> findNodeFieldsWithSort(@org.springframework.data.repository.query.Param("nodeId") UUID nodeId);
+    @org.springframework.data.jpa.repository.Query("SELECT f FROM FieldDefinition f LEFT JOIN f.fieldGroup fg LEFT JOIN fg.sector s WHERE f.domain.id = :domainId ORDER BY COALESCE(s.sortOrder, 9999) ASC, COALESCE(fg.sortOrder, 9999) ASC, f.order ASC")
+    List<FieldDefinition> findDomainFieldsWithSort(@org.springframework.data.repository.query.Param("domainId") UUID domainId);
 
-    @org.springframework.data.jpa.repository.Query(value = "SELECT f FROM FieldDefinition f WHERE f.definedAtNode.id = :nodeId OR f.domain.id = :domainId ORDER BY CASE WHEN f.domain IS NOT NULL THEN 0 ELSE 1 END ASC, f.order ASC",
+    List<FieldDefinition> findByDefinedAtNode_IdIn(List<UUID> nodeIds);
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT f FROM FieldDefinition f LEFT JOIN f.fieldGroup fg LEFT JOIN fg.sector s WHERE f.definedAtNode.id = :nodeId OR f.domain.id = :domainId ORDER BY CASE WHEN f.domain IS NOT NULL THEN 0 ELSE 1 END ASC, COALESCE(s.sortOrder, 9999) ASC, COALESCE(fg.sortOrder, 9999) ASC, f.order ASC",
             countQuery = "SELECT count(f) FROM FieldDefinition f WHERE f.definedAtNode.id = :nodeId OR f.domain.id = :domainId")
     org.springframework.data.domain.Page<FieldDefinition> findEffectiveFieldsWithPagination(@org.springframework.data.repository.query.Param("nodeId") UUID nodeId, @org.springframework.data.repository.query.Param("domainId") UUID domainId, org.springframework.data.domain.Pageable pageable);
 }

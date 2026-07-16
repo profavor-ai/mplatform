@@ -22,6 +22,14 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
+import org.springframework.context.ApplicationEventPublisher;
+import com.classification.domain_system.event.ApprovalRequestCreatedEvent;
+import com.classification.domain_system.event.ApprovalStepApprovedEvent;
+
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+
+@MockitoSettings(strictness = Strictness.LENIENT)
 class ApprovalServiceTest extends BaseServiceTest {
 
     @Mock private ApprovalRequestRepository approvalRepository;
@@ -33,6 +41,7 @@ class ApprovalServiceTest extends BaseServiceTest {
     @Mock private RecordHistoryRepository recordHistoryRepository;
     @Mock private FieldDefinitionService fieldDefinitionService;
     @Mock private MatchingService matchingService;
+    @Mock private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private ApprovalService approvalService;
@@ -87,7 +96,7 @@ class ApprovalServiceTest extends BaseServiceTest {
             given(recordRepository.save(any(Record.class))).willReturn(savedRecord);
             given(workflowConfigRepository.findByNodeIdAndActionType(any(), eq("CREATE"))).willReturn(Optional.empty());
             given(workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(any(), eq("CREATE"))).willReturn(Optional.empty());
-            given(approvalRepository.save(any(ApprovalRequest.class))).willReturn(savedApproval);
+            given(approvalRepository.saveAndFlush(any(ApprovalRequest.class))).willReturn(savedApproval);
 
             // when
             ApprovalRequest result = approvalService.requestRecordCreation(nodeId, request);
@@ -95,7 +104,7 @@ class ApprovalServiceTest extends BaseServiceTest {
             // then
             assertThat(result).isNotNull();
             verify(recordRepository).save(any(Record.class));
-            verify(approvalRepository).save(any(ApprovalRequest.class));
+            verify(approvalRepository).saveAndFlush(any(ApprovalRequest.class));
         }
 
         @Test
@@ -226,6 +235,77 @@ class ApprovalServiceTest extends BaseServiceTest {
             assertThatThrownBy(() -> approvalService.rejectStep(stepId, otherUserId, "반려"))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("not the assignee");
+        }
+
+        @Test
+        @DisplayName("성공 - 삭제 요청(RECORD_DELETE) 반려 시 대상 레코드를 ACTIVE 상태로 복구한다")
+        void successRejectDeleteRequest() {
+            // given
+            UUID stepId = UUID.randomUUID();
+            UUID assigneeId = UUID.randomUUID();
+            UUID recordId = UUID.randomUUID();
+
+            ApprovalRequest approval = new ApprovalRequest();
+            approval.setId(UUID.randomUUID());
+            approval.setTargetType("RECORD_DELETE");
+            approval.setTargetId(recordId);
+
+            ApprovalStep step = new ApprovalStep();
+            step.setId(stepId);
+            step.setAssigneeId(assigneeId);
+            step.setStatus("PENDING");
+            step.setApprovalRequest(approval);
+
+            Record record = new Record();
+            record.setId(recordId);
+            record.setStatus("PENDING_APPROVAL");
+
+            given(stepRepository.findById(stepId)).willReturn(Optional.of(step));
+            given(recordRepository.findById(recordId)).willReturn(Optional.of(record));
+
+            // when
+            ApprovalRequest result = approvalService.rejectStep(stepId, assigneeId, "반려 사유");
+
+            // then
+            assertThat(result.getStatus()).isEqualTo("REJECTED");
+            assertThat(step.getStatus()).isEqualTo("REJECTED");
+            assertThat(record.getStatus()).isEqualTo("ACTIVE");
+            verify(stepRepository).saveAndFlush(step);
+            verify(approvalRepository).saveAndFlush(approval);
+            verify(recordRepository).saveAndFlush(record);
+        }
+    }
+
+    @Nested
+    @DisplayName("approveStepEvent")
+    class ApproveStepEvent {
+
+        @Test
+        @DisplayName("성공 - 결재 단계를 승인하고 승인 이벤트를 퍼블리싱한다")
+        void successApproveAndPublishEvent() {
+            // given
+            UUID stepId = UUID.randomUUID();
+            UUID assigneeId = UUID.randomUUID();
+
+            ApprovalRequest approval = new ApprovalRequest();
+            approval.setId(UUID.randomUUID());
+
+            ApprovalStep step = new ApprovalStep();
+            step.setId(stepId);
+            step.setAssigneeId(assigneeId);
+            step.setStatus("PENDING");
+            step.setApprovalRequest(approval);
+
+            given(stepRepository.findById(stepId)).willReturn(Optional.of(step));
+
+            // when
+            ApprovalRequest result = approvalService.approveStep(stepId, assigneeId, "승인 완료");
+
+            // then
+            assertThat(result).isNotNull();
+            assertThat(step.getStatus()).isEqualTo("APPROVED");
+            verify(stepRepository).saveAndFlush(step);
+            verify(eventPublisher).publishEvent(any(ApprovalStepApprovedEvent.class));
         }
     }
 }

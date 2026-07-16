@@ -20,6 +20,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -221,15 +222,23 @@ class FieldDefinitionServiceTest {
             saved.setId(UUID.randomUUID());
             saved.setKey("ticker");
             saved.setIsSearchable(false);
+            saved.setGridWidth(6);
+            when(fieldRepository.save(any())).thenReturn(saved);
+
+            saved.setOrder(1);
             when(fieldRepository.save(any())).thenReturn(saved);
 
             FieldDefinitionRequest req = new FieldDefinitionRequest();
             req.setKey("ticker");
             req.setType("TEXT");
             req.setIsSearchable(false);
+            req.setGridWidth(6);
 
-            fieldDefinitionService.addField(nodeId, req);
+            FieldDefinition savedField = fieldDefinitionService.addField(nodeId, req);
 
+            assertThat(savedField).isNotNull();
+            assertThat(savedField.getOrder()).isEqualTo(1);
+            assertThat(savedField.getGridWidth()).isEqualTo(6);
             verify(jdbcTemplate, never()).execute(anyString());
         }
     }
@@ -250,8 +259,9 @@ class FieldDefinitionServiceTest {
             nodeField.setKey("node_field");
 
             when(nodeRepository.findById(nodeId)).thenReturn(Optional.of(node));
-            when(fieldRepository.findByDomainIdOrderByOrderAsc(domainId)).thenReturn(List.of(domainField));
-            when(fieldRepository.findByDefinedAtNodeIdOrderByOrderAsc(nodeId)).thenReturn(List.of(nodeField));
+            when(fieldRepository.findDomainFieldsWithSort(domainId)).thenReturn(List.of(domainField));
+            when(fieldRepository.findNodeFieldsWithSort(nodeId)).thenReturn(List.of(nodeField));
+            when(fieldRepository.findByDefinedAtNode_IdIn(any())).thenReturn(Collections.emptyList());
 
             List<FieldDefinition> result = fieldDefinitionService.getEffectiveFields(nodeId);
 
@@ -331,15 +341,23 @@ class FieldDefinitionServiceTest {
         @DisplayName("isSearchable 변경 없을 시 index SQL 미실행")
         void noChange_NoIndexOperation() {
             FieldDefinition field = existingField(true);
+            field.setKey("newKey");
+            field.setRequired(true);
+            field.setGridWidth(4);
             when(fieldRepository.findById(fieldId)).thenReturn(Optional.of(field));
             when(fieldRepository.save(any())).thenReturn(field);
 
-            FieldDefinitionRequest req = new FieldDefinitionRequest();
-            req.setIsSearchable(true); // 기존과 동일
-            req.setKey("ticker");
+            FieldDefinitionRequest updateReq = new FieldDefinitionRequest();
+            updateReq.setIsSearchable(true); // 기존과 동일
+            updateReq.setKey("newKey");
+            updateReq.setRequired(true);
+            updateReq.setGridWidth(4);
 
-            fieldDefinitionService.updateField(nodeId, fieldId, req);
+            FieldDefinition updated = fieldDefinitionService.updateField(nodeId, fieldId, updateReq);
 
+            assertThat(updated.getKey()).isEqualTo("newKey");
+            assertThat(updated.getRequired()).isTrue();
+            assertThat(updated.getGridWidth()).isEqualTo(4);
             verify(jdbcTemplate, never()).execute(anyString());
         }
 

@@ -21,4 +21,12 @@ public class UserService {
                 .map(u -> new UserDto(u.getId(), u.getUsername(), u.getRole()))
                 .collect(Collectors.toList());
     }
+
+    @Transactional
+    public void updateTimezone(String username, String timezone) {
+        com.classification.domain_system.entity.User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+        user.setTimezone(timezone);
+        userRepository.save(user);
+    }
 }

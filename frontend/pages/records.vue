@@ -133,9 +133,11 @@
       <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
         <va-card v-if="selectedNode" style="width: 100%; flex: 1; display: flex; flex-direction: column; min-height: 0;">
           <va-card-content style="padding: 0; flex: 1; display: flex; flex-direction: column; min-height: 0;">
-            <div :class="[isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine', 'records-grid-wrapper']">
+            <div class="records-grid-wrapper">
               <ag-grid-vue
                 style="width: 100%; height: 100%;"
+                :theme="gridTheme"
+                :autoSizeStrategy="autoSizeStrategy"
                 :columnDefs="columnDefs"
                 :defaultColDef="defaultColDef"
                 rowModelType="infinite"
@@ -474,7 +476,7 @@
             hoverable
           >
             <template #cell(changedAt)="{ value }">
-              <span style="white-space: nowrap;">{{ new Date(value).toLocaleString() }}</span>
+              <span style="white-space: nowrap;">{{ formatDate(value) }}</span>
             </template>
             <template #cell(changedBy)="{ value }">
               <span style="white-space: nowrap;">{{ getUserName(value) }}</span>
@@ -535,6 +537,116 @@
       </div>
     </va-modal>
 
+    <!-- Record Snapshot Modal (New Modal) -->
+    <va-modal v-model="showSnapshotModal" :title="`Record Snapshot - ${selectedNode?.label}`" hide-default-actions>
+      <div style="max-height: 60vh; overflow-y: auto; overflow-x: hidden; padding: 1rem; box-sizing: border-box; width: 100%;">
+        <div style="margin-bottom: 1rem; padding: 0.5rem; background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 4px; text-align: center; font-weight: bold;">
+          이전 데이터 스냅샷을 조회 중입니다. (읽기 전용)
+        </div>
+        
+        <!-- Sector Tabs -->
+        <va-tabs v-model="activeSnapshotSectorTab" style="margin-bottom: 1rem;">
+          <template #tabs>
+            <va-tab v-for="(sector, idx) in groupedFieldsArray" :key="sector.key" :name="idx">
+              {{ sector.label }}
+            </va-tab>
+          </template>
+        </va-tabs>
+        
+        <!-- Sector Content -->
+        <div v-for="(sector, idx) in groupedFieldsArray" :key="sector.key" v-show="activeSnapshotSectorTab === idx">
+          <va-accordion multiple style="width: 100%;" class="mb-4">
+            <va-collapse 
+              v-for="(group, groupIdx) in sector.groups" 
+              :key="group.key"
+              :header="group.label"
+              v-model="group.isOpen"
+              solid
+              color="background-element"
+              style="margin-bottom: 0.5rem;"
+            >
+              <div style="padding: 0.5rem 1rem; display: flex; flex-direction: column; gap: 0.5rem; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem;">
+                  <div v-for="field in group.fields" :key="field.id" style="width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 0.25rem;">
+                    <span style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600; text-transform: uppercase;">{{ getTranslatedName(field.name) }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}</span>
+                      <va-input 
+                        v-if="['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type)" 
+                        :model-value="snapshotRecordData[field.key]" 
+                        type="number"
+                        readonly
+                      />
+                      <div v-else-if="field.type === 'DOMAIN_REFERENCE'" style="display: flex; gap: 0.5rem; align-items: center;">
+                        <va-input 
+                          :model-value="getDomainRefDisplayName(field.key, snapshotRecordData[field.key])" 
+                          readonly
+                          style="flex: 1;"
+                        />
+                      </div>
+                      <!-- Multilingual -->
+                      <div v-else-if="field.type === 'MULTILINGUAL'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row;">
+                        <va-input :model-value="snapshotRecordData[field.key]?.ko" style="flex: 1;" readonly class="slim-multilingual-input">
+                          <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">한국어</span></template>
+                        </va-input>
+                        <va-input :model-value="snapshotRecordData[field.key]?.en" style="flex: 1;" readonly class="slim-multilingual-input">
+                          <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">English</span></template>
+                        </va-input>
+                      </div>
+                      <va-input 
+                        v-else-if="field.type === 'CALCULATED'"
+                        :model-value="snapshotRecordData[field.key]"
+                        readonly
+                        style="background-color: #f4f6f8;"
+                      />
+                      <va-select 
+                        v-else-if="['SELECT', 'MULTI_SELECT'].includes(field.type)" 
+                        :model-value="snapshotRecordData[field.key]" 
+                        :options="parseOptions(field.options)" 
+                        :multiple="field.type === 'MULTI_SELECT' || field.isMultiValue"
+                        value-by="value"
+                        class="w-full"
+                        readonly
+                      />
+                      <va-checkbox
+                        v-else-if="field.type === 'BOOLEAN'"
+                        :model-value="snapshotRecordData[field.key]"
+                        class="w-full"
+                        readonly
+                      />
+                      <div v-else-if="field.type === 'FILE'" class="w-full">
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                          <template v-if="snapshotRecordData[field.key] && snapshotRecordData[field.key].length > 0">
+                            <va-chip 
+                              v-for="(fileObj, fileIdx) in snapshotRecordData[field.key]" 
+                              :key="fileIdx" 
+                              :href="fileObj.url || fileObj" 
+                              target="_blank" 
+                              outline 
+                              icon="download"
+                              color="primary"
+                              style="cursor: pointer;"
+                            >
+                              {{ fileObj.name || extractFilename(fileObj.url || fileObj) }}
+                            </va-chip>
+                          </template>
+                          <span v-else>-</span>
+                        </div>
+                      </div>
+                      <va-input 
+                        v-else
+                        :model-value="snapshotRecordData[field.key]" 
+                        type="text"
+                        readonly
+                      />
+                  </div>
+                </div>
+            </va-collapse>
+          </va-accordion>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: flex-end; margin-top: 1rem; gap: 0.5rem;">
+        <va-button @click="showSnapshotModal = false">Close</va-button>
+      </div>
+    </va-modal>
+
     <!-- Diff Modal -->
     <va-modal v-model="showDiffModal" title="변경 내역 상세" hide-default-actions size="large">
       <div style="padding: 1rem; box-sizing: border-box; width: 100%; max-height: 60vh; overflow-y: auto;">
@@ -575,74 +687,7 @@
           데이터를 불러오는 중입니다...
         </div>
         <div v-else>
-          <va-card flat bordered style="margin-bottom: 1rem;">
-            <va-card-title>상신 정보</va-card-title>
-            <va-card-content>
-              <div style="display: grid; grid-template-columns: 100px 1fr; gap: 0.5rem; font-size: 0.9rem;">
-                <div style="font-weight: bold; color: #555;">상신자:</div>
-                <div>{{ getUserName(selectedApprovalRequest.requesterId) }}</div>
-                <div style="font-weight: bold; color: #555;">상신 일시:</div>
-                <div>{{ new Date(selectedApprovalRequest.createdAt).toLocaleString() }}</div>
-                <div style="font-weight: bold; color: #555;">반영 일시:</div>
-                <div style="color: var(--va-text-secondary); font-weight: 600;">{{ selectedReflectionTime ? new Date(selectedReflectionTime).toLocaleString() : '-' }}</div>
-              </div>
-            </va-card-content>
-          </va-card>
-
-          <va-card flat bordered style="margin-bottom: 1rem;">
-            <va-card-title>변경 내용</va-card-title>
-            <va-card-content>
-              <div v-if="selectedApprovalRequest.changes" style="display: flex; flex-direction: column; gap: 0.35rem;">
-                <div v-for="diff in getParsedDiffs(selectedApprovalRequest.changes, selectedApprovalRequest.targetType)" :key="diff.fieldName" style="font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                  
-                  <template v-if="(diff.before === undefined || diff.before === null || diff.before === '' || diff.before === 'undefined') && (diff.after !== undefined && diff.after !== null && diff.after !== '' && diff.after !== 'undefined')">
-                    <va-badge color="info" text="NEW" size="small" />
-                    <span style="font-weight: bold; color: #555;">{{ diff.fieldName }}:</span>
-                    <span style="color: #2c3e50; font-weight: bold; font-family: monospace;">{{ typeof diff.after === 'object' ? JSON.stringify(diff.after) : diff.after }}</span>
-                  </template>
-                  
-                  <template v-else-if="(diff.after === undefined || diff.after === null || diff.after === '' || diff.after === 'undefined') && (diff.before !== undefined && diff.before !== null && diff.before !== '' && diff.before !== 'undefined')">
-                    <va-badge color="danger" text="DEL" size="small" />
-                    <span style="font-weight: bold; color: #555;">{{ diff.fieldName }}:</span>
-                    <span style="color: #666; text-decoration: line-through; font-family: monospace;">{{ typeof diff.before === 'object' ? JSON.stringify(diff.before) : diff.before }}</span>
-                  </template>
-                  
-                  <template v-else>
-                    <va-badge color="warning" text="MOD" size="small" />
-                    <span style="font-weight: bold; color: #555;">{{ diff.fieldName }}:</span>
-                    <span style="color: #666; text-decoration: line-through; font-family: monospace;">{{ typeof diff.before === 'object' ? JSON.stringify(diff.before) : diff.before }}</span>
-                    <span style="color: #999; font-weight: bold;">&rarr;</span>
-                    <span style="color: #2c3e50; font-weight: bold; font-family: monospace;">{{ typeof diff.after === 'object' ? JSON.stringify(diff.after) : diff.after }}</span>
-                  </template>
-                </div>
-              </div>
-              <div v-else style="color: #999; font-style: italic;">변경 내용 없음</div>
-            </va-card-content>
-          </va-card>
-
-          <va-card flat bordered>
-            <va-card-title>결재 진행 단계</va-card-title>
-            <va-card-content>
-              <div v-for="step in selectedApprovalRequest.steps" :key="step.id" style="padding: 1rem; border: 1px solid #eee; border-radius: 4px; margin-bottom: 0.5rem; background: #fafafa;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                  <span style="font-weight: bold;">{{ step.stepOrder }}단계 - {{ step.stepType }}</span>
-                  <va-badge :color="step.status === 'APPROVED' ? 'success' : (step.status === 'REJECTED' ? 'danger' : 'warning')" :text="step.status" />
-                </div>
-                <div style="font-size: 0.9rem; margin-bottom: 0.25rem;">
-                  <span style="color: #666; width: 60px; display: inline-block;">결재자:</span> 
-                  <strong>{{ getUserName(step.assigneeId) }}</strong>
-                </div>
-                <div style="font-size: 0.9rem; margin-bottom: 0.25rem;">
-                  <span style="color: #666; width: 60px; display: inline-block;">처리 일시:</span> 
-                  <span>{{ step.updatedAt ? new Date(step.updatedAt).toLocaleString() : '대기 중' }}</span>
-                </div>
-                <div style="font-size: 0.9rem; margin-top: 0.5rem; background: #fff; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; min-height: 40px;">
-                  <span style="color: #666; font-size: 0.8rem; display: block; margin-bottom: 0.25rem;">의견:</span>
-                  {{ step.comment || '의견 없음' }}
-                </div>
-              </div>
-            </va-card-content>
-          </va-card>
+          <ApprovalDetailsViewer :request="selectedApprovalRequest" />
         </div>
       </div>
       <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
@@ -656,9 +701,11 @@
         <div style="margin-bottom: 1rem; color: #666; font-size: 0.9rem;">
           원하시는 레코드를 목록에서 더블 클릭하여 선택해 주세요.
         </div>
-        <div :class="isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'" style="flex: 1; width: 100%;">
+        <div style="flex: 1; width: 100%;">
           <AgGridVue
             style="width: 100%; height: 100%;"
+            :theme="gridTheme"
+            :autoSizeStrategy="autoSizeStrategy"
             :columnDefs="domainRefColDefs"
             :rowData="domainRefRowData"
             :defaultColDef="{ sortable: true, filter: true, resizable: true }"
@@ -678,10 +725,10 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useCookie, useState } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
-import 'ag-grid-community/styles/ag-grid.css'
-import 'ag-grid-community/styles/ag-theme-alpine.css'
 import ExcelUploader from '~/components/ExcelUploader.vue'
 import { useColors } from 'vuestic-ui'
+
+const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 
 const { currentPresetName } = useColors()
 const isDark = computed(() => currentPresetName.value === 'dark')
@@ -1172,6 +1219,9 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
       sortable: true, 
       width: 150,
       cellRenderer: (params) => {
+        if (params.value === undefined || params.value === null || params.value === '') {
+          return '';
+        }
         const color = params.value === 'ACTIVE' ? '#2c82e0' : (params.value === 'PENDING_APPROVAL' ? '#e6a23c' : '#f56c6c')
         return `<span style="padding: 2px 8px; border-radius: 4px; background: ${color}; color: white; font-size: 12px; font-weight: bold;">${params.value}</span>`
       }
@@ -1247,6 +1297,16 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
           }
           return ''
         }
+      }
+    }
+    if (f.type === 'DATE') {
+      colDef.valueFormatter = (params) => {
+        if (!params.value) return '';
+        const date = parseDate(params.value);
+        if (!date || isNaN(date.getTime())) return params.value;
+        const tz = useCookie('timezone', { default: () => 'Asia/Seoul' }).value;
+        const formatted = date.toLocaleString(undefined, { timeZone: tz });
+        return formatted.replace(/\s*(GMT|UTC|KST|PST|EST|CET)[-+0-9:]*/gi, '').trim();
       }
     }
     if (['NUMBER', 'INTEGER', 'DECIMAL'].includes(f.type)) {
@@ -1497,6 +1557,9 @@ const formatViewingValue = (field, val) => {
 
 const showDetailModal = ref(false)
 const showHistoryModal = ref(false)
+const showSnapshotModal = ref(false)
+const snapshotRecordData = ref({})
+const activeSnapshotSectorTab = ref(0)
 const { showLoading, hideLoading } = useLoading()
 const historyLogs = ref([])
 const showDiffModal = ref(false)
@@ -1586,10 +1649,9 @@ const isSnapshotMode = ref(false)
 const viewSnapshot = (dataString) => {
   if (!dataString) return
   try {
-    selectedRecordData.value = JSON.parse(dataString)
-    isSnapshotMode.value = true
-    showHistoryModal.value = false
-    showDetailModal.value = true
+    snapshotRecordData.value = JSON.parse(dataString)
+    activeSnapshotSectorTab.value = activeSectorTab.value
+    showSnapshotModal.value = true
   } catch(e) {}
 }
 
@@ -1671,6 +1733,32 @@ const viewDiffDetails = (prev, next, isPendingCreation = false) => {
     selectedDiffs.value = getParsedDiffs(prev, next);
   }
   showDiffModal.value = true;
+}
+
+const parseDate = (dateString) => {
+  if (!dateString) return null
+  let str = String(dateString).trim()
+  if (/^\d+$/.test(str)) {
+    return new Date(parseInt(str, 10))
+  }
+  if (!str.endsWith('Z') && !str.includes('+') && !/[-+]\d{2}:\d{2}$/.test(str)) {
+    if (str.includes(' ') && !str.includes('T')) {
+      str = str.replace(' ', 'T')
+    }
+    const serverOffset = useCookie('server_offset', { default: () => '+09:00' }).value
+    str += serverOffset
+  }
+  const d = new Date(str)
+  return isNaN(d.getTime()) ? new Date(dateString) : d
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = parseDate(dateString)
+  if (!date) return ''
+  const tz = useCookie('timezone', { default: () => 'Asia/Seoul' }).value
+  const formatted = date.toLocaleString(undefined, { timeZone: tz })
+  return formatted.replace(/\s*(GMT|UTC|KST|PST|EST|CET)[-+0-9:]*/gi, '').trim()
 }
 
 const openHistory = async () => {

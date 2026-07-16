@@ -159,5 +159,9 @@
   "noRequests": "현재 대기 중인 요청이 없습니다.",
   "finalApproval": "최종 결재",
   "mySubmitted": "내가 상신한 결재 내역",
-  "noSubmitted": "상신한 결재가 없습니다."
+  "noSubmitted": "상신한 결재가 없습니다.",
+  "submission_date": "상신일",
+  "timezone": "타임존 설정",
+  "timezone_select": "타임존을 선택하세요",
+  "personal_settings": "개인화 설정"
 }

@@ -55,7 +55,7 @@ public class ClassificationNodeService {
     
     @Transactional(readOnly = true)
     public List<ClassificationNode> getTree(UUID domainId) {
-        return nodeRepository.findByDomain_IdAndParentIsNullAndIsDeletedFalse(domainId);
+        return nodeRepository.findByDomain_IdAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId);
     }
     
     @Transactional

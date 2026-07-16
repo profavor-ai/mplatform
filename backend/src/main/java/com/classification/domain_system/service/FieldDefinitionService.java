@@ -65,8 +65,10 @@ public class FieldDefinitionService {
         if (isUpdate) {
             field.setUnit(request.getUnit() != null ? request.getUnit() : field.getUnit());
             field.setGridWidth(request.getGridWidth() != null ? request.getGridWidth() : field.getGridWidth());
+            field.setTableColumnWidth(request.getTableColumnWidth() != null ? request.getTableColumnWidth() : field.getTableColumnWidth());
         } else {
             field.setGridWidth(request.getGridWidth());
+            field.setTableColumnWidth(request.getTableColumnWidth());
             field.setIsRemoved(false);
         }
         
@@ -172,12 +174,37 @@ public class FieldDefinitionService {
         ClassificationNode node = nodeRepository.findById(nodeId)
                 .orElseThrow(() -> new RuntimeException("Node not found"));
         
-        List<FieldDefinition> domainFields = fieldRepository.findByDomainIdOrderByOrderAsc(node.getDomain().getId());
-        List<FieldDefinition> nodeFields = fieldRepository.findByDefinedAtNodeIdOrderByOrderAsc(nodeId);
+        List<FieldDefinition> domainFields = fieldRepository.findDomainFieldsWithSort(node.getDomain().getId());
+        List<FieldDefinition> nodeFields = fieldRepository.findNodeFieldsWithSort(nodeId);
+        
+        List<UUID> pathIds = new java.util.ArrayList<>();
+        ClassificationNode current = node.getParent();
+        while (current != null) {
+            pathIds.add(current.getId());
+            current = current.getParent();
+        }
+            
+        List<FieldDefinition> inheritedFields = fieldRepository.findByDefinedAtNode_IdIn(pathIds);
         
         java.util.List<FieldDefinition> effectiveFields = new java.util.ArrayList<>();
         effectiveFields.addAll(domainFields);
+        effectiveFields.addAll(inheritedFields);
         effectiveFields.addAll(nodeFields);
+
+        effectiveFields.sort((f1, f2) -> {
+            int s1 = f1.getFieldGroup() != null && f1.getFieldGroup().getSector() != null ? (f1.getFieldGroup().getSector().getSortOrder() != null ? f1.getFieldGroup().getSector().getSortOrder() : 9999) : 9999;
+            int s2 = f2.getFieldGroup() != null && f2.getFieldGroup().getSector() != null ? (f2.getFieldGroup().getSector().getSortOrder() != null ? f2.getFieldGroup().getSector().getSortOrder() : 9999) : 9999;
+            if (s1 != s2) return Integer.compare(s1, s2);
+            
+            int g1 = f1.getFieldGroup() != null ? (f1.getFieldGroup().getSortOrder() != null ? f1.getFieldGroup().getSortOrder() : 9999) : 9999;
+            int g2 = f2.getFieldGroup() != null ? (f2.getFieldGroup().getSortOrder() != null ? f2.getFieldGroup().getSortOrder() : 9999) : 9999;
+            if (g1 != g2) return Integer.compare(g1, g2);
+            
+            int o1 = f1.getOrder() != null ? f1.getOrder() : 9999;
+            int o2 = f2.getOrder() != null ? f2.getOrder() : 9999;
+            return Integer.compare(o1, o2);
+        });
+
         return effectiveFields;
     }
 
@@ -190,7 +217,7 @@ public class FieldDefinitionService {
     
     @Transactional(readOnly = true)
     public List<FieldDefinition> getDomainFields(UUID domainId) {
-        return fieldRepository.findByDomainIdOrderByOrderAsc(domainId);
+        return fieldRepository.findDomainFieldsWithSort(domainId);
     }
     
     private String normalizeJsonStr(String val) {

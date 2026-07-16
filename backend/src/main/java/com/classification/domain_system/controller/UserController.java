@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestBody;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
@@ -32,5 +33,18 @@ public class UserController {
             this.username = username;
             this.role = role;
         }
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/timezone")
+    public ResponseEntity<?> updateTimezone(@RequestBody TimezoneRequest request) {
+        String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        userService.updateTimezone(username, request.getTimezone());
+        return ResponseEntity.ok().build();
+    }
+
+    public static class TimezoneRequest {
+        private String timezone;
+        public String getTimezone() { return timezone; }
+        public void setTimezone(String timezone) { this.timezone = timezone; }
     }
 }

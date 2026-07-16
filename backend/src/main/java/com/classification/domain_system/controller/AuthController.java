@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.time.OffsetDateTime;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -18,8 +19,9 @@ public class AuthController {
 
     @GetMapping("/users")
     public ResponseEntity<?> getAllUsers() {
+        String serverOffset = OffsetDateTime.now().getOffset().getId();
         return ResponseEntity.ok(userRepository.findAll().stream()
-            .map(user -> new LoginResponse(null, user.getUsername(), user.getRole(), user.getId()))
+            .map(user -> new LoginResponse(null, user.getUsername(), user.getRole(), user.getId(), user.getTimezone(), serverOffset))
             .toList());
     }
 
@@ -32,7 +34,8 @@ public class AuthController {
             String token = authService.login(request.getUsername(), request.getPassword(), ip);
             User user = authService.findByUsername(request.getUsername());
             
-            return ResponseEntity.ok(new LoginResponse(token, user.getUsername(), user.getRole(), user.getId()));
+            String serverOffset = OffsetDateTime.now().getOffset().getId();
+            return ResponseEntity.ok(new LoginResponse(token, user.getUsername(), user.getRole(), user.getId(), user.getTimezone(), serverOffset));
         } catch (Exception e) {
             return ResponseEntity.status(401).body(e.getMessage());
         }
@@ -67,5 +70,7 @@ public class AuthController {
         private final String username;
         private final String role;
         private final String uuid;
+        private final String timezone;
+        private final String serverOffset;
     }
 }

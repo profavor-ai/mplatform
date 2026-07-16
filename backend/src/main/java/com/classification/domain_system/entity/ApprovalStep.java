@@ -19,7 +19,7 @@ public class ApprovalStep {
     private UUID id;
 
     @JsonIgnoreProperties("steps")
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "request_id", nullable = false)
     private ApprovalRequest approvalRequest;
 

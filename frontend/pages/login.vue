@@ -1,5 +1,5 @@
 <template>
-  <div class="auth-container">
+  <div class="auth-container" style="opacity: 0;" :style="{ opacity: isMounted ? 1 : 0, transition: 'opacity 0.3s ease' }">
     <div class="auth-box">
       <!-- Welcome Header -->
       <div class="auth-header">
@@ -125,7 +125,12 @@
 <script setup>
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+
+const isMounted = ref(false)
+onMounted(() => {
+  isMounted.value = true
+})
 import { useRouter } from 'vue-router'
 import { useCookie } from '#app'
 
@@ -161,8 +166,16 @@ const handleLogin = async () => {
     userCookie.value = JSON.stringify({
       username: response.username,
       role: response.role,
-      uuid: response.uuid
+      uuid: response.uuid,
+      timezone: response.timezone,
+      serverOffset: response.serverOffset
     })
+    
+    const tzCookie = useCookie('timezone', { default: () => 'Asia/Seoul' })
+    tzCookie.value = response.timezone || 'Asia/Seoul'
+    
+    const serverOffsetCookie = useCookie('server_offset', { default: () => '+09:00' })
+    serverOffsetCookie.value = response.serverOffset || '+09:00'
     
     window.location.href = '/'
   } catch (error) {

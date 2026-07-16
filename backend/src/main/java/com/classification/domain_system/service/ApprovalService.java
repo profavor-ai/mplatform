@@ -28,6 +28,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import com.classification.domain_system.entity.FieldDefinition;
 
+import org.springframework.context.ApplicationEventPublisher;
+import com.classification.domain_system.event.ApprovalRequestCreatedEvent;
+import com.classification.domain_system.event.ApprovalStepApprovedEvent;
+
 @Service
 @RequiredArgsConstructor
 public class ApprovalService {
@@ -41,6 +45,7 @@ public class ApprovalService {
     private final RecordHistoryRepository recordHistoryRepository;
     private final FieldDefinitionService fieldDefinitionService;
     private final MatchingService matchingService;
+    private final ApplicationEventPublisher eventPublisher;
     
     private void logHistory(Record record, String changeType, UUID changedBy, String prevData, String newData, UUID approvalRequestId) {
         RecordHistory history = new RecordHistory();
@@ -276,7 +281,12 @@ public class ApprovalService {
             approval.setObserverIds("[]");
             e.printStackTrace();
         }
-        approval.setSteps(steps);
+        if (approval.getSteps() == null) {
+            approval.setSteps(new java.util.ArrayList<>());
+        } else {
+            approval.getSteps().clear();
+        }
+        approval.getSteps().addAll(steps);
     }
 
     @Transactional
@@ -339,7 +349,9 @@ public class ApprovalService {
         draftStep.setComment(request.getComment());
         approval.getSteps().add(draftStep);
         
-        return approvalRepository.save(approval);
+        ApprovalRequest saved = approvalRepository.saveAndFlush(approval);
+        eventPublisher.publishEvent(new ApprovalRequestCreatedEvent(saved));
+        return saved;
     }
     
     @Transactional
@@ -408,7 +420,9 @@ public class ApprovalService {
         draftStep.setStatus("SUBMITTED");
         draftStep.setComment(request.getComment());
         approval.getSteps().add(draftStep);
-        return approvalRepository.save(approval);
+        ApprovalRequest saved = approvalRepository.saveAndFlush(approval);
+        eventPublisher.publishEvent(new ApprovalRequestCreatedEvent(saved));
+        return saved;
     }
     
     @Transactional
@@ -450,10 +464,11 @@ public class ApprovalService {
         record.setStatus("PENDING_APPROVAL");
         recordRepository.save(record);
         
-        return approvalRepository.save(approval);
+        ApprovalRequest saved = approvalRepository.saveAndFlush(approval);
+        eventPublisher.publishEvent(new ApprovalRequestCreatedEvent(saved));
+        return saved;
     }
-    
-    @Transactional
+        @Transactional
     public ApprovalRequest approveStep(UUID stepId, UUID approverId, String comment) {
         ApprovalStep step = stepRepository.findById(stepId)
                 .orElseThrow(() -> new RuntimeException("Step not found"));
@@ -467,70 +482,10 @@ public class ApprovalService {
         
         step.setStatus("APPROVED");
         step.setComment(comment);
-        stepRepository.save(step);
+        stepRepository.saveAndFlush(step);
         
         ApprovalRequest approval = step.getApprovalRequest();
-        
-        // Check if all steps in the current step order are APPROVED
-        boolean allApproved = approval.getSteps().stream()
-                .filter(s -> s.getStepOrder().equals(approval.getCurrentStepOrder()))
-                .allMatch(s -> "APPROVED".equals(s.getStatus()));
-                
-        if (allApproved) {
-            // Find the next step order
-            Integer nextOrder = approval.getSteps().stream()
-                    .map(ApprovalStep::getStepOrder)
-                    .filter(order -> order > approval.getCurrentStepOrder())
-                    .min(Integer::compareTo)
-                    .orElse(null);
-                    
-            if (nextOrder != null) {
-                approval.getSteps().stream()
-                        .filter(s -> s.getStepOrder().equals(nextOrder))
-                        .forEach(s -> s.setStatus("PENDING"));
-                approval.setCurrentStepOrder(nextOrder);
-                // stepRepository.save() will be handled by cascade or explicitly
-                approvalRepository.save(approval);
-            } else {
-                // Final approval
-                approval.setStatus("APPROVED");
-                approvalRepository.save(approval);
-            
-            if ("RECORD".equals(approval.getTargetType())) {
-                Record record = recordRepository.findById(approval.getTargetId())
-                        .orElseThrow(() -> new RuntimeException("Record not found"));
-                record.setStatus("ACTIVE");
-                String finalData = recomputeCalculatedFields(record.getNode().getId(), approval.getChanges());
-                record.setData(finalData);
-                record.setVersion(1);
-                recordRepository.save(record);
-                logHistory(record, "CREATE", approval.getRequesterId(), null, finalData, approval.getId());
-            } else if ("RECORD_UPDATE".equals(approval.getTargetType())) {
-                Record record = recordRepository.findById(approval.getTargetId())
-                        .orElseThrow(() -> new RuntimeException("Record not found"));
-                try {
-                    com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                    com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(approval.getChanges());
-                    String prevData = record.getData();
-                    if (root.has("after")) {
-                        String afterData = recomputeCalculatedFields(record.getNode().getId(), root.get("after").toString());
-                        record.setData(afterData);
-                    }
-                    record.setStatus("ACTIVE");
-                    record.setVersion(record.getVersion() + 1);
-                    recordRepository.save(record);
-                    logHistory(record, "UPDATE", approval.getRequesterId(), prevData, record.getData(), approval.getId());
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            } else if ("RECORD_DELETE".equals(approval.getTargetType())) {
-                Record record = recordRepository.findById(approval.getTargetId())
-                        .orElseThrow(() -> new RuntimeException("Record not found"));
-                logHistory(record, "DELETE", approval.getRequesterId(), record.getData(), null, approval.getId());
-                recordRepository.delete(record);
-            }
-        }
-        }
+        eventPublisher.publishEvent(new ApprovalStepApprovedEvent(approval, step));
         
         return approval;
     }
@@ -549,22 +504,22 @@ public class ApprovalService {
         
         step.setStatus("REJECTED");
         step.setComment(comment);
-        stepRepository.save(step);
+        stepRepository.saveAndFlush(step);
         
         ApprovalRequest approval = step.getApprovalRequest();
         approval.setStatus("REJECTED");
-        approvalRepository.save(approval);
+        approvalRepository.saveAndFlush(approval);
         
         if ("RECORD".equals(approval.getTargetType())) {
             Record record = recordRepository.findById(approval.getTargetId())
                     .orElseThrow(() -> new RuntimeException("Record not found"));
             record.setStatus("REJECTED");
-            recordRepository.save(record);
-        } else if ("RECORD_UPDATE".equals(approval.getTargetType())) {
+            recordRepository.saveAndFlush(record);
+        } else if ("RECORD_UPDATE".equals(approval.getTargetType()) || "RECORD_DELETE".equals(approval.getTargetType())) {
             Record record = recordRepository.findById(approval.getTargetId())
                     .orElseThrow(() -> new RuntimeException("Record not found"));
             record.setStatus("ACTIVE");
-            recordRepository.save(record);
+            recordRepository.saveAndFlush(record);
         }
         
         return approval;

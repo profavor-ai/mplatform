@@ -54,7 +54,7 @@
                   <div style="margin-top: 0.25rem;">
                     <strong>{{ t('requester') }}:</strong> {{ getUserName(todo.approvalRequest.requesterId) }}
                   </div>
-                  <div><strong>{{ t('date') }}:</strong> {{ new Date(todo.approvalRequest.createdAt).toLocaleDateString() }}</div>
+                  <div><strong>{{ t('date') }}:</strong> {{ formatDate(todo.approvalRequest.createdAt) }}</div>
                   <div style="font-size: 0.75rem; color: #888; margin-top: 0.25rem;">
                     {{ t('req_id') }}: {{ todo.approvalRequest.id.substring(0, 8) }}...
                   </div>
@@ -109,7 +109,7 @@
               <td style="padding: 10px;">
                 <va-badge :text="req.status" :color="req.status === 'PENDING' ? 'warning' : (req.status === 'APPROVED' ? 'success' : 'danger')" />
               </td>
-              <td style="padding: 10px;">{{ new Date(req.createdAt).toLocaleDateString() }}</td>
+              <td style="padding: 10px;">{{ formatDate(req.createdAt) }}</td>
             </tr>
           </tbody>
         </table>
@@ -279,4 +279,30 @@ const chartOption = ref({
     }
   ]
 })
+
+const parseDate = (dateString) => {
+  if (!dateString) return null
+  let str = String(dateString).trim()
+  if (/^\d+$/.test(str)) {
+    return new Date(parseInt(str, 10))
+  }
+  if (!str.endsWith('Z') && !str.includes('+') && !/[-+]\d{2}:\d{2}$/.test(str)) {
+    if (str.includes(' ') && !str.includes('T')) {
+      str = str.replace(' ', 'T')
+    }
+    const serverOffset = useCookie('server_offset', { default: () => '+09:00' }).value
+    str += serverOffset
+  }
+  const d = new Date(str)
+  return isNaN(d.getTime()) ? new Date(dateString) : d
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = parseDate(dateString)
+  if (!date) return ''
+  const tz = useCookie('timezone', { default: () => 'Asia/Seoul' }).value
+  const formatted = date.toLocaleString(undefined, { timeZone: tz })
+  return formatted.replace(/\s*(GMT|UTC|KST|PST|EST|CET)[-+0-9:]*/gi, '').trim()
+}
 </script>

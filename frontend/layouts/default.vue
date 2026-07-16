@@ -118,11 +118,25 @@
       </main>
 
       <!-- Personal Settings Modal -->
-      <va-modal v-model="showSettingsModal" title="Personal Settings" hide-default-actions>
-        <div class="p-3">
-          <p class="mb-4" style="color: var(--va-secondary)">Personal settings feature is coming soon.<br/>You will be able to configure your profile and security settings here.</p>
-          <div class="flex justify-end mt-4">
-            <va-button @click="showSettingsModal = false">Close</va-button>
+      <va-modal v-model="showSettingsModal" :title="$t('personal_settings') || 'Personal Settings'" hide-default-actions>
+        <div style="min-width: 320px; padding: 1rem 1.5rem 1.5rem 1.5rem; overflow: hidden; box-sizing: border-box;">
+          <div class="mb-4" style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <span style="font-size: 0.85rem; color: var(--va-text-secondary); font-weight: 600;">
+              {{ $t('timezone') || 'Timezone Settings' }}
+            </span>
+            <va-select 
+              v-model="selectedTimezone" 
+              :options="timezoneOptions" 
+              value-by="value"
+              text-by="label"
+              class="w-full"
+              outline
+              :placeholder="$t('timezone_select') || 'Select timezone'"
+            />
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+            <va-button preset="secondary" color="secondary" @click="showSettingsModal = false">Cancel</va-button>
+            <va-button :loading="isSavingTimezone" @click="handleSaveTimezone">Save</va-button>
           </div>
         </div>
       </va-modal>
@@ -134,10 +148,9 @@
 import { computed, ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useCookie, useState } from '#app'
-import { useI18n } from 'vue-i18n'
 import { useColors } from 'vuestic-ui'
 
-const { t, locale } = useI18n()
+const { t, locale, setLocale } = useI18n()
 const { applyPreset, currentPresetName } = useColors()
 
 const router = useRouter()
@@ -147,12 +160,78 @@ const currentLocale = useCookie('locale', { default: () => 'ko' })
 const savedTheme = useCookie('theme', { default: () => 'light' })
 
 const showSettingsModal = ref(false)
+const savedTimezone = useCookie('timezone', { default: () => 'Asia/Seoul' })
+const selectedTimezone = ref('')
+const isSavingTimezone = ref(false)
+
+const timezoneOptions = ref([
+  { label: '[GMT+09:00] Asia/Seoul (Seoul)', value: 'Asia/Seoul' },
+  { label: '[GMT+09:00] Asia/Tokyo (Tokyo)', value: 'Asia/Tokyo' },
+  { label: '[GMT+08:00] Asia/Shanghai (Shanghai)', value: 'Asia/Shanghai' },
+  { label: '[GMT+08:00] Asia/Hong Kong (Hong Kong)', value: 'Asia/Hong_Kong' },
+  { label: '[GMT+08:00] Asia/Singapore (Singapore)', value: 'Asia/Singapore' },
+  { label: '[GMT+05:30] Asia/Kolkata (Kolkata)', value: 'Asia/Kolkata' },
+  { label: '[GMT+04:00] Asia/Dubai (Dubai)', value: 'Asia/Dubai' },
+  { label: '[GMT+07:00] Asia/Jakarta (Jakarta)', value: 'Asia/Jakarta' },
+  { label: '[GMT+00:00] Europe/London (London)', value: 'Europe/London' },
+  { label: '[GMT+01:00] Europe/Paris (Paris)', value: 'Europe/Paris' },
+  { label: '[GMT+01:00] Europe/Berlin (Berlin)', value: 'Europe/Berlin' },
+  { label: '[GMT+03:00] Europe/Moscow (Moscow)', value: 'Europe/Moscow' },
+  { label: '[GMT-05:00] America/New York (New York)', value: 'America/New_York' },
+  { label: '[GMT-06:00] America/Chicago (Chicago)', value: 'America/Chicago' },
+  { label: '[GMT-07:00] America/Denver (Denver)', value: 'America/Denver' },
+  { label: '[GMT-08:00] America/Los Angeles (Los Angeles)', value: 'America/Los_Angeles' },
+  { label: '[GMT-09:00] America/Anchorage (Anchorage)', value: 'America/Anchorage' },
+  { label: '[GMT-10:00] America/Honolulu (Honolulu)', value: 'America/Honolulu' },
+  { label: '[GMT-03:00] America/Sao Paulo (Sao Paulo)', value: 'America/Sao_Paulo' },
+  { label: '[GMT+10:00] Australia/Sydney (Sydney)', value: 'Australia/Sydney' },
+  { label: '[GMT+12:00] Pacific/Auckland (Auckland)', value: 'Pacific/Auckland' },
+  { label: '[GMT+02:00] Africa/Cairo (Cairo)', value: 'Africa/Cairo' },
+  { label: '[GMT+02:00] Africa/Johannesburg (Johannesburg)', value: 'Africa/Johannesburg' },
+  { label: '[GMT+00:00] UTC (Coordinated Universal Time)', value: 'UTC' }
+])
+
+watch(showSettingsModal, (isOpen) => {
+  if (isOpen) {
+    selectedTimezone.value = savedTimezone.value || 'Asia/Seoul'
+  }
+})
+
+const handleSaveTimezone = async () => {
+  isSavingTimezone.value = true
+  try {
+    savedTimezone.value = selectedTimezone.value
+    
+    if (userCookie.value) {
+      const usr = typeof userCookie.value === 'string' ? JSON.parse(userCookie.value) : userCookie.value
+      usr.timezone = selectedTimezone.value
+      userCookie.value = JSON.stringify(usr)
+    }
+    
+    await $fetch('/api/users/timezone', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokenCookie.value}` },
+      body: { timezone: selectedTimezone.value }
+    })
+    
+    showSettingsModal.value = false
+    window.location.reload()
+  } catch (e) {
+    console.error('Failed to save timezone:', e)
+    alert('Failed to save timezone to the server.')
+  } finally {
+    isSavingTimezone.value = false
+  }
+}
 
 const isDark = computed(() => currentPresetName.value === 'dark')
 
-locale.value = currentLocale.value || 'ko'
+if (setLocale) setLocale(currentLocale.value || 'ko')
+else locale.value = currentLocale.value || 'ko'
+
 watch(currentLocale, (newVal) => {
-  locale.value = newVal || 'ko'
+  if (setLocale) setLocale(newVal || 'ko')
+  else locale.value = newVal || 'ko'
 })
 
 const toggleTheme = () => {
@@ -164,7 +243,8 @@ const toggleTheme = () => {
 const toggleLang = () => {
   const newLang = currentLocale.value === 'ko' ? 'en' : 'ko'
   currentLocale.value = newLang
-  locale.value = newLang
+  if (setLocale) setLocale(newLang)
+  else locale.value = newLang
 }
 const showSidebar = ref(true)
 const isMobile = ref(false)
@@ -224,6 +304,7 @@ body {
   display: flex; 
   align-items: center; 
   white-space: nowrap; 
+  padding-right: 1.5rem;
 }
 .profile-btn {
   text-transform: none !important;
@@ -279,7 +360,7 @@ body {
     display: none;
   }
   .navbar-right {
-    padding-right: 0;
+    padding-right: 0.75rem;
   }
   .responsive-sidebar {
     position: absolute;

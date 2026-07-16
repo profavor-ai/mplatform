@@ -159,5 +159,9 @@
   "noRequests": "There are no pending requests.",
   "finalApproval": "Final Approval",
   "mySubmitted": "My Submitted Requests",
-  "noSubmitted": "No submitted requests."
+  "noSubmitted": "No submitted requests.",
+  "submission_date": "Submission Date",
+  "timezone": "Timezone Settings",
+  "timezone_select": "Select your timezone",
+  "personal_settings": "Personal Settings"
 }

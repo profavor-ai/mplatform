@@ -50,9 +50,11 @@
           <va-card-content style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 0;">
             <!-- Fields Tab -->
             <div v-show="activeTab === 0" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem;">
-              <div :class="[currentPresetName === 'dark' ? 'ag-theme-alpine-dark' : 'ag-theme-alpine', ' schema-grid-wrapper']">
+              <div class="schema-grid-wrapper">
                 <ag-grid-vue
                   style="width: 100%; height: 100%;"
+                  :theme="gridTheme"
+                  :autoSizeStrategy="autoSizeStrategy"
                   :columnDefs="columnDefs"
                   rowSelection="single"
                   rowModelType="infinite"
@@ -129,15 +131,16 @@
         </va-card>
       </div>
     </div>
-    <!-- Domain Modal -->
+
+    <!-- Domain Modal -->
     <va-modal v-model="showDomainModal" :title="isEditMode ? 'Edit Domain' : 'Create New Domain'" :ok-text="isEditMode ? 'Save' : 'Create'" cancel-text="Cancel" @ok="saveDomain" :prevent-click-outside="true">
       <div style="display: flex; gap: 1rem;">
-        <va-input v-model="newDomain.name.ko" label="Domain Name (KO)" class="mb-4 w-full" />
-        <va-input v-model="newDomain.name.en" label="Domain Name (EN)" class="mb-4 w-full" />
+        <va-input v-model="newDomain.name.ko" label="Domain Name (KO)" class="mb-4" style="flex: 1; min-width: 0;" />
+        <va-input v-model="newDomain.name.en" label="Domain Name (EN)" class="mb-4" style="flex: 1; min-width: 0;" />
       </div>
       <div style="display: flex; gap: 1rem;">
-        <va-input v-model="newDomain.description.ko" label="Description (KO)" class="mb-4 w-full" />
-        <va-input v-model="newDomain.description.en" label="Description (EN)" class="mb-4 w-full" />
+        <va-input v-model="newDomain.description.ko" label="Description (KO)" class="mb-4" style="flex: 1; min-width: 0;" />
+        <va-input v-model="newDomain.description.en" label="Description (EN)" class="mb-4" style="flex: 1; min-width: 0;" />
       </div>
       
       <!-- Field Mappings (Only show in Edit mode because we need fields) -->
@@ -178,8 +181,8 @@
     <!-- Node Modal -->
     <va-modal v-model="showNodeModal" :title="isEditMode ? `Edit Node` : `Add Node to ${selectedNode?.label}`" :ok-text="isEditMode ? 'Save' : 'Create'" cancel-text="Cancel" @ok="saveNode">
       <div style="display: flex; gap: 1rem;">
-        <va-input v-model="newNode.name.ko" label="Node Name (KO)" class="mb-4 w-full" />
-        <va-input v-model="newNode.name.en" label="Node Name (EN)" class="mb-4 w-full" />
+        <va-input v-model="newNode.name.ko" label="Node Name (KO)" class="mb-4" style="flex: 1; min-width: 0;" />
+        <va-input v-model="newNode.name.en" label="Node Name (EN)" class="mb-4" style="flex: 1; min-width: 0;" />
       </div>
       <va-input v-model="newNode.order" type="number" label="Order" class="mb-4 w-full" />
     </va-modal>
@@ -187,8 +190,8 @@
     <!-- Field Modal -->
     <va-modal v-model="showFieldModal" :title="isEditMode ? `Edit Field` : `Add Field to ${selectedNode?.label}`" hide-default-actions size="large">
       <div style="display: flex; gap: 1rem;">
-        <va-input v-model="newField.name.ko" label="Field Name (KO)" class="mb-4 w-full" />
-        <va-input v-model="newField.name.en" label="Field Name (EN)" class="mb-4 w-full" />
+        <va-input v-model="newField.name.ko" label="Field Name (KO)" class="mb-4" style="flex: 1; min-width: 0;" />
+        <va-input v-model="newField.name.en" label="Field Name (EN)" class="mb-4" style="flex: 1; min-width: 0;" />
       </div>
       <va-select 
         v-model="newField.fieldGroupId" 
@@ -198,8 +201,8 @@
         class="mb-4 w-full" 
       />
       <div style="display: flex; gap: 1rem;">
-        <va-input v-model="newField.key" label="Field Key" class="mb-4 w-full" />
-        <va-input v-model="newField.order" type="number" label="Sort Order" class="mb-4 w-full" />
+        <va-input v-model="newField.key" label="Field Key" class="mb-4" style="flex: 1; min-width: 0;" />
+        <va-input v-model="newField.order" type="number" label="Sort Order" class="mb-4" style="flex: 1; min-width: 0;" />
       </div>
       
       <va-select v-model="newField.type" :options="fieldTypes" label="Field Type" class="mb-4 w-full" />
@@ -222,8 +225,9 @@
         </div>
         
         <ag-grid-vue
-          :class="[currentPresetName === 'dark' ? 'ag-theme-alpine-dark' : 'ag-theme-alpine']"
           style="width: 100%; height: 250px;"
+          :theme="gridTheme"
+          :autoSizeStrategy="autoSizeStrategy"
           :columnDefs="optionsColumnDefs"
           :rowData="newFieldOptionsList"
           :defaultColDef="optionsDefaultColDef"
@@ -296,9 +300,11 @@
               <va-button size="small" color="danger" @click="deleteSelectedSector" :outline="isDark">Delete Selected</va-button>
             </div>
           </div>
-          <div :class="[currentPresetName === 'dark' ? 'ag-theme-alpine-dark' : 'ag-theme-alpine']" style="flex: 1; width: 100%;">
+          <div style="flex: 1; width: 100%;">
             <AgGridVue
               style="width: 100%; height: 100%;"
+              :theme="gridTheme"
+              :autoSizeStrategy="autoSizeStrategy"
               :columnDefs="sectorColumnDefs"
               :rowData="domainSectors"
               :defaultColDef="sgDefaultColDef"
@@ -318,9 +324,11 @@
               <va-button size="small" color="danger" @click="deleteSelectedGroup" :outline="isDark">Delete Selected</va-button>
             </div>
           </div>
-          <div :class="[currentPresetName === 'dark' ? 'ag-theme-alpine-dark' : 'ag-theme-alpine']" style="flex: 1; width: 100%;">
+          <div style="flex: 1; width: 100%;">
             <AgGridVue
               style="width: 100%; height: 100%;"
+              :theme="gridTheme"
+              :autoSizeStrategy="autoSizeStrategy"
               :columnDefs="groupColumnDefs"
               :rowData="domainGroups"
               :defaultColDef="sgDefaultColDef"
@@ -351,8 +359,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useCookie, useState } from '#app'
 
 import { AgGridVue } from 'ag-grid-vue3'
-import 'ag-grid-community/styles/ag-grid.css'
-import 'ag-grid-community/styles/ag-theme-alpine.css'
+
+const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 
 const currentLocale = useCookie('locale', { default: () => 'ko' })
 const token = useCookie('auth_token', { default: () => '' })
@@ -1028,7 +1036,7 @@ const saveNode = async () => {
   
   try {
     const targetId = isEditMode.value ? newNode.value.id : selectedNode.value.id
-    const url = isEditMode.value ? `/api/nodes/${targetId}` : `/api/domains/${targetId}/nodes`
+    const url = isEditMode.value ? `/api/domains/${newNode.value.domainId}/nodes/${targetId}` : `/api/domains/${targetId}/nodes`
     await $fetch(url, {
       method: isEditMode.value ? 'PUT' : 'POST',
       headers: getAuthHeaders(),
