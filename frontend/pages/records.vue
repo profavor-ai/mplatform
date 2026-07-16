@@ -294,6 +294,7 @@
                     </div>
                   </div>
                 </div>
+              </div>
               </va-collapse>
           </va-accordion>
         </div>
@@ -455,6 +456,7 @@
                     </div>
                   </div>
                 </div>
+              </div>
               </va-collapse>
           </va-accordion>
         </div>
