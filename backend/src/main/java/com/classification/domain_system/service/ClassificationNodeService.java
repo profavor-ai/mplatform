@@ -48,6 +48,7 @@ public class ClassificationNodeService {
         node.setPath(path);
         node.setDepth(depth);
         node.setOrder(request.getOrder() != null ? request.getOrder() : 0);
+        node.setIcon(request.getIcon());
         node.setIsDeleted(false);
         
         return nodeRepository.save(node);
@@ -69,6 +70,7 @@ public class ClassificationNodeService {
         
         node.setName(request.getName());
         node.setOrder(request.getOrder() != null ? request.getOrder() : node.getOrder());
+        node.setIcon(request.getIcon() != null ? request.getIcon() : node.getIcon());
         
         return nodeRepository.save(node);
     }

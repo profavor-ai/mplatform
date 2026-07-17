@@ -38,6 +38,12 @@ public class Domain {
     @Column(name = "description_field_id")
     private UUID descriptionFieldId;
 
+    @Column(name = "icon")
+    private String icon;
+
+    @Column(name = "sort_order", nullable = false)
+    private Integer sortOrder = 0;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

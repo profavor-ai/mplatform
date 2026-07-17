@@ -10,4 +10,5 @@ public class ClassificationNodeRequest {
     private UUID parentId;
     private Map<String, String> name;
     private Integer order;
+    private String icon;
 }

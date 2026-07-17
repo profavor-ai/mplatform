@@ -21,6 +21,9 @@ class DomainServiceTest extends BaseServiceTest {
 
     @Mock
     private DomainRepository domainRepository;
+    
+    @Mock
+    private com.classification.domain_system.repository.UserRepository userRepository;
 
     @InjectMocks
     private DomainService domainService;
@@ -52,21 +55,38 @@ class DomainServiceTest extends BaseServiceTest {
     class GetAllDomains {
 
         @Test
-        @DisplayName("성공 - 전체 도메인 목록을 반환한다")
+        @DisplayName("성공 - 권한이 있는 경우에만, 또는 ADMIN인 경우 전체를 정렬하여 반환한다")
         void success() {
             // given
             List<Domain> domains = List.of(
                 createTestDomain(UUID.randomUUID(), "인사", "HR"),
                 createTestDomain(UUID.randomUUID(), "재무", "Finance")
             );
-            given(domainRepository.findAll()).willReturn(domains);
+            
+            org.springframework.security.core.Authentication auth = org.mockito.Mockito.mock(org.springframework.security.core.Authentication.class);
+            org.springframework.security.core.context.SecurityContext ctx = org.mockito.Mockito.mock(org.springframework.security.core.context.SecurityContext.class);
+            given(ctx.getAuthentication()).willReturn(auth);
+            org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
+            
+            given(auth.isAuthenticated()).willReturn(true);
+            given(auth.getName()).willReturn("adminUser");
+            
+            com.classification.domain_system.entity.User admin = new com.classification.domain_system.entity.User();
+            admin.setId(UUID.randomUUID().toString());
+            admin.setUsername("adminUser");
+            admin.setRole("ADMIN");
+            
+            given(userRepository.findByUsername("adminUser")).willReturn(Optional.of(admin));
+            given(domainRepository.findAllByOrderBySortOrderAsc()).willReturn(domains);
 
             // when
             List<Domain> result = domainService.getAllDomains();
 
             // then
             assertThat(result).hasSize(2);
-            verify(domainRepository).findAll();
+            verify(domainRepository).findAllByOrderBySortOrderAsc();
+            
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }
     }
 

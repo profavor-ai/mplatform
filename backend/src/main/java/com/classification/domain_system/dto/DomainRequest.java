@@ -12,4 +12,6 @@ public class DomainRequest {
     private UUID identifierFieldId;
     private UUID displayNameFieldId;
     private UUID descriptionFieldId;
+    private String icon;
+    private Integer sortOrder;
 }

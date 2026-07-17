@@ -55,6 +55,9 @@ public class ClassificationNode {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+    @Column(name = "icon")
+    private String icon;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

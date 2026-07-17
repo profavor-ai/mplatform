@@ -2,7 +2,7 @@
   <div class="custom-tree-node">
     <div class="node-wrapper" :class="{ 'selected-node': node.id === selectedNode?.id }" @click="onNodeSelected(node)">
       <!-- Indentation -->
-      <div :style="{ width: `${level * 20}px` }"></div>
+      <div :style="{ width: `${level * 24}px` }"></div>
       
       <!-- Expand Icon -->
       <div class="expand-icon" @click.stop="toggleExpand" v-if="hasChildren">
@@ -10,28 +10,38 @@
       </div>
       <div class="expand-icon-placeholder" v-else></div>
 
+      <!-- Type Icon -->
+      <va-icon 
+        :name="node.icon ? node.icon : (node.isDomain ? 'folder' : 'article')" 
+        size="small" 
+        class="type-icon" 
+        :color="node.isDomain ? 'primary' : 'secondary'"
+      />
+
       <!-- Label -->
-      <span class="node-label" :style="{ fontWeight: node.id === selectedNode?.id ? 'bold' : 'normal', color: node.id === selectedNode?.id ? 'var(--va-primary)' : 'inherit' }">
+      <span class="node-label">
         {{ node.label }}
       </span>
 
       <!-- Edit Button -->
-      <va-button v-if="showEdit" class="edit-btn" icon="edit" size="small" @click.stop="handleNodeEdit(node)" preset="plain" />
+      <va-button v-if="showEdit" class="edit-btn" icon="edit" size="small" @click.stop="handleNodeEdit(node)" preset="plain" :color="node.id === selectedNode?.id ? 'white' : 'primary'" />
     </div>
 
     <!-- Children -->
-    <div class="children-wrapper" v-if="hasChildren" v-show="isExpanded">
-      <SchemaTreeNode 
-        v-for="child in node.children" 
-        :key="child.id" 
-        :node="child" 
-        :level="level + 1"
-        :selectedNode="selectedNode" 
-        :showEdit="showEdit"
-        @select="onNodeSelected" 
-        @edit="handleNodeEdit" 
-      />
-    </div>
+    <transition name="tree-slide">
+      <div class="children-wrapper" v-if="hasChildren" v-show="isExpanded">
+        <SchemaTreeNode 
+          v-for="child in node.children" 
+          :key="child.id" 
+          :node="child" 
+          :level="level + 1"
+          :selectedNode="selectedNode" 
+          :showEdit="showEdit"
+          @select="onNodeSelected" 
+          @edit="handleNodeEdit" 
+        />
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -73,14 +83,25 @@ const handleNodeEdit = (n) => emit('edit', n)
   display: flex;
   align-items: center;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-.node-wrapper.selected-node {
-  background-color: rgba(21, 78, 193, 0.1);
+  padding: 8px 12px;
+  margin: 4px 0;
+  border-radius: 8px;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  border: 1px solid transparent;
+  background-color: transparent;
+  color: var(--va-text-primary);
 }
 .node-wrapper:hover {
-  background-color: rgba(128, 128, 128, 0.15);
+  background-color: var(--va-background-element);
+  border-color: var(--va-background-border);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  transform: translateX(4px);
+}
+.node-wrapper.selected-node {
+  background: linear-gradient(135deg, var(--va-primary) 0%, var(--va-info) 100%);
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(21, 78, 193, 0.3);
+  border-color: transparent;
 }
 .expand-icon {
   width: 24px;
@@ -88,9 +109,22 @@ const handleNodeEdit = (n) => emit('edit', n)
   justify-content: center;
   align-items: center;
   cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.expand-icon:hover {
+  transform: scale(1.2);
 }
 .expand-icon-placeholder {
   width: 24px;
+}
+.type-icon {
+  margin-right: 8px;
+  opacity: 0.9;
+}
+.selected-node .type-icon,
+.selected-node :deep(.type-icon),
+.selected-node :deep(.type-icon i) {
+  color: #ffffff !important;
 }
 .node-label {
   flex: 1;
@@ -98,6 +132,12 @@ const handleNodeEdit = (n) => emit('edit', n)
   text-overflow: ellipsis;
   white-space: nowrap;
   padding-right: 40px;
+  font-weight: 500;
+  font-size: 0.95rem;
+  letter-spacing: 0.3px;
+}
+.selected-node .node-label {
+  font-weight: 700;
 }
 .node-wrapper .edit-btn {
   position: absolute;
@@ -106,11 +146,23 @@ const handleNodeEdit = (n) => emit('edit', n)
   transform: translateY(-50%);
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
+  transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
   z-index: 10;
 }
 .node-wrapper:hover .edit-btn {
   opacity: 1;
   visibility: visible;
+  transform: translateY(-50%) scale(1.1);
+}
+.tree-slide-enter-active,
+.tree-slide-leave-active {
+  transition: all 0.3s ease-in-out;
+  max-height: 1000px;
+  overflow: hidden;
+}
+.tree-slide-enter-from,
+.tree-slide-leave-to {
+  max-height: 0;
+  opacity: 0;
 }
 </style>

@@ -1,6 +1,8 @@
 <template>
   <div>
-    <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem;">{{ t('dashboard') }}</h1>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <h1 style="font-size: 2rem; font-weight: bold;">{{ t('dashboard') }}</h1>
+    </div>
     
     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem;">
       <va-card>
@@ -144,6 +146,19 @@ const currentUser = computed(() => {
   }
   return null
 })
+
+const getDomainName = (nameObj) => {
+  if (!nameObj) return 'Unknown'
+  if (typeof nameObj === 'string') {
+    try {
+      const parsed = JSON.parse(nameObj)
+      return parsed[currentLocale.value] || parsed.ko || parsed.en || 'Unknown'
+    } catch {
+      return nameObj
+    }
+  }
+  return nameObj[currentLocale.value] || nameObj.ko || nameObj.en || 'Unknown'
+}
 
 onMounted(async () => {
   try {

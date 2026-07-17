@@ -87,8 +87,8 @@
 
             <va-select
               v-model="registerForm.role"
+              :options="['USER', 'MANAGER', 'ADMIN']"
               label="Role"
-              :options="['ADMIN', 'EDITOR', 'STEWARD']"
               class="w-full mb-4"
               outline
               placeholder="Select your role"

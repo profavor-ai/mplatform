@@ -8,19 +8,13 @@
       <div style="flex: 1; overflow-y: auto;">
         <va-card flat>
           <va-card-content style="padding: 0;">
-            <div v-if="!treeNodes || treeNodes.length === 0" style="padding: 2rem; text-align: center; color: #666;">
-              분류체계 트리가 없습니다.
-            </div>
-            <div v-else class="va-tree" style="width: 100%;">
-              <SchemaTreeNode 
-                v-for="domain in treeNodes" 
-                :key="domain.id" 
-                :node="domain"
-                :selectedNode="selectedNode"
-                :showEdit="false"
-                @select="selectNode"
-              />
-            </div>
+            <ClassificationTree
+              ref="treeRef"
+              :selectedNode="selectedNode"
+              :showEdit="false"
+              @select="selectNode"
+              @loaded="onTreeLoaded"
+            />
           </va-card-content>
         </va-card>
       </div>
@@ -1102,61 +1096,19 @@ const isMultiple = (field) => {
   }
 }
 
+const treeRef = ref(null)
+
+const onTreeLoaded = (nodes) => {
+  treeNodes.value = nodes
+}
+
 const loadTree = async () => {
-  try {
-    const domains = await $fetch('/api/domains', {
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
-    
-    const builtTree = []
-    for (const d of domains) {
-      const nodes = await $fetch(`/api/domains/${d.id}/nodes/tree`, {
-        headers: { Authorization: `Bearer ${token.value}` }
-      })
-      
-      const formatNode = (n) => {
-        const pName = parseName(n.name);
-        return {
-          id: n.id,
-          label: pName?.[currentLocale.value] || pName?.ko || pName?.en || 'Unknown',
-          domainId: d.id,
-          isDomain: false,
-          children: n.children ? n.children.map(formatNode) : [],
-          originalNameMap: pName
-        };
-      };
-      
-      const dName = parseName(d.name);
-      builtTree.push({
-        id: d.id,
-        label: (dName?.[currentLocale.value] || dName?.ko || dName?.en || 'Unknown') + ' (Domain)',
-        domainId: d.id,
-        isDomain: true,
-        expanded: true,
-        children: nodes.map(formatNode),
-        originalNameMap: dName
-      })
-    }
-    treeNodes.value = builtTree
-  } catch (error) {
-    console.error('Failed to load tree:', error.message || error)
+  if (treeRef.value) {
+    await treeRef.value.loadTree()
   }
 }
 
 watch(currentLocale, () => {
-  const updateLabel = (nodes) => {
-    nodes.forEach(n => {
-      if (n.originalNameMap) {
-        n.label = n.originalNameMap[currentLocale.value] || n.originalNameMap.ko || n.originalNameMap.en || 'Unknown';
-        if (n.isDomain) n.label += ' (Domain)';
-      }
-      if (n.children && n.children.length > 0) {
-        updateLabel(n.children);
-      }
-    })
-  }
-  updateLabel(treeNodes.value)
-  
   if (gridApi.value && columnDefs.value) {
     gridApi.value.setGridOption('columnDefs', buildColumnDefs(nodeFields.value))
   }

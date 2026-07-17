@@ -51,6 +51,14 @@
                         <va-list-item-title>{{ isDark ? 'Light Theme' : 'Dark Theme' }}</va-list-item-title>
                       </va-list-item-section>
                     </va-list-item>
+                    <va-list-item @click="showRequestAccessModal = true" class="cursor-pointer dropdown-item">
+                      <va-list-item-section icon>
+                        <va-icon name="add_circle_outline" />
+                      </va-list-item-section>
+                      <va-list-item-section>
+                        <va-list-item-title>{{ $t('request_domain_access') || 'Request Domain Access' }}</va-list-item-title>
+                      </va-list-item-section>
+                    </va-list-item>
                     <va-list-item @click="showSettingsModal = true" class="cursor-pointer dropdown-item">
                       <va-list-item-section icon>
                         <va-icon name="settings" />
@@ -84,7 +92,7 @@
             <va-sidebar-item-title>{{ $t('dashboard') || 'Dashboard' }}</va-sidebar-item-title>
           </va-sidebar-item-content>
         </va-sidebar-item>
-        <va-sidebar-item :active="$route.path === '/schema'" @click="router.push('/schema')">
+        <va-sidebar-item v-if="['MANAGER', 'ADMIN'].includes(currentUser?.role)" :active="$route.path === '/schema'" @click="router.push('/schema')">
           <va-sidebar-item-content>
             <va-icon name="list" />
             <va-sidebar-item-title>{{ $t('schema') || 'Domain Schema' }}</va-sidebar-item-title>
@@ -103,12 +111,32 @@
           </va-sidebar-item-content>
         </va-sidebar-item>
 
-        <va-sidebar-item :active="$route.path === '/admin'" @click="router.push('/admin')">
-          <va-sidebar-item-content>
-            <va-icon name="admin_panel_settings" />
-            <va-sidebar-item-title>{{ $t('admin') || 'Admin Monitor' }}</va-sidebar-item-title>
-          </va-sidebar-item-content>
-        </va-sidebar-item>
+        <va-accordion v-if="currentUser?.role === 'ADMIN'">
+          <va-collapse>
+            <template #header>
+              <va-sidebar-item>
+                <va-sidebar-item-content>
+                  <va-icon name="admin_panel_settings" />
+                  <va-sidebar-item-title>{{ $t('admin') || 'Admin' }}</va-sidebar-item-title>
+                </va-sidebar-item-content>
+              </va-sidebar-item>
+            </template>
+            
+            <va-sidebar-item :active="$route.path === '/admin'" @click="router.push('/admin')" style="padding-left: 2rem;">
+              <va-sidebar-item-content>
+                <va-icon name="monitor" size="small" />
+                <va-sidebar-item-title>Admin Monitor</va-sidebar-item-title>
+              </va-sidebar-item-content>
+            </va-sidebar-item>
+
+            <va-sidebar-item :active="$route.path === '/admin/users'" @click="router.push('/admin/users')" style="padding-left: 2rem;">
+              <va-sidebar-item-content>
+                <va-icon name="manage_accounts" size="small" />
+                <va-sidebar-item-title>User Management</va-sidebar-item-title>
+              </va-sidebar-item-content>
+            </va-sidebar-item>
+          </va-collapse>
+        </va-accordion>
       </va-sidebar>
     </template>
     
@@ -140,6 +168,8 @@
           </div>
         </div>
       </va-modal>
+      <!-- Request Access Modal -->
+      <DomainAccessRequestModal v-model="showRequestAccessModal" />
     </template>
   </va-layout>
 </template>
@@ -163,6 +193,8 @@ const showSettingsModal = ref(false)
 const savedTimezone = useCookie('timezone', { default: () => 'Asia/Seoul' })
 const selectedTimezone = ref('')
 const isSavingTimezone = ref(false)
+
+const showRequestAccessModal = ref(false)
 
 const timezoneOptions = ref([
   { label: '[GMT+09:00] Asia/Seoul (Seoul)', value: 'Asia/Seoul' },

@@ -11,26 +11,25 @@
           </va-card-title>
           <va-card-content>
             <div class="schema-tree-wrapper">
-              <div v-if="!treeNodes || treeNodes.length === 0" style="padding: 2rem; text-align: center; color: #666;">
-                분류체계 트리가 없습니다. 하단의 Domain 버튼을 눌러 새 도메인을 생성해주세요.
-              </div>
-              <div v-else class="va-tree" style="width: 100%;">
-                <SchemaTreeNode 
-                  v-for="domain in treeNodes" 
-                  :key="domain.id" 
-                  :node="domain" 
-                  :selectedNode="selectedNode" 
-                  @select="onNodeSelected" 
-                  @edit="handleNodeEdit" 
-                />
-              </div>
+              <ClassificationTree
+                ref="treeRef"
+                :selectedNode="selectedNode"
+                :showEdit="true"
+                emptyMessage="분류체계 트리가 없습니다. 하단의 Domain 버튼을 눌러 새 도메인을 생성해주세요."
+                @select="onNodeSelected"
+                @edit="handleNodeEdit"
+                @loaded="onTreeLoaded"
+              />
             </div>
-            <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
-              <va-button style="flex: 1" icon="add" @click="openDomainModal()">Domain</va-button>
-              <va-button style="flex: 1" icon="add" @click="openNodeModal()" :disabled="!selectedNode">Node</va-button>
+            <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; padding: 0 0.5rem;">
+              <va-button v-if="currentUser?.role === 'ADMIN'" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" @click="openDomainModal()" color="primary">Domain</va-button>
+              <va-button style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="note_add" @click="openNodeModal()" :disabled="!selectedNode" color="primary" :preset="selectedNode ? 'primary' : 'secondary'">Node</va-button>
             </div>
-            <div style="margin-top: 1rem;">
-              <va-button style="width: 100%" color="info" icon="settings" @click="openSectorGroupModal" :disabled="!treeNodes || treeNodes.length === 0" :outline="isDark">Manage Sectors & Groups</va-button>
+            <div v-if="currentUser?.role !== 'ADMIN'" style="margin-top: 0.75rem; padding: 0 0.5rem;">
+              <va-button preset="secondary" style="width: 100%;" @click="showRequestAccessModal = true">Request Domain Access</va-button>
+            </div>
+            <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
+              <va-button style="width: 100%; border-radius: 8px; font-weight: 600;" color="info" icon="tune" @click="openSectorGroupModal" :disabled="!treeNodes || treeNodes.length === 0" preset="secondary">Manage Sectors & Groups</va-button>
             </div>
           </va-card-content>
         </va-card>
@@ -142,6 +141,14 @@
         <va-input v-model="newDomain.description.ko" label="Description (KO)" class="mb-4" style="flex: 1; min-width: 0;" />
         <va-input v-model="newDomain.description.en" label="Description (EN)" class="mb-4" style="flex: 1; min-width: 0;" />
       </div>
+      <div class="mb-4">
+        <label style="font-weight: bold; margin-bottom: 0.5rem; display: block; font-size: 0.9rem; color: var(--va-text-primary);">Domain Icon</label>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <va-icon :name="newDomain.icon || 'folder'" size="large" color="primary" />
+          <va-button size="small" preset="secondary" border-color="primary" @click="openIconPicker(true)">Select Icon</va-button>
+        </div>
+      </div>
+      <va-input v-model="newDomain.sortOrder" type="number" label="Sort Order" class="mb-4 w-full" />
       
       <!-- Field Mappings (Only show in Edit mode because we need fields) -->
       <div v-if="isEditMode" style="margin-top: 1rem; border-top: 1px solid #eee; padding-top: 1rem;">
@@ -185,6 +192,13 @@
         <va-input v-model="newNode.name.en" label="Node Name (EN)" class="mb-4" style="flex: 1; min-width: 0;" />
       </div>
       <va-input v-model="newNode.order" type="number" label="Order" class="mb-4 w-full" />
+      <div class="mb-4">
+        <label style="font-weight: bold; margin-bottom: 0.5rem; display: block; font-size: 0.9rem; color: var(--va-text-primary);">Node Icon</label>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <va-icon :name="newNode.icon || 'article'" size="large" color="primary" />
+          <va-button size="small" preset="secondary" border-color="primary" @click="openIconPicker(false)">Select Icon</va-button>
+        </div>
+      </div>
     </va-modal>
 
     <!-- Field Modal -->
@@ -347,6 +361,18 @@
         <va-button @click="showSectorGroupModal = false">Close</va-button>
       </div>
     </va-modal>
+
+    <!-- Icon Picker Modal -->
+    <va-modal v-model="showIconPickerModal" title="Select Icon" size="medium" hide-default-actions>
+      <IconPicker v-model="tempIcon" />
+      <div style="display: flex; justify-content: flex-end; margin-top: 1rem; gap: 0.5rem;">
+        <va-button preset="secondary" @click="showIconPickerModal = false">Cancel</va-button>
+        <va-button @click="applyIcon">Confirm</va-button>
+      </div>
+    </va-modal>
+
+    <!-- Request Access Modal -->
+    <DomainAccessRequestModal v-model="showRequestAccessModal" />
   </div>
 </template>
 
@@ -366,6 +392,7 @@ const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 
 const currentLocale = useCookie('locale', { default: () => 'ko' })
 const token = useCookie('auth_token', { default: () => '' })
+const userCookie = useCookie('user_data')
 const getAuthHeaders = () => token.value ? { Authorization: `Bearer ${token.value}` } : {}
 
 const activeTab = ref(0)
@@ -406,6 +433,13 @@ const createFieldsDatasource = () => {
   };
 };
 
+const currentUser = computed(() => {
+  if (userCookie.value) {
+    return typeof userCookie.value === 'string' ? JSON.parse(userCookie.value) : userCookie.value
+  }
+  return null
+})
+
 const fetchFields = () => {
   if (fieldsGridApi.value) {
     fieldsGridApi.value.setGridOption('datasource', createFieldsDatasource());
@@ -419,15 +453,43 @@ const showDomainModal = ref(false)
 const showNodeModal = ref(false)
 const showFieldModal = ref(false)
 const showSectorGroupModal = ref(false)
+const showIconPickerModal = ref(false)
+const tempIcon = ref('')
+const isPickingForDomain = ref(true)
+
+const openIconPicker = (forDomain) => {
+  isPickingForDomain.value = forDomain
+  tempIcon.value = forDomain ? newDomain.value.icon : newNode.value.icon
+  showIconPickerModal.value = true
+}
+
+const applyIcon = () => {
+  if (isPickingForDomain.value) {
+    newDomain.value.icon = tempIcon.value
+  } else {
+    newNode.value.icon = tempIcon.value
+  }
+  showIconPickerModal.value = false
+}
+
+const showRequestAccessModal = ref(false)
 
 const isEditMode = ref(false)
 const editingId = ref(null)
 
-const newDomain = ref({ name: { ko: '', en: '' }, description: { ko: '', en: '' }, identifierFieldId: null, displayNameFieldId: null, descriptionFieldId: null })
+const newDomain = ref({ 
+  name: { ko: '', en: '' }, 
+  description: { ko: '', en: '' }, 
+  identifierFieldId: null, 
+  displayNameFieldId: null, 
+  descriptionFieldId: null,
+  icon: '',
+  sortOrder: 0
+})
 const domainFieldOptions = ref([])
 const mappingError = ref({ id: false, name: false })
 
-const newNode = ref({ name: { ko: '', en: '' }, order: 1 })
+const newNode = ref({ name: { ko: '', en: '' }, order: 1, icon: '' })
 const newField = ref({ 
   name: { ko: '', en: '' }, 
   fieldGroupId: null,
@@ -687,64 +749,23 @@ const onGridReady = (params) => {
   }, 100)
 }
 
-const loadTree = async () => {
-  try {
-    const domains = await $fetch('/api/domains', {
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
-    
-    // For each domain, fetch its nodes tree
-    const builtTree = []
-    for (const d of domains) {
-      const nodes = await $fetch(`/api/domains/${d.id}/nodes/tree`, {
-        headers: { Authorization: `Bearer ${token.value}` }
-      })
-      
-      const parseName = (nameObj) => {
-        if (!nameObj) return null;
-        if (typeof nameObj === 'string') {
-          try {
-            return JSON.parse(nameObj);
-          } catch (e) {
-            return null;
-          }
-        }
-        return nameObj;
-      };
+const treeRef = ref(null)
 
-      const formatNode = (n) => {
-        const pName = parseName(n.name);
-        return {
-          id: n.id,
-          label: pName?.[currentLocale.value] || pName?.ko || pName?.en || 'Unknown',
-          domainId: d.id,
-          isDomain: false,
-          children: n.children ? n.children.map(formatNode) : [],
-          originalNameMap: pName,
-          originalData: n
-        };
-      };
-      
-      const dName = parseName(d.name);
-      builtTree.push({
-        id: d.id,
-        label: (dName?.[currentLocale.value] || dName?.ko || dName?.en || 'Unknown') + ' (Domain)',
-        domainId: d.id,
-        isDomain: true,
-        expanded: true,
-        children: nodes.map(formatNode),
-        originalNameMap: dName,
-        originalData: d
-      })
-    }
-    console.log('Loaded tree:', builtTree)
-    treeNodes.value = builtTree
-  } catch (error) {
-    console.error('Failed to load tree:', error.message || error)
+const onTreeLoaded = (nodes) => {
+  treeNodes.value = nodes
+}
+
+const loadTree = async () => {
+  if (treeRef.value) {
+    await treeRef.value.loadTree()
   }
 }
 
 onMounted(async () => {
+  if (userCookie.value?.role === 'USER') {
+    useRouter().push('/')
+    return
+  }
   loadTree()
   try {
     const users = await $fetch('/api/auth/users', { headers: getAuthHeaders() }).catch(() => [])
@@ -855,19 +876,6 @@ const saveWorkflowConfigs = async () => {
 }
 
 watch(currentLocale, () => {
-  const updateLabel = (nodes) => {
-    nodes.forEach(n => {
-      if (n.originalNameMap) {
-        n.label = n.originalNameMap[currentLocale.value] || n.originalNameMap.ko || n.originalNameMap.en || 'Unknown';
-        if (n.isDomain) n.label += ' (Domain)';
-      }
-      if (n.children && n.children.length > 0) {
-        updateLabel(n.children);
-      }
-    })
-  }
-  updateLabel(treeNodes.value)
-  
   if (gridApi.value) {
     gridApi.value.refreshCells({ force: true })
   }
@@ -963,7 +971,9 @@ const handleNodeEdit = async (node) => {
       description: { ko: pDesc.ko || '', en: pDesc.en || '' },
       identifierFieldId: rawDomain.identifierFieldId,
       displayNameFieldId: rawDomain.displayNameFieldId,
-      descriptionFieldId: rawDomain.descriptionFieldId
+      descriptionFieldId: rawDomain.descriptionFieldId,
+      icon: rawDomain.icon || '',
+      sortOrder: rawDomain.sortOrder || 0
     }
     showDomainModal.value = true
   } else {
@@ -971,7 +981,8 @@ const handleNodeEdit = async (node) => {
     newNode.value = { 
       ...targetNode, 
       name: { ...(targetNode.originalNameMap || {ko:'', en:''}) },
-      order: rawNode.order || 0
+      order: rawNode.order || 0,
+      icon: rawNode.icon || ''
     }
     showNodeModal.value = true
   }
@@ -979,14 +990,14 @@ const handleNodeEdit = async (node) => {
 
 const openDomainModal = () => {
   isEditMode.value = false
-  newDomain.value = { name: {ko:'', en:''}, description: {ko:'', en:''}, identifierFieldId: null, displayNameFieldId: null, descriptionFieldId: null }
+  newDomain.value = { name: {ko:'', en:''}, description: {ko:'', en:''}, identifierFieldId: null, displayNameFieldId: null, descriptionFieldId: null, icon: '' }
   showDomainModal.value = true
 }
 
 const openNodeModal = () => {
   if (!selectedNode.value || !selectedNode.value.isDomain) return
   isEditMode.value = false
-  newNode.value = { name: {ko:'', en:''}, order: 0 }
+  newNode.value = { name: {ko:'', en:''}, order: 0, icon: '' }
   showNodeModal.value = true
 }
 
@@ -1047,7 +1058,9 @@ const saveDomain = async () => {
         description: newDomain.value.description,
         identifierFieldId: newDomain.value.identifierFieldId,
         displayNameFieldId: newDomain.value.displayNameFieldId,
-        descriptionFieldId: newDomain.value.descriptionFieldId
+        descriptionFieldId: newDomain.value.descriptionFieldId,
+        icon: newDomain.value.icon,
+        sortOrder: newDomain.value.sortOrder
       }
     })
     showDomainModal.value = false
@@ -1070,6 +1083,7 @@ const saveNode = async () => {
       body: {
         name: newNode.value.name,
         order: newNode.value.order,
+        icon: newNode.value.icon,
         parentId: isEditMode.value ? undefined : null // currently subnodes are not supported in UI
       }
     })

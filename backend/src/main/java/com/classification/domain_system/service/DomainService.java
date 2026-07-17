@@ -15,6 +15,7 @@ import java.util.UUID;
 public class DomainService {
     
     private final DomainRepository domainRepository;
+    private final com.classification.domain_system.repository.UserRepository userRepository;
     
     @Transactional
     public Domain createDomain(DomainRequest request) {
@@ -24,12 +25,27 @@ public class DomainService {
         domain.setIdentifierFieldId(request.getIdentifierFieldId());
         domain.setDisplayNameFieldId(request.getDisplayNameFieldId());
         domain.setDescriptionFieldId(request.getDescriptionFieldId());
+        domain.setIcon(request.getIcon());
+        domain.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
         return domainRepository.save(domain);
     }
     
     @Transactional(readOnly = true)
     public List<Domain> getAllDomains() {
-        return domainRepository.findAll();
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
+            return java.util.Collections.emptyList();
+        }
+        
+        String username = auth.getName();
+        com.classification.domain_system.entity.User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+                
+        if ("ADMIN".equals(user.getRole())) {
+            return domainRepository.findAllByOrderBySortOrderAsc();
+        }
+        
+        return domainRepository.findAllByUserIdOrderBySortOrderAsc(user.getId());
     }
     
     @Transactional(readOnly = true)
@@ -52,6 +68,8 @@ public class DomainService {
         domain.setIdentifierFieldId(request.getIdentifierFieldId());
         domain.setDisplayNameFieldId(request.getDisplayNameFieldId());
         domain.setDescriptionFieldId(request.getDescriptionFieldId());
+        domain.setIcon(request.getIcon());
+        domain.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
         return domainRepository.save(domain);
     }
 }
