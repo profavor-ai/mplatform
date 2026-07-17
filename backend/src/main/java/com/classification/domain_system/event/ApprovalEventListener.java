@@ -35,6 +35,20 @@ public class ApprovalEventListener {
     public void onApprovalRequestCreated(ApprovalRequestCreatedEvent event) {
         ApprovalRequest approval = event.getApprovalRequest();
         System.out.println("[EVENT_DRIVEN] Received ApprovalRequestCreatedEvent for Request ID: " + approval.getId());
+        
+        long realStepCount = approval.getSteps().stream().filter(s -> s.getStepOrder() > 0).count();
+        if (realStepCount == 0) {
+            approval.setStatus("APPROVED");
+            approval.getSteps().stream().filter(s -> s.getStepOrder() == 0).forEach(s -> {
+                s.setStatus("APPROVED");
+                s.setComment("시스템 자동 승인 (결재선 미설정)");
+                stepRepository.saveAndFlush(s);
+            });
+            approvalRepository.saveAndFlush(approval);
+            applyFinalApproval(approval);
+            return;
+        }
+
         autoApproveStepsIfRequesterIsAssignee(approval);
     }
 

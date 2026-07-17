@@ -50,9 +50,10 @@
           <va-card-content style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 0;">
             <!-- Fields Tab -->
             <div v-show="activeTab === 0" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem;">
-              <div class="ag-theme-alpine schema-grid-wrapper">
+              <div class="schema-grid-wrapper">
                 <ag-grid-vue
                   style="width: 100%; height: 100%;"
+                  :theme="theme"
                   :columnDefs="columnDefs"
                   :rowData="fields"
                   rowSelection="single"
@@ -309,8 +310,11 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useCookie, useState } from '#app'
 
 import { AgGridVue } from 'ag-grid-vue3'
-import 'ag-grid-community/styles/ag-grid.css'
-import 'ag-grid-community/styles/ag-theme-alpine.css'
+import { themeBalham } from 'ag-grid-enterprise';
+import 'ag-grid-enterprise/styles/ag-grid.css'
+import 'ag-grid-enterprise/styles/ag-theme-alpine.css'
+
+const theme = themeBalham;
 
 const currentLocale = useState('locale', () => 'ko')
 const token = useCookie('auth_token', { default: () => '' })

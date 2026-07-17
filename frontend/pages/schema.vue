@@ -282,6 +282,7 @@
         <va-checkbox v-model="newField.isReadOnly" :label="t('read_only')" />
         <va-checkbox v-model="newField.isImmutable" :label="t('immutable')" />
         <va-checkbox v-model="newField.isHidden" :label="t('hidden')" />
+        <va-checkbox v-model="newField.isHighlighted" label="Highlight (강조)" />
       </div>
 
       <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
@@ -442,6 +443,7 @@ const newField = ref({
   isReadOnly: false,
   isImmutable: false,
   isHidden: false,
+  isHighlighted: false,
   unit: '',
   order: 0
 })
@@ -1029,7 +1031,7 @@ const openFieldModal = (rowData = null) => {
   } else {
     isEditMode.value = false
     editingId.value = null
-    newField.value = { name: {ko:'', en:''}, key: '', type: 'STRING', required: false, order: 0, fieldGroupId: null, targetDomainId: null, isMultiValue: false, isSearchable: true, isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, formula: '', unit: '', gridWidth: null, tableColumnWidth: null }
+    newField.value = { name: {ko:'', en:''}, key: '', type: 'STRING', required: false, order: 0, fieldGroupId: null, targetDomainId: null, isMultiValue: false, isSearchable: true, isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, isHighlighted: false, formula: '', unit: '', gridWidth: null, tableColumnWidth: null }
     newFieldOptionsList.value = []
   }
   showFieldModal.value = true
@@ -1146,7 +1148,8 @@ const saveField = async () => {
       isSearchable: newField.value.isSearchable,
       isReadOnly: newField.value.isReadOnly,
       isImmutable: newField.value.isImmutable,
-      isHidden: newField.value.isHidden
+      isHidden: newField.value.isHidden,
+      isHighlighted: newField.value.isHighlighted
     }
 
     await $fetch(url, {
@@ -1157,7 +1160,7 @@ const saveField = async () => {
     newField.value = { 
       name: { ko: '', en: '' }, 
       fieldGroupId: null,
-      key: '', type: 'TEXT', options: '', required: false, isMultiValue: false, isSearchable: true, isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, order: 0 
+      key: '', type: 'TEXT', options: '', required: false, isMultiValue: false, isSearchable: true, isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, isHighlighted: false, order: 0 
     }
     showFieldModal.value = false
     await onNodeSelected(selectedNode.value)

@@ -55,6 +55,7 @@
 | is_table | boolean, default false | 필드 값이 테이블형(행x열) 데이터인지 여부 |
 | is_encrypted | boolean, default false | 값을 암호화하여 저장해야 하는지 여부 (FILE, REFERENCE 타입에는 적용 불가) |
 | is_searchable | boolean, default false | 검색/필터링 대상 필드로 지정할지 여부 (인덱싱 대상) |
+| is_highlighted | boolean, default false | 필드 표시 시 강조(Highlight) 여부 |
 | created_at / updated_at | datetime | |
 
 #### 3.3.1 필드 타입 (type Enum)

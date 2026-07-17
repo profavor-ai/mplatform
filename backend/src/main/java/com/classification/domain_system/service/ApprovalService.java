@@ -11,8 +11,10 @@ import com.classification.domain_system.repository.RecordRepository;
 import com.classification.domain_system.repository.ClassificationNodeRepository;
 import com.classification.domain_system.repository.WorkflowConfigRepository;
 import com.classification.domain_system.repository.RecordHistoryRepository;
+import com.classification.domain_system.repository.UserRepository;
 import com.classification.domain_system.entity.WorkflowConfig;
 import com.classification.domain_system.entity.RecordHistory;
+import com.classification.domain_system.entity.User;
 import com.classification.domain_system.dto.RecordRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +48,7 @@ public class ApprovalService {
     private final FieldDefinitionService fieldDefinitionService;
     private final MatchingService matchingService;
     private final ApplicationEventPublisher eventPublisher;
+    private final UserRepository userRepository;
     
     private void logHistory(Record record, String changeType, UUID changedBy, String prevData, String newData, UUID approvalRequestId) {
         RecordHistory history = new RecordHistory();
@@ -504,6 +507,66 @@ public class ApprovalService {
         
         step.setStatus("REJECTED");
         step.setComment(comment);
+        stepRepository.saveAndFlush(step);
+        
+        ApprovalRequest approval = step.getApprovalRequest();
+        approval.setStatus("REJECTED");
+        approvalRepository.saveAndFlush(approval);
+        
+        if ("RECORD".equals(approval.getTargetType())) {
+            Record record = recordRepository.findById(approval.getTargetId())
+                    .orElseThrow(() -> new RuntimeException("Record not found"));
+            record.setStatus("REJECTED");
+            recordRepository.saveAndFlush(record);
+        }
+        
+        return approval;
+    }
+    
+    @Transactional
+    public ApprovalRequest adminApproveStep(UUID stepId, UUID adminId, String comment) {
+        User admin = userRepository.findById(adminId.toString())
+                .orElseThrow(() -> new RuntimeException("Admin user not found"));
+                
+        if (!"ADMIN".equals(admin.getRole())) {
+            throw new RuntimeException("User is not an admin");
+        }
+        
+        ApprovalStep step = stepRepository.findById(stepId)
+                .orElseThrow(() -> new RuntimeException("Step not found"));
+                
+        if (!"PENDING".equals(step.getStatus())) {
+            throw new RuntimeException("Step is not pending");
+        }
+        
+        step.setStatus("APPROVED");
+        step.setComment((comment != null && !comment.isBlank() ? comment + " " : "") + "(Admin Proxy)");
+        stepRepository.saveAndFlush(step);
+        
+        ApprovalRequest approval = step.getApprovalRequest();
+        eventPublisher.publishEvent(new ApprovalStepApprovedEvent(approval, step));
+        
+        return approval;
+    }
+    
+    @Transactional
+    public ApprovalRequest adminRejectStep(UUID stepId, UUID adminId, String comment) {
+        User admin = userRepository.findById(adminId.toString())
+                .orElseThrow(() -> new RuntimeException("Admin user not found"));
+                
+        if (!"ADMIN".equals(admin.getRole())) {
+            throw new RuntimeException("User is not an admin");
+        }
+        
+        ApprovalStep step = stepRepository.findById(stepId)
+                .orElseThrow(() -> new RuntimeException("Step not found"));
+                
+        if (!"PENDING".equals(step.getStatus())) {
+            throw new RuntimeException("Step is not pending");
+        }
+        
+        step.setStatus("REJECTED");
+        step.setComment((comment != null && !comment.isBlank() ? comment + " " : "") + "(Admin Proxy)");
         stepRepository.saveAndFlush(step);
         
         ApprovalRequest approval = step.getApprovalRequest();

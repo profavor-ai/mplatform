@@ -449,6 +449,7 @@ const colors = useColors()
 const isDark = computed(() => colors.currentPresetName.value === 'dark')
 import { useColors } from 'vuestic-ui'
 import { useI18n } from 'vue-i18n'
+import { useApprovalEnricher } from '~/composables/useApprovalEnricher'
 
 const messages = {
   ko: {
@@ -511,7 +512,12 @@ const messages = {
     systemApplied: '시스템 반영',
     systemComplete: '완료',
     systemCancelled: '취소됨',
-    stepScheduled: '예정'
+    stepScheduled: '예정',
+    colDomain: '도메인',
+    colClassification: '분류',
+    colIdAttr: 'ID 속성',
+    colNameAttr: '이름 속성',
+    colSummary: '요약'
   },
   en: {
     title: 'My Pending Approvals',
@@ -573,7 +579,12 @@ const messages = {
     systemApplied: 'System Reflect',
     systemComplete: 'Complete',
     systemCancelled: 'Cancelled',
-    stepScheduled: 'Scheduled'
+    stepScheduled: 'Scheduled',
+    colDomain: 'Domain',
+    colClassification: 'Classification',
+    colIdAttr: 'ID Value',
+    colNameAttr: 'Name Value',
+    colSummary: 'Summary'
   }
 }
 const { t, locale } = useI18n({ messages, useScope: 'local', inheritLocale: true })
@@ -583,6 +594,8 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useCookie } from '#app'
 import { useToast } from 'vuestic-ui'
 import { AgGridVue } from 'ag-grid-vue3'
+
+const { loadMetadata, enrichRequest } = useApprovalEnricher()
 
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 
@@ -595,7 +608,12 @@ const pendingSelectedRows = ref([])
 
 const getPendingColumnDefs = () => [
   { colId: 'p_checkbox', headerName: '', field: 'checkbox', checkboxSelection: true, headerCheckboxSelection: true, width: 50, suppressSizeToFit: true },
-  { colId: 'p_targetType', field: 'approvalRequest.targetType', headerName: t('target_type'), width: 150, minWidth: 120 },
+  { colId: 'p_targetType', field: 'approvalRequest.targetType', headerName: t('target_type'), width: 130, minWidth: 120 },
+  { colId: 'p_domainName', field: 'approvalRequest.domainName', headerName: t('colDomain'), width: 140 },
+  { colId: 'p_classificationName', field: 'approvalRequest.classificationName', headerName: t('colClassification'), width: 150 },
+  { colId: 'p_idAttribute', field: 'approvalRequest.idAttribute', headerName: t('colIdAttr'), width: 150 },
+  { colId: 'p_nameAttribute', field: 'approvalRequest.nameAttribute', headerName: t('colNameAttr'), width: 180 },
+  { colId: 'p_summary', field: 'approvalRequest.summary', headerName: t('colSummary'), flex: 1, minWidth: 200, tooltipField: 'approvalRequest.summary' },
   { 
     colId: 'p_steps',
     field: 'approvalRequest.steps', 
@@ -722,7 +740,12 @@ const selectedRequest = ref(null)
 
 const getMyRequestsColumnDefs = () => [
   { colId: 'm_id', field: 'id', headerName: t('id'), width: 110, minWidth: 90, valueFormatter: params => params.value ? params.value.substring(0, 8) + '...' : '' },
-  { colId: 'm_targetType', field: 'targetType', headerName: t('target_type'), width: 150, minWidth: 120 },
+  { colId: 'm_targetType', field: 'targetType', headerName: t('target_type'), width: 130, minWidth: 120 },
+  { colId: 'm_domainName', field: 'domainName', headerName: t('colDomain'), width: 140 },
+  { colId: 'm_classificationName', field: 'classificationName', headerName: t('colClassification'), width: 150 },
+  { colId: 'm_idAttribute', field: 'idAttribute', headerName: t('colIdAttr'), width: 150 },
+  { colId: 'm_nameAttribute', field: 'nameAttribute', headerName: t('colNameAttr'), width: 180 },
+  { colId: 'm_summary', field: 'summary', headerName: t('colSummary'), flex: 1, minWidth: 200, tooltipField: 'summary' },
   { 
     colId: 'm_steps',
     field: 'steps', 
@@ -1389,6 +1412,10 @@ const createPendingDatasource = () => {
           }
           
           for (const step of pageData.content) {
+             if (step.approvalRequest) {
+               step.approvalRequest = await enrichRequest(step.approvalRequest)
+             }
+             // Load field names if necessary for DetailsViewer, even though we enrich rows
              if (['RECORD', 'RECORD_UPDATE', 'RECORD_DELETE'].includes(step.approvalRequest?.targetType) && step.approvalRequest.targetId) {
                  await loadFieldNamesForRecord(step.approvalRequest.targetId);
              }
@@ -1416,6 +1443,8 @@ const createMyRequestsDatasource = () => {
         });
         
         if (pageData && pageData.content) {
+          pageData.content = await Promise.all(pageData.content.map(req => enrichRequest(req)))
+          
           for (const req of pageData.content) {
              if (['RECORD', 'RECORD_UPDATE', 'RECORD_DELETE'].includes(req.targetType) && req.targetId) {
                  await loadFieldNamesForRecord(req.targetId);
@@ -1501,6 +1530,7 @@ const getUserName = (uuid) => {
 }
 
 onMounted(async () => {
+  await loadMetadata()
   await loadUsers()
   await loadRequests()
   const route = useRoute()

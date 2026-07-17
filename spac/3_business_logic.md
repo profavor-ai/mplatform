@@ -69,3 +69,22 @@
    - **ID 속성 키워드**: '코드', '번호', '사번', 'id', 'code', 'ticker', 'no'
    - **이름 속성 키워드**: '명', '이름', 'name', 'title'
 2. **강제 할당 (2nd Pass)**: 키워드 기반 매칭에도 실패할 경우, 원본 JSON 객체의 값들 중 단순 값(객체가 아닌 값) 목록을 추출하여 첫 번째 요소를 ID 속성으로, 두 번째 요소를 이름 속성으로 강제 할당한다. 이를 통해 관리자 화면에서 핵심 결재 대상 정보가 공백으로 표기되는 현상을 원천 방지한다.
+
+---
+
+# 7. 결재(Approval) 워크플로우 (Event-Driven Architecture)
+
+결재 상태 전이 및 워크플로우 진행 로직은 강결합을 피하기 위해 **Spring ApplicationEvent 기반의 이벤트 드리븐(Event-Driven) 아키텍처**로 구현되어 있다. 
+
+### 7.1 주요 이벤트 및 리스너(`ApprovalEventListener`) 역할
+- **`ApprovalRequestCreatedEvent`**: 결재가 상신되었을 때 발행.
+  - **결재선 검증 및 자동 승인**: 실제 결재자(`stepOrder > 0`)가 0명일 경우, 시스템이 즉시 해당 결재 건 전체를 자동 승인(`APPROVED`) 처리하고 데이터를 최종 반영한다.
+  - **기안자 자동 전결**: 첫 번째 결재자가 기안자 본인일 경우, 자동으로 해당 단계를 승인(`APPROVED`) 처리하고 다음 단계로 진행시킨다.
+- **`ApprovalStepApprovedEvent`**: 특정 결재 단계가 승인되었을 때 발행.
+  - **상태 전이(State Transition)**: 현재 차수(`currentStepOrder`)의 모든 결재자가 승인했는지 검사한다.
+  - 모두 승인 완료 시, 다음 차수의 결재 단계들을 대기 상태(`PENDING`)로 활성화한다.
+  - 더 이상 진행할 결재 차수가 없다면 전체 결재 요청을 **최종 승인(APPROVED)** 상태로 변경하고, `applyFinalApproval` 로직을 호출하여 `Record` 데이터의 물리적 저장(CREATE/UPDATE/DELETE)을 확정한다.
+
+### 7.2 예외 상황 및 보완 로직
+- **결재 반려(Reject) 연쇄 동기화**: 결재가 반려될 경우 이벤트 발행을 생략하고 즉시 전체 워크플로우를 종료하며, 대상이 `RECORD`인 경우 원본 레코드의 상태 역시 `REJECTED`로 동기화한다.
+- **관리자 대리 결재 (Admin Proxy)**: `ADMIN` 역할을 가진 관리자는 담당자가 아니어도 특정 대기 중(`PENDING`)인 단계를 강제로 대리 승인/반려할 수 있다. 승인 시에는 동일하게 `ApprovalStepApprovedEvent`가 발행되어 이벤트 드리븐 파이프라인을 그대로 타게 되며, 이력에는 `(Admin Proxy)`가 남는다.

@@ -1,97 +1,227 @@
 <template>
-  <div>
-    <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem;">Admin Process Monitor</h1>
+  <div class="admin-container" style="display: flex; flex-direction: column; height: calc(100vh - 120px); padding-bottom: 2rem;">
+    <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem;">{{ t('title') }}</h1>
     
-    <va-card>
+    <va-card style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
       <va-card-title style="display: flex; justify-content: space-between; align-items: center;">
-        All Ongoing Workflows
-        <va-button preset="secondary" icon="refresh" size="small" @click="loadWorkflows">Refresh</va-button>
+        {{ t('subtitle') }}
+        <va-button preset="secondary" icon="refresh" size="small" @click="refreshGrid">{{ t('refresh') }}</va-button>
       </va-card-title>
       
-      <va-card-content>
-        <div v-if="loading" style="text-align: center; padding: 2rem;">Loading...</div>
-        <div v-else-if="workflows.length === 0" style="text-align: center; padding: 2rem; color: #666;">
-          No ongoing workflows at the moment.
-        </div>
-        
-        <div v-else style="display: flex; flex-direction: column; gap: 1rem;">
-          <div v-for="flow in workflows" :key="flow.id" style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 1.5rem;">
-            
-            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
-              <div style="font-weight: bold; font-size: 1.1rem;">
-                Request: {{ flow.targetType }} Creation
-              </div>
-              <div>
-                <va-badge :text="flow.status" :color="flow.status === 'PENDING' ? 'warning' : (flow.status === 'APPROVED' ? 'success' : 'danger')" />
-              </div>
-            </div>
-
-            <div style="font-size: 0.9rem; color: #555; margin-bottom: 1.5rem;">
-              <strong>Requester:</strong> {{ flow.requesterId }} <br/>
-              <strong>Created At:</strong> {{ formatDate(flow.createdAt) }}
-            </div>
-
-            <!-- Pipeline Visualizer -->
-            <div style="display: flex; align-items: center; justify-content: space-between; background: #f8f9fa; padding: 1rem; border-radius: 8px;">
-              <!-- DQ Check (Implied step 0) -->
-              <div style="text-align: center; flex: 1;">
-                <va-icon name="check_circle" color="success" size="large" />
-                <div style="font-size: 0.8rem; margin-top: 0.5rem; font-weight: bold;">DQ Passed</div>
-              </div>
-              
-              <div style="flex: 1; height: 2px; background: #ddd; margin: 0 10px;"></div>
-              
-              <!-- Steps -->
-              <template v-for="(step, idx) in flow.steps" :key="step.id">
-                <div style="text-align: center; flex: 1; position: relative;">
-                  <va-icon 
-                    :name="step.status === 'APPROVED' ? 'check_circle' : (step.status === 'REJECTED' ? 'cancel' : 'radio_button_unchecked')" 
-                    :color="step.status === 'APPROVED' ? 'success' : (step.status === 'REJECTED' ? 'danger' : (step.status === 'PENDING' ? 'warning' : 'secondary'))" 
-                    size="large" 
-                  />
-                  <div style="font-size: 0.8rem; margin-top: 0.5rem; font-weight: bold;">
-                    {{ step.stepType === 'CONSENSUS' ? 'Consensus' : 'Final Approval' }}
-                  </div>
-                  <div style="font-size: 0.75rem; color: #777; margin-top: 0.2rem;">
-                    {{ step.status }}
-                  </div>
-                  <div style="font-size: 0.75rem; color: #999; margin-top: 0.2rem;" :title="step.assigneeId">
-                    {{ step.assigneeId.substring(0,8) }}...
-                  </div>
-                </div>
-                
-                <div v-if="idx < flow.steps.length - 1" style="flex: 1; height: 2px; background: #ddd; margin: 0 10px;"></div>
-              </template>
-            </div>
-            
-          </div>
+      <va-card-content style="flex: 1; display: flex; flex-direction: column; padding: 0; min-height: 0;">
+        <div style="flex: 1; width: 100%; height: 100%;">
+          <ag-grid-vue
+            style="width: 100%; height: 100%;"
+            :theme="gridTheme"
+            :autoSizeStrategy="autoSizeStrategy"
+            :columnDefs="columnDefs"
+            :defaultColDef="defaultColDef"
+            rowModelType="infinite"
+            :cacheBlockSize="20"
+            rowSelection="single"
+            :pagination="true"
+            :paginationPageSize="20"
+            :paginationPageSizeSelector="[10, 20, 50]"
+            @grid-ready="onGridReady"
+          />
         </div>
       </va-card-content>
     </va-card>
+
+    <!-- Details Modal -->
+    <va-modal v-model="showDetailsModal" :title="t('workflowDetails')" size="large" hide-default-actions>
+      <div v-if="selectedFlow" style="display: flex; flex-direction: column; gap: 1rem; max-height: 80vh; overflow-y: auto;">
+        
+        <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+          <div style="font-weight: bold; font-size: 1.1rem;">
+            {{ t('requestType') }}: {{ formatTargetType(selectedFlow.targetType) }}
+          </div>
+          <div>
+            <va-badge :text="t('status_' + selectedFlow.status.toLowerCase()) || selectedFlow.status" :color="selectedFlow.status === 'PENDING' ? 'warning' : (selectedFlow.status === 'APPROVED' ? 'success' : 'danger')" />
+          </div>
+        </div>
+
+        <div style="font-size: 0.9rem; color: #555; margin-bottom: 1.5rem;">
+          <strong>{{ t('requester') }}:</strong> {{ getUserName(selectedFlow.requesterId) }} <br/>
+          <strong>{{ t('createdAt') }}:</strong> {{ formatDate(selectedFlow.createdAt) }}
+        </div>
+
+        <!-- Pipeline Visualizer -->
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; background: var(--va-background-element); padding: 1.5rem 1rem; border-radius: 8px; min-height: 120px; overflow-x: auto;">
+          <!-- Steps -->
+          <template v-for="(step, idx) in selectedFlow.steps" :key="step.id">
+            <div style="text-align: center; flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; min-width: 90px;">
+              <va-icon 
+                :name="step.status === 'SUBMITTED' ? 'send' : (step.status === 'APPROVED' ? 'check_circle' : (step.status === 'REJECTED' ? 'cancel' : 'radio_button_unchecked'))" 
+                :color="step.status === 'SUBMITTED' ? 'primary' : (step.status === 'APPROVED' ? 'success' : (step.status === 'REJECTED' ? 'danger' : (step.status === 'PENDING' ? 'warning' : 'secondary')))" 
+                size="large" 
+              />
+              <div style="font-size: 0.8rem; margin-top: 0.5rem; font-weight: bold; white-space: nowrap;">
+                {{ step.status === 'SUBMITTED' ? t('draft') : (step.stepType === 'CONSENSUS' ? t('consensus') : t('approval')) }}
+              </div>
+              <div style="font-size: 0.75rem; color: var(--va-text-secondary); margin-top: 0.2rem; min-height: 1.1rem; white-space: nowrap;">
+                {{ t('status_' + step.status.toLowerCase()) || step.status }}
+              </div>
+              <div style="font-size: 0.75rem; color: var(--va-text-primary); margin-top: 0.2rem; min-height: 1.1rem; font-weight: bold; white-space: nowrap;" :title="step.assigneeId">
+                {{ getUserName(step.assigneeId) }}
+              </div>
+              <div style="font-size: 0.7rem; color: var(--va-text-secondary); margin-top: 0.1rem; min-height: 1rem; white-space: nowrap;">
+                <span v-if="step.updatedAt && step.status !== 'PENDING'">{{ formatShortDate(step.updatedAt) }}</span>
+                <span v-else-if="step.status === 'SUBMITTED'">{{ formatShortDate(step.createdAt || selectedFlow.createdAt) }}</span>
+                <span v-else>&nbsp;</span>
+              </div>
+              
+              <div v-if="step.status === 'PENDING'" style="margin-top: 0.5rem; display: flex; gap: 0.2rem; justify-content: center;">
+                <va-button size="small" preset="secondary" color="success" icon="check" @click="proxyApprove(step.id)" :title="t('proxyApprove')"></va-button>
+                <va-button size="small" preset="secondary" color="danger" icon="close" @click="proxyReject(step.id)" :title="t('proxyReject')"></va-button>
+              </div>
+            </div>
+            
+            <div v-if="idx < selectedFlow.steps.length - 1" style="flex: 1; height: 2px; background: var(--va-background-border); margin: 20px 10px 0 10px; min-width: 30px;"></div>
+          </template>
+        </div>
+        
+        <va-accordion style="margin-top: 1rem;" :multiple="true">
+          <va-collapse :header="t('viewDataChanges')">
+            <div style="padding: 1rem; background: var(--va-background-primary); border: 1px solid var(--va-background-border); border-radius: 4px;">
+              <ApprovalDetailsViewer :request="selectedFlow" />
+            </div>
+          </va-collapse>
+        </va-accordion>
+        
+      </div>
+    </va-modal>
+
   </div>
 </template>
 
 <script setup>
-import { useI18n } from 'vue-i18n'
-const { t } = useI18n()
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, h } from 'vue'
 import { useCookie } from '#app'
+import { AgGridVue } from 'ag-grid-vue3'
+import { useI18n } from 'vue-i18n'
+import { useModal } from 'vuestic-ui'
+import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
+import { useAgGridTheme } from '~/composables/useAgGridTheme'
+import { useApprovalEnricher } from '~/composables/useApprovalEnricher'
+
+const messages = {
+  ko: {
+    title: '관리자 결재 모니터링',
+    subtitle: '전체 결재 진행 현황',
+    refresh: '새로고침',
+    workflowDetails: '결재 상세 정보',
+    requestType: '요청 종류',
+    requester: '기안자',
+    createdAt: '상신일시',
+    draft: '기안',
+    consensus: '합의',
+    approval: '승인',
+    proxyApprove: '관리자 대리 승인',
+    proxyReject: '관리자 대리 반려',
+    proxyApproveConfirm: '이 단계를 대리 승인하시겠습니까?',
+    proxyRejectConfirm: '이 단계를 대리 반려하시겠습니까?',
+    proxyApproveFail: '대리 승인 실패: ',
+    proxyRejectFail: '대리 반려 실패: ',
+    viewDataChanges: '데이터 변경 상세 내역 (Diff)',
+    colTargetType: '대상 타입',
+    colRequester: '기안자',
+    colCreatedAt: '상신일시',
+    colStatus: '상태',
+    colAction: '액션',
+    btnDetails: '상세보기',
+    colDomain: '도메인',
+    colClassification: '분류',
+    colIdAttr: 'ID 속성',
+    colNameAttr: '이름 속성',
+    colSummary: '요약',
+    targetRecordCreate: '데이터 생성',
+    targetRecordUpdate: '데이터 수정',
+    targetRecordDelete: '데이터 삭제',
+    targetBulkUpload: '대량 업로드',
+    status_submitted: '상신',
+    status_pending: '진행중',
+    status_approved: '승인',
+    status_rejected: '반려'
+  },
+  en: {
+    title: 'Admin Process Monitor',
+    subtitle: 'All Ongoing Workflows',
+    refresh: 'Refresh',
+    workflowDetails: 'Workflow Details',
+    requestType: 'Request',
+    requester: 'Requester',
+    createdAt: 'Created At',
+    draft: 'Draft',
+    consensus: 'Consensus',
+    approval: 'Approval',
+    proxyApprove: 'Proxy Approve',
+    proxyReject: 'Proxy Reject',
+    proxyApproveConfirm: 'Are you sure you want to proxy approve this step?',
+    proxyRejectConfirm: 'Are you sure you want to proxy reject this step?',
+    proxyApproveFail: 'Failed to proxy approve: ',
+    proxyRejectFail: 'Failed to proxy reject: ',
+    viewDataChanges: 'View Data Changes (Details)',
+    colTargetType: 'Target Type',
+    colRequester: 'Requester',
+    colCreatedAt: 'Created At',
+    colStatus: 'Status',
+    colAction: 'Action',
+    btnDetails: 'Details',
+    colDomain: 'Domain',
+    colClassification: 'Classification',
+    colIdAttr: 'ID Value',
+    colNameAttr: 'Name Value',
+    colSummary: 'Summary',
+    targetRecordCreate: 'Record Creation',
+    targetRecordUpdate: 'Record Update',
+    targetRecordDelete: 'Record Deletion',
+    targetBulkUpload: 'Bulk Upload',
+    status_submitted: 'SUBMITTED',
+    status_pending: 'PENDING',
+    status_approved: 'APPROVED',
+    status_rejected: 'REJECTED'
+  }
+}
+
+const { t, locale } = useI18n({ messages, useScope: 'local', inheritLocale: true })
+
+const { confirm, alert: vaAlert } = useModal()
+
+const { gridTheme, autoSizeStrategy } = useAgGridTheme()
+
+const { loadMetadata, enrichRequest } = useApprovalEnricher()
 
 const token = useCookie('auth_token')
-const workflows = ref([])
-const loading = ref(true)
+const userData = useCookie('user_data')
+const usersMap = ref({})
+const gridApi = ref(null)
 
-const loadWorkflows = async () => {
-  loading.value = true
+const showDetailsModal = ref(false)
+const selectedFlow = ref(null)
+
+const loadUsers = async () => {
   try {
-    const headers = { Authorization: `Bearer ${tokenCookie.value}` }
-    const res = await $fetch('/api/approval-requests', { headers })
-    workflows.value = res
-  } catch (e) {
-    console.error('Failed to load workflows', e)
-  } finally {
-    loading.value = false
-  }
+    const res = await $fetch('/api/auth/users')
+    const map = {}
+    res.forEach(u => map[u.uuid || u.id] = u.username)
+    usersMap.value = map
+    if (gridApi.value) {
+      gridApi.value.refreshInfiniteCache()
+    }
+  } catch (e) {}
+}
+
+const getUserName = (id) => {
+  return usersMap.value[id] || id
+}
+
+const formatTargetType = (type) => {
+  if (type === 'RECORD_CREATE' || type === 'RECORD') return t('targetRecordCreate')
+  if (type === 'RECORD_UPDATE') return t('targetRecordUpdate')
+  if (type === 'RECORD_DELETE') return t('targetRecordDelete')
+  if (type === 'BULK_UPLOAD') return t('targetBulkUpload')
+  return type
 }
 
 const parseDate = (dateString) => {
@@ -120,7 +250,207 @@ const formatDate = (dateString) => {
   return formatted.replace(/\s*(GMT|UTC|KST|PST|EST|CET)[-+0-9:]*/gi, '').trim()
 }
 
-onMounted(() => {
-  loadWorkflows()
+const formatShortDate = (dateString) => {
+  if (!dateString) return ''
+  const date = parseDate(dateString)
+  if (!date) return ''
+  const yy = String(date.getFullYear()).slice(-2)
+  const MM = String(date.getMonth() + 1).padStart(2, '0')
+  const dd = String(date.getDate()).padStart(2, '0')
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  return `${yy}.${MM}.${dd} ${hh}:${mm}`
+}
+
+
+const openDetails = (flow) => {
+  selectedFlow.value = flow
+  showDetailsModal.value = true
+}
+
+// Action cell renderer
+const actionCellRenderer = {
+  setup(props) {
+    const onClick = () => {
+      openDetails(props.params.data)
+    }
+    return () => h('button', { 
+      onClick, 
+      style: {
+        background: 'var(--va-primary)', color: 'white', border: 'none', borderRadius: '4px', padding: '4px 12px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold'
+      }
+    }, t('btnDetails'))
+  }
+}
+
+// Computed columnDefs to react to locale changes
+const columnDefs = computed(() => [
+  { 
+    headerName: t('colTargetType'), 
+    field: 'targetType', 
+    width: 130,
+    valueFormatter: (params) => formatTargetType(params.value)
+  },
+  { 
+    headerName: t('colDomain'), 
+    field: 'domainName', 
+    width: 140
+  },
+  { 
+    headerName: t('colClassification'), 
+    field: 'classificationName', 
+    width: 150
+  },
+  { 
+    headerName: t('colIdAttr'), 
+    field: 'idAttribute', 
+    width: 150
+  },
+  { 
+    headerName: t('colNameAttr'), 
+    field: 'nameAttribute', 
+    width: 180
+  },
+  { 
+    headerName: t('colSummary'), 
+    field: 'summary', 
+    flex: 1,
+    minWidth: 200,
+    tooltipField: 'summary'
+  },
+  { 
+    headerName: t('colRequester'), 
+    field: 'requesterId', 
+    width: 120,
+    valueFormatter: (params) => getUserName(params.value)
+  },
+  { 
+    headerName: t('colCreatedAt'), 
+    field: 'createdAt', 
+    width: 150,
+    valueFormatter: (params) => formatDate(params.value)
+  },
+  { 
+    headerName: t('colStatus'), 
+    field: 'status', 
+    width: 100,
+    valueFormatter: (params) => t('status_' + (params.value || '').toLowerCase()) || params.value,
+    cellStyle: (params) => {
+      if (params.value === 'PENDING') return { color: 'orange', fontWeight: 'bold' }
+      if (params.value === 'APPROVED') return { color: 'green', fontWeight: 'bold' }
+      if (params.value === 'REJECTED') return { color: 'red', fontWeight: 'bold' }
+      return {}
+    }
+  },
+  {
+    headerName: t('colAction'),
+    width: 100,
+    cellRenderer: actionCellRenderer
+  }
+])
+
+const defaultColDef = ref({
+  sortable: false,
+  filter: false,
+  resizable: true,
+  tooltipComponentParams: { color: '#ececec' }
+})
+
+const createDatasource = () => {
+  return {
+    getRows: async (params) => {
+      const size = params.endRow - params.startRow;
+      const page = Math.floor(params.startRow / size);
+      
+      try {
+        const pageData = await $fetch(`/api/approval-requests/all?page=${page}&size=${size}`, {
+          headers: { Authorization: `Bearer ${token.value}` }
+        });
+        
+        // Enrich data
+        const enrichedContent = await Promise.all(pageData.content.map(req => enrichRequest(req)))
+        
+        params.successCallback(enrichedContent, pageData.totalElements);
+      } catch (e) {
+        console.error('Failed to load workflows:', e);
+        params.failCallback();
+      }
+    }
+  };
+};
+
+const onGridReady = (params) => {
+  gridApi.value = params.api
+  gridApi.value.setGridOption('datasource', createDatasource())
+}
+
+const refreshGrid = () => {
+  if (gridApi.value) {
+    gridApi.value.setGridOption('datasource', createDatasource())
+  }
+}
+
+const proxyApprove = async (stepId) => {
+  const isConfirmed = await confirm({
+    title: t('proxyApprove'),
+    message: t('proxyApproveConfirm'),
+    cancelText: 'Cancel',
+    okText: 'OK'
+  })
+  if (!isConfirmed) return
+  
+  try {
+    const adminId = userData.value?.id
+    if (!adminId) throw new Error('Admin user ID not found in cookies')
+    const headers = { Authorization: `Bearer ${token.value}` }
+    const updatedFlow = await $fetch(`/api/approval-requests/steps/${stepId}/admin-approve?adminId=${adminId}`, {
+      method: 'POST',
+      headers,
+      body: { comment: 'Approved by Administrator' }
+    })
+    
+    // Update the selectedFlow in the modal
+    if (selectedFlow.value && selectedFlow.value.id === updatedFlow.id) {
+      selectedFlow.value = updatedFlow
+    }
+    
+    refreshGrid()
+  } catch (e) {
+    vaAlert(t('proxyApproveFail') + (e.data?.message || e.message))
+  }
+}
+
+const proxyReject = async (stepId) => {
+  const isConfirmed = await confirm({
+    title: t('proxyReject'),
+    message: t('proxyRejectConfirm'),
+    cancelText: 'Cancel',
+    okText: 'OK'
+  })
+  if (!isConfirmed) return
+  
+  try {
+    const adminId = userData.value?.id
+    if (!adminId) throw new Error('Admin user ID not found in cookies')
+    const headers = { Authorization: `Bearer ${token.value}` }
+    const updatedFlow = await $fetch(`/api/approval-requests/steps/${stepId}/admin-reject?adminId=${adminId}`, {
+      method: 'POST',
+      headers,
+      body: { comment: 'Rejected by Administrator' }
+    })
+    
+    if (selectedFlow.value && selectedFlow.value.id === updatedFlow.id) {
+      selectedFlow.value = updatedFlow
+    }
+    
+    refreshGrid()
+  } catch (e) {
+    vaAlert(t('proxyRejectFail') + (e.data?.message || e.message))
+  }
+}
+
+onMounted(async () => {
+  await loadMetadata()
+  await loadUsers()
 })
 </script>

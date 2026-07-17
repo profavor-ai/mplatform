@@ -163,5 +163,21 @@
   "submission_date": "상신일",
   "timezone": "타임존 설정",
   "timezone_select": "타임존을 선택하세요",
-  "personal_settings": "개인화 설정"
+  "personal_settings": "개인화 설정",
+  "error_domain_missing_id": "도메인 설정 오류: 식별자(ID) 또는 표시명 필드 매핑이 누락되었습니다.",
+  "error_dq_failed": "데이터 품질 검사 실패: {details}",
+  "error_dedup_failed": "중복 데이터 발생: '{field}' 속성을 기준으로 이미 동일한 레코드가 존재합니다.",
+  "error_update_pending_creation": "생성 결재가 대기 중인 레코드는 수정할 수 없습니다.",
+  "error_update_pending_update": "이미 수정 결재가 진행 중인 레코드입니다.",
+  "error_delete_pending_creation": "생성 결재가 대기 중인 레코드는 삭제할 수 없습니다.",
+  "error_not_assignee": "해당 결재 단계의 처리 권한이 없습니다.",
+  "error_step_not_pending": "현재 대기 중인 결재 단계가 아닙니다.",
+  "error_username_exists": "이미 사용 중인 사용자 아이디입니다.",
+  "error_invalid_credentials": "아이디 또는 비밀번호가 올바르지 않습니다.",
+  "error_node_domain_mismatch": "노드가 지정된 도메인에 속하지 않습니다.",
+  "error_field_node_mismatch": "필드가 지정된 노드에 속하지 않습니다.",
+  "error_field_domain_mismatch": "필드가 지정된 도메인에 속하지 않습니다.",
+  "error_sector_domain_mismatch": "섹터가 지정된 도메인에 속하지 않습니다.",
+  "error_upload_dir_fail": "업로드된 파일을 저장할 디렉토리를 생성할 수 없습니다.",
+  "error_upload_file_fail": "파일을 저장할 수 없습니다. 다시 시도해 주세요!"
 }

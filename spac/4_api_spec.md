@@ -20,3 +20,5 @@
 | GET | `/approval-requests` | 대기 중인 승인 요청 목록 조회 (권한에 따라 필터링) |
 | POST | `/approval-requests/{id}/approve` | 승인 요청 승인 처리 (변경사항 실제 DB 반영) |
 | POST | `/approval-requests/{id}/reject` | 승인 요청 반려 처리 |
+| POST | `/approval-requests/steps/{stepId}/admin-approve` | (관리자 전용) 대리 결재 승인 처리 |
+| POST | `/approval-requests/steps/{stepId}/admin-reject` | (관리자 전용) 대리 결재 반려 처리 |

@@ -68,6 +68,9 @@ public class FieldDefinition {
     @Column(name = "table_column_width")
     private Integer tableColumnWidth;
 
+    @Column(name = "is_highlighted", columnDefinition = "boolean default false")
+    private Boolean isHighlighted = false;
+
     @Column(name = "is_removed", nullable = false)
     private Boolean isRemoved = false;
 

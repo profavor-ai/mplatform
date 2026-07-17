@@ -82,4 +82,22 @@ public class ApprovalController {
         String comment = payload != null ? payload.get("comment") : null;
         return ResponseEntity.ok(approvalService.rejectStep(stepId, approverId, comment));
     }
+    
+    @PostMapping("/steps/{stepId}/admin-approve")
+    public ResponseEntity<ApprovalRequest> adminApproveStep(
+            @PathVariable UUID stepId, 
+            @RequestParam UUID adminId,
+            @RequestBody(required = false) Map<String, String> payload) {
+        String comment = payload != null ? payload.get("comment") : null;
+        return ResponseEntity.ok(approvalService.adminApproveStep(stepId, adminId, comment));
+    }
+    
+    @PostMapping("/steps/{stepId}/admin-reject")
+    public ResponseEntity<ApprovalRequest> adminRejectStep(
+            @PathVariable UUID stepId, 
+            @RequestParam UUID adminId,
+            @RequestBody(required = false) Map<String, String> payload) {
+        String comment = payload != null ? payload.get("comment") : null;
+        return ResponseEntity.ok(approvalService.adminRejectStep(stepId, adminId, comment));
+    }
 }

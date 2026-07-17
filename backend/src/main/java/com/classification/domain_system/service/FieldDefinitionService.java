@@ -66,9 +66,11 @@ public class FieldDefinitionService {
             field.setUnit(request.getUnit() != null ? request.getUnit() : field.getUnit());
             field.setGridWidth(request.getGridWidth() != null ? request.getGridWidth() : field.getGridWidth());
             field.setTableColumnWidth(request.getTableColumnWidth() != null ? request.getTableColumnWidth() : field.getTableColumnWidth());
+            field.setIsHighlighted(request.getIsHighlighted() != null ? request.getIsHighlighted() : field.getIsHighlighted());
         } else {
             field.setGridWidth(request.getGridWidth());
             field.setTableColumnWidth(request.getTableColumnWidth());
+            field.setIsHighlighted(request.getIsHighlighted() != null ? request.getIsHighlighted() : false);
             field.setIsRemoved(false);
         }
         

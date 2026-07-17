@@ -203,7 +203,8 @@
                   <div v-for="field in group.fields" :key="field.id" :class="['flex', 'xs' + (field.gridWidth || 12)]" style="padding: 0 0.5rem; min-width: 0;">
                     <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; min-width: 0; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem;">
                       <!-- Unified External Label -->
-                      <span style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600; text-transform: uppercase;">
+                      <span :style="{ fontSize: '0.75rem', color: field.isHighlighted ? 'var(--va-primary)' : 'var(--va-text-secondary)', fontWeight: field.isHighlighted ? '800' : '600', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }">
+                        <va-icon v-if="field.isHighlighted" name="star" size="small" color="primary" />
                         {{ getTranslatedName(field.name) }}{{ field.required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}
                       </span>
 
@@ -355,7 +356,7 @@
                 <div class="row" style="row-gap: 1.25rem; margin: 0 -0.5rem;">
                   <div v-for="field in group.fields" :key="field.id" :class="['flex', 'xs' + (field.gridWidth || 12)]" style="padding: 0 0.5rem; min-width: 0;">
                     <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; min-width: 0; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem;">
-                      <span style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600; text-transform: uppercase;">{{ getTranslatedName(field.name) }}{{ field.required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}</span>
+                      <span :style="{ fontSize: '0.75rem', color: field.isHighlighted ? 'var(--va-primary)' : 'var(--va-text-secondary)', fontWeight: field.isHighlighted ? '800' : '600', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }"><va-icon v-if="field.isHighlighted" name="star" size="small" color="primary" />{{ getTranslatedName(field.name) }}{{ field.required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}</span>
                       <va-input 
                         v-if="['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type)" 
                         v-model="selectedRecordData[field.key]" 
@@ -578,7 +579,7 @@
             >
               <div style="padding: 0.5rem 1rem; display: flex; flex-direction: column; gap: 0.5rem; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem;">
                   <div v-for="field in group.fields" :key="field.id" style="width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 0.25rem;">
-                    <span style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600; text-transform: uppercase;">{{ getTranslatedName(field.name) }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}</span>
+                    <span :style="{ fontSize: '0.75rem', color: field.isHighlighted ? 'var(--va-primary)' : 'var(--va-text-secondary)', fontWeight: field.isHighlighted ? '800' : '600', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }"><va-icon v-if="field.isHighlighted" name="star" size="small" color="primary" />{{ getTranslatedName(field.name) }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}</span>
                       <va-input 
                         v-if="['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type)" 
                         :model-value="snapshotRecordData[field.key]" 
@@ -738,7 +739,9 @@ import { useCookie, useState } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
 import ExcelUploader from '~/components/ExcelUploader.vue'
 import { useColors } from 'vuestic-ui'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 
 const { currentPresetName } = useColors()
@@ -1702,22 +1705,30 @@ const viewSnapshot = (dataString) => {
 }
 
 const getParsedDiffs = (prev, next) => {
-  try {
     let p = {};
     let n = {};
     if (typeof prev === 'string') {
       try {
         const parsed = JSON.parse(prev);
         if (next === 'RECORD_UPDATE') {
+          // This is from Inbox (rawRequest.changes)
           p = parsed.before || {};
           n = parsed.after || {};
+        } else if (next === 'RECORD_CREATE' || next === 'RECORD_DELETE') {
+           n = parsed || {};
         } else {
-          n = parsed || {};
+          // This is from History (previousData and newData)
+          p = parsed || {};
+          n = typeof next === 'string' && next ? JSON.parse(next) : (next || {});
         }
-      } catch (e) {}
+      } catch (e) {
+        // Fallback if parsing fails
+        p = {};
+        n = typeof next === 'string' && next ? JSON.parse(next) : (next || {});
+      }
     } else {
-      p = prev ? JSON.parse(prev) : {}
-      n = next ? JSON.parse(next) : {}
+      p = prev ? prev : {};
+      n = next ? next : {};
     }
     const diffs = []
     const keys = [...new Set([...Object.keys(p), ...Object.keys(n)])]
@@ -1766,10 +1777,6 @@ const getParsedDiffs = (prev, next) => {
       }
     })
     return diffs
-  } catch (e) {
-    console.error('getParsedDiffs error:', e)
-    return []
-  }
 }
 
 const viewDiffDetails = (prev, next, isPendingCreation = false) => {
@@ -1921,7 +1928,7 @@ const formatDataForSave = (dataObj) => {
 
 const saveEditedRecord = async () => {
   try {
-    let reqId = currentUser.value?.uuid || '123e4567-e89b-12d3-a456-426614174000'
+    let reqId = currentUser.value?.uuid
     const dataToSave = { ...selectedRecordData.value }
     for (const field of nodeFields.value) {
       if (field.type === 'FILE') {
@@ -1967,7 +1974,15 @@ const saveEditedRecord = async () => {
     await fetchRecords()
   } catch (e) {
     console.error('Failed to update record:', e)
-    const errorMsg = typeof e.response?._data === 'string' ? e.response._data : (e.response?._data?.message || e.message || 'Failed to update record.')
+    let errorMsg = typeof e.response?._data === 'string' ? e.response._data : (e.response?._data?.message || e.message || 'Failed to update record.')
+    if (errorMsg.includes('Deduplication Failed') || errorMsg.includes('Duplicate found')) {
+      const match = errorMsg.match(/Identifier Field \((.*?)\)/)
+      if (match) {
+        errorMsg = t('error_dedup_failed', { field: match[1] })
+      }
+    } else if (errorMsg.includes('Domain is missing required field mappings')) {
+      errorMsg = t('error_domain_missing_id')
+    }
     alert('Failed to submit update request: ' + errorMsg)
   }
 }
@@ -1975,7 +1990,7 @@ const saveEditedRecord = async () => {
 const requestDeleteRecord = async () => {
   if (!confirm('Are you sure you want to request deletion for this record?')) return
   try {
-    let reqId = currentUser.value?.uuid || '123e4567-e89b-12d3-a456-426614174000'
+    let reqId = currentUser.value?.uuid
     const payload = { requesterId: reqId, data: "{}" }
     await $fetch(`/api/records/${selectedRecordId.value}/delete-request`, {
       method: 'POST',
@@ -2149,7 +2164,15 @@ const saveRecord = async () => {
     showCreateModal.value = false
     await fetchRecords()
   } catch (error) {
-    const errorMsg = error.response?._data?.message || error.message || String(error)
+    let errorMsg = error.response?._data?.message || error.message || String(error)
+    if (errorMsg.includes('Deduplication Failed') || errorMsg.includes('Duplicate found')) {
+      const match = errorMsg.match(/Identifier Field \((.*?)\)/)
+      if (match) {
+        errorMsg = t('error_dedup_failed', { field: match[1] })
+      }
+    } else if (errorMsg.includes('Domain is missing required field mappings')) {
+      errorMsg = t('error_domain_missing_id')
+    }
     alert(`Data Quality / Workflow Error:\n\n${errorMsg}`)
     console.error('Full error:', error, error.response?._data)
   }

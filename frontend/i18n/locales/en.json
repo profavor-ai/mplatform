@@ -163,5 +163,21 @@
   "submission_date": "Submission Date",
   "timezone": "Timezone Settings",
   "timezone_select": "Select your timezone",
-  "personal_settings": "Personal Settings"
+  "personal_settings": "Personal Settings",
+  "error_domain_missing_id": "Domain configuration error: Missing Identifier (ID) or Display Name mapping.",
+  "error_dq_failed": "Data Quality Check Failed: {details}",
+  "error_dedup_failed": "Duplicate record found based on Identifier field '{field}'.",
+  "error_update_pending_creation": "Cannot update a record that is pending creation approval.",
+  "error_update_pending_update": "This record is already under a pending update approval.",
+  "error_delete_pending_creation": "Cannot delete a record that is pending creation approval.",
+  "error_not_assignee": "You are not the assignee for this step.",
+  "error_step_not_pending": "Step is not pending.",
+  "error_username_exists": "Username already exists.",
+  "error_invalid_credentials": "Invalid credentials.",
+  "error_node_domain_mismatch": "Node does not belong to the specified domain.",
+  "error_field_node_mismatch": "Field does not belong to the specified node.",
+  "error_field_domain_mismatch": "Field does not belong to the specified domain.",
+  "error_sector_domain_mismatch": "Sector does not belong to the domain.",
+  "error_upload_dir_fail": "Could not create the directory where the uploaded files will be stored.",
+  "error_upload_file_fail": "Could not store file. Please try again!"
 }
