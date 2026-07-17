@@ -1,0 +1,212 @@
+import { ref } from 'vue'
+import { useCookie } from '#app'
+
+export const useApprovalEnricher = () => {
+  const token = useCookie('auth_token')
+  const domains = ref({})
+  const domainsFull = ref({})
+  const nodes = ref({})
+  const nodeToDomainMap = ref({})
+  const fieldSchemas = ref({})
+
+  const loadMetadata = async () => {
+    try {
+      const domRes = await $fetch('/api/domains', { headers: { Authorization: `Bearer ${token.value}` } })
+      
+      const dMap = {}
+      const dFullMap = {}
+      domRes.forEach(d => {
+        dMap[d.id] = d.name
+        dFullMap[d.id] = d
+      })
+      domains.value = dMap
+      domainsFull.value = dFullMap
+      
+      const nMap = {}
+      const dMapping = {}
+      
+      const flatten = (list, currentDomainId) => {
+        list.forEach(n => {
+          nMap[n.id] = n.name
+          dMapping[n.id] = currentDomainId
+          if (n.children) flatten(n.children, currentDomainId)
+        })
+      }
+      
+      const treePromises = domRes.map(d => 
+        $fetch(`/api/domains/${d.id}/nodes/tree`, { headers: { Authorization: `Bearer ${token.value}` } })
+          .catch(e => {
+            console.error(`Failed to load tree for domain ${d.id}`, e)
+            return []
+          })
+      )
+      
+      const treeResults = await Promise.all(treePromises)
+      
+      treeResults.forEach((treeRes, idx) => {
+        flatten(treeRes, domRes[idx].id)
+      })
+      
+      nodes.value = nMap
+      nodeToDomainMap.value = dMapping
+    } catch (e) {
+      console.error('Failed to load domains/nodes metadata', e)
+    }
+  }
+
+  const getFieldsForNode = async (nodeId) => {
+    if (!nodeId) return []
+    if (fieldSchemas.value[nodeId]) return fieldSchemas.value[nodeId]
+    try {
+      const fields = await $fetch(`/api/nodes/${nodeId}/fields/effective`, {
+        headers: { Authorization: `Bearer ${token.value}` }
+      })
+      fieldSchemas.value[nodeId] = fields
+      return fields
+    } catch (e) {
+      console.error(`Failed to fetch fields for node ${nodeId}`, e)
+      return []
+    }
+  }
+  
+  const getTranslatedName = (nameObj) => {
+    if (!nameObj) return ''
+    if (typeof nameObj === 'string') return nameObj
+    const locale = useCookie('locale', { default: () => 'ko' }).value
+    return nameObj[locale] || nameObj.en || nameObj.ko || JSON.stringify(nameObj)
+  }
+
+  const enrichRequest = async (req) => {
+    const enriched = { ...req, domainName: '', classificationName: '', idAttribute: '', nameAttribute: '', summary: '' }
+    
+    // In approvals.vue, changes is used. In admin.vue, requestedData is used.
+    const rawData = req.changes || req.requestedData
+    
+    let parsed = {}
+    if (rawData) {
+      try {
+        parsed = typeof rawData === 'string' ? JSON.parse(rawData) : rawData
+        if (typeof parsed === 'string') parsed = JSON.parse(parsed)
+      } catch (e) {
+        console.error('Failed to parse rawData for enrichment', e)
+      }
+    }
+    
+    const classificationNode = req.classificationNode || {}
+    const nodeId = classificationNode.id || parsed.nodeId
+    const domainId = parsed.domainId || nodeToDomainMap.value[nodeId]
+    
+    if (domainId && domains.value[domainId]) {
+      enriched.domainName = getTranslatedName(domains.value[domainId])
+    }
+    if (nodeId && nodes.value[nodeId]) {
+      enriched.classificationName = getTranslatedName(nodes.value[nodeId])
+    }
+    
+    if (nodeId) {
+      try {
+        let recordData = {}
+        let previousData = {}
+        
+        if (req.targetType === 'RECORD_UPDATE') {
+          recordData = parsed.after || {}
+          previousData = parsed.before || {}
+        } else {
+          recordData = parsed.data || parsed || {}
+        }
+        
+        const fields = await getFieldsForNode(nodeId)
+        
+        const fullDomain = domainsFull.value[domainId] || {}
+        const idFieldId = fullDomain.identifierFieldId
+        const nameFieldId = fullDomain.displayNameFieldId
+        
+        const idField = fields.find(f => f.id === idFieldId)
+        const nameField = fields.find(f => f.id === nameFieldId)
+        
+        if (idField && recordData[idField.key] !== undefined) {
+          enriched.idAttribute = recordData[idField.key]
+        }
+        if (nameField && recordData[nameField.key] !== undefined) {
+          let val = recordData[nameField.key]
+          if (typeof val === 'object' && val !== null) {
+            val = val.ko || val.en || JSON.stringify(val)
+          }
+          enriched.nameAttribute = val
+        }
+        
+        // Summary logic
+        if (req.targetType === 'RECORD_CREATE' || req.targetType === 'RECORD') {
+          const parts = []
+          for (const key in recordData) {
+            const field = fields.find(f => f.key === key)
+            const fName = field ? getTranslatedName(field.name) : key
+            let val = recordData[key]
+            if (typeof val === 'object' && val !== null) val = val.ko || val.en || JSON.stringify(val)
+            parts.push(`${fName}: ${val}`)
+          }
+          enriched.summary = parts.join(', ')
+        } else if (req.targetType === 'RECORD_UPDATE') {
+          const parts = []
+          for (const key in recordData) {
+            if (JSON.stringify(recordData[key]) !== JSON.stringify(previousData[key])) {
+              const field = fields.find(f => f.key === key)
+              const fName = field ? getTranslatedName(field.name) : key
+              let oldVal = previousData[key]
+              let newVal = recordData[key]
+              if (typeof oldVal === 'object' && oldVal !== null) oldVal = oldVal.ko || oldVal.en || JSON.stringify(oldVal)
+              if (typeof newVal === 'object' && newVal !== null) newVal = newVal.ko || newVal.en || JSON.stringify(newVal)
+              parts.push(`${fName}: ${oldVal || '없음'} -> ${newVal || '없음'}`)
+            }
+          }
+          enriched.summary = parts.join(', ')
+        } else if (req.targetType === 'RECORD_DELETE') {
+          enriched.summary = '데이터 삭제'
+        }
+
+        // Fallback: If ID or Name is still empty, infer from record data keys (Summary Data)
+        if (!enriched.idAttribute || !enriched.nameAttribute) {
+          // 1st pass: try to find by common keywords
+          for (const key in recordData) {
+            const field = fields.find(f => f.key === key)
+            const fName = field ? getTranslatedName(field.name) : key
+            const fNameLower = String(fName).toLowerCase()
+            const keyLower = String(key).toLowerCase()
+            
+            if (!enriched.idAttribute && (
+                fNameLower.includes('코드') || fNameLower.includes('번호') || fNameLower.includes('사번') || 
+                fNameLower.includes('id') || fNameLower.includes('code') || fNameLower.includes('ticker') || fNameLower.includes('no') ||
+                keyLower.includes('id') || keyLower.includes('code') || keyLower.includes('ticker') || keyLower.includes('no')
+            )) {
+              enriched.idAttribute = recordData[key]
+            }
+            if (!enriched.nameAttribute && (
+                fNameLower.includes('명') || fNameLower.includes('이름') || fNameLower.includes('name') || fNameLower.includes('title') ||
+                keyLower.includes('name') || keyLower.includes('title')
+            )) {
+              let val = recordData[key]
+              if (typeof val === 'object' && val !== null) val = val.ko || val.en || JSON.stringify(val)
+              enriched.nameAttribute = val
+            }
+          }
+          
+          // 2nd pass: if still empty, pick the first available non-object value for ID and second for Name
+          if (!enriched.idAttribute || !enriched.nameAttribute) {
+            const values = Object.values(recordData).filter(v => typeof v !== 'object' && v !== null && v !== '')
+            if (!enriched.idAttribute && values.length > 0) enriched.idAttribute = values[0]
+            if (!enriched.nameAttribute && values.length > 1) enriched.nameAttribute = values[1]
+          }
+        }
+      } catch(e) {
+        console.error('Failed to enrich summary', e)
+      }
+    }
+    
+    return enriched
+  }
+
+  return {
+    loadMetadata,
+    enrichRequest
+  }
+}
