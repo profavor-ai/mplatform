@@ -214,5 +214,43 @@ class ApprovalControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.totalElements").value(1));
         }
+
+        @Test
+        @DisplayName("getAllRequests - search 및 status 파라미터가 서비스로 전달")
+        void getAllRequests_ParamsPassed() throws Exception {
+            ApprovalRequest req = new ApprovalRequest();
+            req.setId(UUID.randomUUID());
+
+            when(approvalService.getAllRequests(eq("검색어"), eq("APPROVED,PENDING"), isNull(), any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of(req), PageRequest.of(0, 10), 1));
+
+            mockMvc.perform(get("/api/approval-requests/all")
+                    .param("search", "검색어")
+                    .param("status", "APPROVED,PENDING")
+                    .param("page", "0")
+                    .param("size", "10"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.totalElements").value(1));
+        }
+
+        @Test
+        @DisplayName("getAllRequests - filterModel 파라미터가 서비스로 전달")
+        void getAllRequests_FilterModelPassed() throws Exception {
+            ApprovalRequest req = new ApprovalRequest();
+            req.setId(UUID.randomUUID());
+
+            String fmJson = "{\"status\":{\"filterType\":\"set\",\"values\":[\"APPROVED\"]}}";
+            when(approvalService.getAllRequests(eq("검색어"), eq("APPROVED"), eq(fmJson), any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of(req), PageRequest.of(0, 10), 1));
+
+            mockMvc.perform(get("/api/approval-requests/all")
+                    .param("search", "검색어")
+                    .param("status", "APPROVED")
+                    .param("filterModel", fmJson)
+                    .param("page", "0")
+                    .param("size", "10"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.totalElements").value(1));
+        }
     }
 }

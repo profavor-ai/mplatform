@@ -554,7 +554,7 @@ const getGroupedChangesList = (changesString, targetType) => {
       finalVal = displayValAfter || '-'
     }
     
-    sectorObj.groups.get(gKey).fields.push({ key, label: translate(f.name, key, key), val: finalVal, gridWidth: f.gridWidth, type: f.type })
+    sectorObj.groups.get(gKey).fields.push({ key, label: translate(f.name, key, key), val: finalVal, gridWidth: f.gridWidth, type: f.type, order: f.order || 0 })
   })
   
   const sectorsArray = Array.from(map.values())
@@ -579,6 +579,9 @@ const getGroupedChangesList = (changesString, targetType) => {
   return sectors.map(s => {
     const groups = Array.from(s.groups.values())
     groups.sort((a, b) => a.order - b.order)
+    groups.forEach(g => {
+      g.fields.sort((a, b) => a.order - b.order)
+    })
     return {
       key: s.key,
       label: s.label,

@@ -207,6 +207,8 @@ export const useApprovalEnricher = () => {
 
   return {
     loadMetadata,
-    enrichRequest
+    enrichRequest,
+    domains,
+    nodes
   }
 }

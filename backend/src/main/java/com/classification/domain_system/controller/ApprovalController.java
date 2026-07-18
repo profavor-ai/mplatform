@@ -39,9 +39,34 @@ public class ApprovalController {
 
     @GetMapping("/all")
     public ResponseEntity<PageResponse<ApprovalRequest>> getAllRequests(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String filterModel,
+            @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
-        return ResponseEntity.ok(PageResponse.of(approvalService.getAllRequests(PageRequest.of(page, size))));
+        
+        org.springframework.data.domain.Sort sortObj = org.springframework.data.domain.Sort.unsorted();
+        if (sort != null && !sort.trim().isEmpty()) {
+            String[] parts = sort.split(",");
+            String colId = parts[0].trim();
+            org.springframework.data.domain.Sort.Direction dir = parts.length > 1 && "desc".equalsIgnoreCase(parts[1].trim()) 
+                    ? org.springframework.data.domain.Sort.Direction.DESC 
+                    : org.springframework.data.domain.Sort.Direction.ASC;
+            
+            String property = colId;
+            if ("classificationName".equals(colId)) {
+                property = "classificationNode.name";
+            } else if ("domainName".equals(colId)) {
+                property = "classificationNode.domain.name";
+            }
+            
+            if (java.util.List.of("createdAt", "status", "targetType", "requesterId", "classificationNode.name", "classificationNode.domain.name", "idAttribute", "nameAttribute", "summary").contains(property)) {
+                sortObj = org.springframework.data.domain.Sort.by(dir, property);
+            }
+        }
+        
+        return ResponseEntity.ok(PageResponse.of(approvalService.getAllRequests(search, status, filterModel, PageRequest.of(page, size, sortObj))));
     }
     
     @GetMapping("/todos")

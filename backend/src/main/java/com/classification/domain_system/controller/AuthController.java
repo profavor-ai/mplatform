@@ -30,8 +30,9 @@ public class AuthController {
         try {
             String ip = httpRequest.getRemoteAddr();
             if ("0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip)) ip = "127.0.0.1";
+            String userAgent = httpRequest.getHeader("User-Agent");
             
-            String token = authService.login(request.getUsername(), request.getPassword(), ip);
+            String token = authService.login(request.getUsername(), request.getPassword(), ip, userAgent);
             User user = authService.findByUsername(request.getUsername());
             
             String serverOffset = OffsetDateTime.now().getOffset().getId();
@@ -39,6 +40,21 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.status(401).body(e.getMessage());
         }
+    }
+
+    @GetMapping("/login-logs")
+    public ResponseEntity<?> getLoginLogs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            org.springframework.security.core.Authentication authentication) {
+        
+        if (authentication == null || !authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ADMIN"))) {
+            return ResponseEntity.status(403).body("Access denied. Admin role required.");
+        }
+        
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "loginAt"));
+        return ResponseEntity.ok(authService.getLoginLogs(pageable));
     }
 
     @PostMapping("/register")

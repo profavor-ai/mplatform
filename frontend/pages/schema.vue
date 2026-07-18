@@ -307,8 +307,16 @@
 
     <!-- Sector & Group Manager Modal -->
     <va-modal v-model="showSectorGroupModal" title="Manage Sectors & Groups" hide-default-actions size="large">
-      <div style="display: flex; gap: 2rem; height: 500px; padding-bottom: 1rem;">
-        <div style="flex: 1; border-right: 1px solid #eee; padding-right: 1rem; display: flex; flex-direction: column;">
+      <va-tabs v-model="sgActiveTab" style="width: 100%; margin-bottom: 1.5rem;">
+        <template #tabs>
+          <va-tab>Sectors</va-tab>
+          <va-tab>Groups</va-tab>
+        </template>
+      </va-tabs>
+
+      <div style="height: 480px; padding-bottom: 1rem;">
+        <!-- Sectors Tab Content -->
+        <div v-show="sgActiveTab === 0" style="height: 100%; display: flex; flex-direction: column;">
           <div style="display:flex; justify-content:space-between; margin-bottom: 1rem; align-items: center;">
             <h3 style="font-weight:bold; margin: 0;">Sectors</h3>
             <div style="display:flex; gap: 0.5rem;">
@@ -332,7 +340,8 @@
           </div>
         </div>
 
-        <div style="flex: 1; display: flex; flex-direction: column;">
+        <!-- Groups Tab Content -->
+        <div v-show="sgActiveTab === 1" style="height: 100%; display: flex; flex-direction: column;">
           <div style="display:flex; justify-content:space-between; margin-bottom: 1rem; align-items: center;">
             <h3 style="font-weight:bold; margin: 0;">Groups</h3>
             <div style="display:flex; gap: 0.5rem;">
@@ -396,6 +405,7 @@ const userCookie = useCookie('user_data')
 const getAuthHeaders = () => token.value ? { Authorization: `Bearer ${token.value}` } : {}
 
 const activeTab = ref(0)
+const sgActiveTab = ref(0)
 const workflowConfigs = ref({
   CREATE: { steps: [], observerIds: [] },
   UPDATE: { steps: [], observerIds: [] },
@@ -576,7 +586,7 @@ const groupColumnDefs = [
   },
   { field: 'name.ko', headerName: 'Name (KO)', editable: true },
   { field: 'name.en', headerName: 'Name (EN)', editable: true },
-  { field: 'sortOrder', headerName: 'Order', width: 80, flex: 0, editable: true, valueParser: p => Number(p.newValue) || 0 },
+  { field: 'sortOrder', headerName: 'Order', width: 100, flex: 0, editable: true, valueParser: p => Number(p.newValue) || 0 },
   { 
     field: 'isDefaultOpen', 
     headerName: 'Default Open', 
@@ -584,7 +594,7 @@ const groupColumnDefs = [
     cellEditor: 'agSelectCellEditor',
     cellEditorParams: { values: [true, false] },
     valueFormatter: p => p.value !== false ? 'O' : 'X',
-    width: 120,
+    width: 140,
     flex: 0 
   }
 ]

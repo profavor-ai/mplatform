@@ -16,6 +16,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final com.classification.domain_system.repository.LoginLogRepository loginLogRepository;
 
     public void register(String username, String password, String role) {
         if (userRepository.findByUsername(username).isPresent()) {
@@ -31,6 +32,10 @@ public class AuthService {
     }
 
     public String login(String username, String password, String ipAddress) {
+        return login(username, password, ipAddress, null);
+    }
+
+    public String login(String username, String password, String ipAddress, String userAgent) {
         Optional<User> userOpt = userRepository.findByUsername(username);
         if (userOpt.isEmpty()) {
             throw new RuntimeException("Invalid credentials");
@@ -41,10 +46,23 @@ public class AuthService {
             throw new RuntimeException("Invalid credentials");
         }
 
+        // 로그인 이력 기록
+        com.classification.domain_system.entity.LoginLog log = com.classification.domain_system.entity.LoginLog.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .userAgent(userAgent)
+                .clientIp(ipAddress)
+                .build();
+        loginLogRepository.save(log);
+
         return jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getId(), ipAddress);
     }
     
     public User findByUsername(String username) {
         return userRepository.findByUsername(username).orElse(null);
+    }
+
+    public org.springframework.data.domain.Page<com.classification.domain_system.entity.LoginLog> getLoginLogs(org.springframework.data.domain.Pageable pageable) {
+        return loginLogRepository.findAll(pageable);
     }
 }

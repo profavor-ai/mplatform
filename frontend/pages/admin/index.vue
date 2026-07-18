@@ -3,9 +3,11 @@
     <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem;">{{ t('title') }}</h1>
     
     <va-card style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-      <va-card-title style="display: flex; justify-content: space-between; align-items: center;">
-        {{ t('subtitle') }}
-        <va-button preset="secondary" icon="refresh" size="small" @click="refreshGrid">{{ t('refresh') }}</va-button>
+      <va-card-title style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+        <div>{{ t('subtitle') }}</div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <va-button preset="secondary" icon="refresh" size="small" @click="refreshGrid">{{ t('refresh') }}</va-button>
+        </div>
       </va-card-title>
       
       <va-card-content style="flex: 1; display: flex; flex-direction: column; padding: 0; min-height: 0;">
@@ -186,11 +188,40 @@ const messages = {
 
 const { t, locale } = useI18n({ messages, useScope: 'local', inheritLocale: true })
 
-const { confirm, alert: vaAlert } = useModal()
+const { confirm } = useModal()
+
+const vaAlert = (message) => {
+  confirm({
+    title: 'Notification',
+    message: message,
+    okText: 'OK',
+    cancelText: ''
+  })
+}
 
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 
-const { loadMetadata, enrichRequest } = useApprovalEnricher()
+const { loadMetadata, enrichRequest, domains, nodes } = useApprovalEnricher()
+
+const domainFilterValues = computed(() => {
+  if (!domains || !domains.value) return [];
+  const currentLocale = locale?.value || 'ko';
+  return Object.values(domains.value).map(name => {
+    if (!name) return '';
+    if (typeof name === 'string') return name;
+    return name[currentLocale] || name.ko || name.en || JSON.stringify(name);
+  });
+})
+
+const classificationFilterValues = computed(() => {
+  if (!nodes || !nodes.value) return [];
+  const currentLocale = locale?.value || 'ko';
+  return Object.values(nodes.value).map(name => {
+    if (!name) return '';
+    if (typeof name === 'string') return name;
+    return name[currentLocale] || name.ko || name.en || JSON.stringify(name);
+  });
+})
 
 const token = useCookie('auth_token')
 const userData = useCookie('user_data')
@@ -289,52 +320,80 @@ const columnDefs = computed(() => [
     headerName: t('colTargetType'), 
     field: 'targetType', 
     width: 130,
-    valueFormatter: (params) => formatTargetType(params.value)
+    valueFormatter: (params) => formatTargetType(params.value),
+    filter: 'agSetColumnFilter',
+    filterParams: {
+      values: ['RECORD_CREATE', 'RECORD_UPDATE', 'RECORD_DELETE', 'BULK_UPLOAD'],
+      valueFormatter: (params) => formatTargetType(params.value)
+    }
   },
   { 
     headerName: t('colDomain'), 
     field: 'domainName', 
-    width: 140
+    width: 140,
+    filter: 'agSetColumnFilter',
+    filterParams: {
+      values: domainFilterValues.value
+    }
   },
   { 
     headerName: t('colClassification'), 
     field: 'classificationName', 
-    width: 150
+    width: 150,
+    filter: 'agSetColumnFilter',
+    filterParams: {
+      values: classificationFilterValues.value
+    }
   },
   { 
     headerName: t('colIdAttr'), 
     field: 'idAttribute', 
-    width: 150
+    width: 150,
+    filter: 'agTextColumnFilter',
+    sortable: false
   },
   { 
     headerName: t('colNameAttr'), 
     field: 'nameAttribute', 
-    width: 180
+    width: 180,
+    filter: 'agTextColumnFilter',
+    sortable: false
   },
   { 
     headerName: t('colSummary'), 
     field: 'summary', 
     flex: 1,
     minWidth: 200,
-    tooltipField: 'summary'
+    tooltipField: 'summary',
+    filter: 'agTextColumnFilter',
+    sortable: false
   },
   { 
     headerName: t('colRequester'), 
     field: 'requesterId', 
     width: 120,
-    valueFormatter: (params) => getUserName(params.value)
+    valueFormatter: (params) => getUserName(params.value),
+    filter: 'agTextColumnFilter'
   },
   { 
     headerName: t('colCreatedAt'), 
     field: 'createdAt', 
     width: 150,
-    valueFormatter: (params) => formatDate(params.value)
+    valueFormatter: (params) => formatDate(params.value),
+    filter: 'agDateColumnFilter'
   },
   { 
     headerName: t('colStatus'), 
     field: 'status', 
     width: 100,
     valueFormatter: (params) => t('status_' + (params.value || '').toLowerCase()) || params.value,
+    filter: 'agSetColumnFilter',
+    filterParams: {
+      values: ['SUBMITTED', 'PENDING', 'APPROVED', 'REJECTED'],
+      valueFormatter: (params) => {
+        return t('status_' + (params.value || '').toLowerCase()) || params.value;
+      }
+    },
     cellStyle: (params) => {
       if (params.value === 'PENDING') return { color: 'orange', fontWeight: 'bold' }
       if (params.value === 'APPROVED') return { color: 'green', fontWeight: 'bold' }
@@ -349,9 +408,19 @@ const columnDefs = computed(() => [
   }
 ])
 
+const searchQuery = ref('')
+let searchTimeout = null
+
+const onSearchChanged = () => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    refreshGrid()
+  }, 300)
+}
+
 const defaultColDef = ref({
-  sortable: false,
-  filter: false,
+  sortable: true,
+  filter: true,
   resizable: true,
   tooltipComponentParams: { color: '#ececec' }
 })
@@ -363,7 +432,41 @@ const createDatasource = () => {
       const page = Math.floor(params.startRow / size);
       
       try {
-        const pageData = await $fetch(`/api/approval-requests/all?page=${page}&size=${size}`, {
+        const querySearch = searchQuery.value ? `&search=${encodeURIComponent(searchQuery.value)}` : '';
+        let filterModelParam = '';
+        if (params.filterModel && Object.keys(params.filterModel).length > 0) {
+          const fm = JSON.parse(JSON.stringify(params.filterModel));
+          if (fm.status) {
+            let selectedValues = [];
+            if (fm.status.filterType === 'set' && fm.status.values) {
+              selectedValues = fm.status.values;
+            } else if (fm.status.filter && typeof fm.status.filter === 'string') {
+              selectedValues = [fm.status.filter];
+            }
+            const mapped = selectedValues.map(v => {
+              const val = String(v).trim();
+              if (val === '상신' || val === 'status_submitted') return 'SUBMITTED';
+              if (val === '진행중' || val === 'status_pending') return 'PENDING';
+              if (val === '승인' || val === 'status_approved') return 'APPROVED';
+              if (val === '반려' || val === 'status_rejected') return 'REJECTED';
+              return val;
+            });
+            if (fm.status.filterType === 'set') {
+              fm.status.values = mapped;
+            } else {
+              fm.status.filter = mapped[0];
+            }
+          }
+          filterModelParam = `&filterModel=${encodeURIComponent(JSON.stringify(fm))}`;
+        }
+        
+        let sortQuery = '';
+        if (params.sortModel && params.sortModel.length > 0) {
+          const sm = params.sortModel[0];
+          sortQuery = `&sort=${sm.colId},${sm.sort}`;
+        }
+        
+        const pageData = await $fetch(`/api/approval-requests/all?page=${page}&size=${size}${querySearch}${filterModelParam}${sortQuery}`, {
           headers: { Authorization: `Bearer ${token.value}` }
         });
         
@@ -400,8 +503,8 @@ const proxyApprove = async (stepId) => {
   if (!isConfirmed) return
   
   try {
-    const adminId = userData.value?.id
-    if (!adminId) throw new Error('Admin user ID not found in cookies')
+    const adminId = userData.value?.uuid || userData.value?.id
+    if (!adminId) throw new Error('Admin user ID (UUID) not found in cookies')
     const headers = { Authorization: `Bearer ${token.value}` }
     const updatedFlow = await $fetch(`/api/approval-requests/steps/${stepId}/admin-approve?adminId=${adminId}`, {
       method: 'POST',
@@ -430,8 +533,8 @@ const proxyReject = async (stepId) => {
   if (!isConfirmed) return
   
   try {
-    const adminId = userData.value?.id
-    if (!adminId) throw new Error('Admin user ID not found in cookies')
+    const adminId = userData.value?.uuid || userData.value?.id
+    if (!adminId) throw new Error('Admin user ID (UUID) not found in cookies')
     const headers = { Authorization: `Bearer ${token.value}` }
     const updatedFlow = await $fetch(`/api/approval-requests/steps/${stepId}/admin-reject?adminId=${adminId}`, {
       method: 'POST',

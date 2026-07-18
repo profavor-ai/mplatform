@@ -27,6 +27,7 @@
               placeholder="Enter your username"
               class="w-full mb-4"
               outline
+              tabindex="1"
               :error="!!errorMessage && activeTab === 'login'"
             >
               <template #prependInner>
@@ -41,6 +42,7 @@
               placeholder="Enter your password"
               class="w-full mb-4"
               outline
+              tabindex="2"
               :error="!!errorMessage && activeTab === 'login'"
             >
               <template #prependInner>
@@ -66,6 +68,7 @@
               placeholder="Choose a username"
               class="w-full mb-4"
               outline
+              tabindex="1"
             >
               <template #prependInner>
                 <va-icon name="person_add" color="secondary" />
@@ -79,6 +82,7 @@
               placeholder="Create a password"
               class="w-full mb-4"
               outline
+              tabindex="2"
             >
               <template #prependInner>
                 <va-icon name="lock" color="secondary" />
@@ -92,6 +96,7 @@
               class="w-full mb-4"
               outline
               placeholder="Select your role"
+              tabindex="3"
             >
               <template #prependInner>
                 <va-icon name="badge" color="secondary" />
