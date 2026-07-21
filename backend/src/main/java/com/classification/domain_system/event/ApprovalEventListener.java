@@ -5,6 +5,7 @@ import com.classification.domain_system.entity.ApprovalStep;
 import com.classification.domain_system.entity.Record;
 import com.classification.domain_system.entity.RecordHistory;
 import com.classification.domain_system.entity.FieldDefinition;
+import com.classification.domain_system.entity.Domain;
 import com.classification.domain_system.repository.*;
 import com.classification.domain_system.service.FieldDefinitionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,6 +30,7 @@ public class ApprovalEventListener {
     private final RecordRepository recordRepository;
     private final RecordHistoryRepository recordHistoryRepository;
     private final FieldDefinitionService fieldDefinitionService;
+    private final com.classification.domain_system.service.NumberingService numberingService;
 
     @EventListener
     @Transactional
@@ -141,7 +143,27 @@ public class ApprovalEventListener {
             Record record = recordRepository.findById(approval.getTargetId())
                     .orElseThrow(() -> new RuntimeException("Record not found"));
             record.setStatus("ACTIVE");
-            String finalData = recomputeCalculatedFields(record.getNode().getId(), approval.getChanges());
+            
+            String changesJson = approval.getChanges();
+            Domain domain = record.getNode().getDomain();
+            if (domain != null && domain.getNumberingPattern() != null && !domain.getNumberingPattern().isBlank()) {
+                String issuedCode = numberingService.issueNextCode(domain.getId());
+                if (domain.getIdentifierFieldId() != null && !issuedCode.isBlank()) {
+                    String targetKey = domain.getIdentifierFieldId().toString();
+                    List<FieldDefinition> fields = fieldDefinitionService.getEffectiveFields(record.getNode().getId());
+                    for (FieldDefinition f : fields) {
+                        if (f.getId() != null && f.getId().toString().equals(domain.getIdentifierFieldId().toString())) {
+                            if (f.getKey() != null) {
+                                targetKey = f.getKey();
+                            }
+                            break;
+                        }
+                    }
+                    changesJson = injectIdentifierValue(changesJson, targetKey, issuedCode);
+                }
+            }
+
+            String finalData = recomputeCalculatedFields(record.getNode().getId(), changesJson);
             record.setData(finalData);
             record.setVersion(1);
             recordRepository.save(record);
@@ -321,5 +343,18 @@ public class ApprovalEventListener {
                 while (pos < expr.length() && expr.charAt(pos) == ' ') pos++;
             }
         }.parse();
+    }
+
+    private String injectIdentifierValue(String dataJson, String fieldKey, String value) {
+        if (dataJson == null || dataJson.isBlank() || fieldKey == null) return dataJson;
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            Map<String, Object> data = mapper.readValue(dataJson, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+            data.put(fieldKey, value);
+            return mapper.writeValueAsString(data);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return dataJson;
+        }
     }
 }

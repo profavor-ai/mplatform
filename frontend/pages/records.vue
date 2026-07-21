@@ -192,21 +192,23 @@
               color="background-element"
               style="margin-bottom: 0.5rem;"
             >
-              <div style="padding: 0.5rem 1rem; overflow-x: hidden; box-sizing: border-box;">
-                <div class="row" style="row-gap: 1.25rem; margin: 0 -0.5rem;">
-                  <div v-for="field in group.fields" :key="field.id" :class="['flex', 'xs' + (field.gridWidth || 12)]" style="padding: 0 0.5rem; min-width: 0;">
-                    <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; min-width: 0; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem;">
+              <div style="padding: 0.5rem 1rem; overflow: visible; box-sizing: border-box;">
+                <div class="row" style="row-gap: 1.25rem; margin: 0 -0.5rem; display: flex; flex-wrap: wrap;">
+                  <div v-for="field in group.fields" :key="field.id" :class="['flex', 'xs' + (field.gridWidth || 12)]" style="padding: 0 0.5rem; min-width: 0; margin-bottom: 0.5rem;">
+                    <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; min-width: 0; --va-input-font-size: 0.9rem;">
                       <!-- Unified External Label -->
                       <span :style="{ fontSize: '0.75rem', color: field.isHighlighted ? 'var(--va-primary)' : 'var(--va-text-secondary)', fontWeight: field.isHighlighted ? '800' : '600', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }">
                         <va-icon v-if="field.isHighlighted" name="star" size="small" color="primary" />
                         {{ getTranslatedName(field.name) }}{{ field.required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}
                       </span>
 
-                    <!-- Text / Number -->
+                    <!-- Text / Number / Date -->
                     <va-input 
-                      v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type)" 
+                      v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'DATE'].includes(field.type)" 
                       v-model="recordFormData[field.key]" 
-                      :type="['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : 'text'"
+                      :type="field.type === 'DATE' ? 'date' : (['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : 'text')"
+                      :disabled="isAutoNumberingField(field)"
+                      :placeholder="isAutoNumberingField(field) ? '자동 채번됩니다 (최종 승인 시)' : ''"
                       class="w-full"
                     />
                     
@@ -346,17 +348,19 @@
               color="background-element"
               style="margin-bottom: 0.5rem;"
             >
-              <div style="padding: 0.5rem 1rem; overflow-x: hidden; box-sizing: border-box;">
-                <div class="row" style="row-gap: 1.25rem; margin: 0 -0.5rem;">
-                  <div v-for="field in group.fields" :key="field.id" :class="['flex', 'xs' + (field.gridWidth || 12)]" style="padding: 0 0.5rem; min-width: 0;">
-                    <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; min-width: 0; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem;">
+              <div style="padding: 0.5rem 1rem; overflow: visible; box-sizing: border-box;">
+                <div class="row" style="row-gap: 1.25rem; margin: 0 -0.5rem; display: flex; flex-wrap: wrap;">
+                  <div v-for="field in group.fields" :key="field.id" :class="['flex', 'xs' + (field.gridWidth || 12)]" style="padding: 0 0.5rem; min-width: 0; margin-bottom: 0.5rem;">
+                    <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; min-width: 0; --va-input-font-size: 0.9rem;">
                       <span :style="{ fontSize: '0.75rem', color: field.isHighlighted ? 'var(--va-primary)' : 'var(--va-text-secondary)', fontWeight: field.isHighlighted ? '800' : '600', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }"><va-icon v-if="field.isHighlighted" name="star" size="small" color="primary" />{{ getTranslatedName(field.name) }}{{ field.required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}</span>
                       <va-input 
-                        v-if="['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type)" 
+                        v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'DATE'].includes(field.type)" 
                         v-model="selectedRecordData[field.key]" 
-                        type="number"
+                        :type="field.type === 'DATE' ? 'date' : (['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : 'text')"
                         class="w-full"
                         :readonly="!isEditingRecord"
+                        :disabled="isEditingRecord && isAutoNumberingField(field)"
+                        :placeholder="isEditingRecord && isAutoNumberingField(field) ? '자동 채번됩니다 (최종 승인 시)' : ''"
                       />
                       <div v-else-if="field.type === 'DOMAIN_REFERENCE'" class="w-full" style="display: flex; gap: 0.5rem; align-items: center;">
                         <va-input 
@@ -779,6 +783,14 @@ const selectedNode = ref(null)
 const hasCreateWorkflow = ref(true)
 const hasUpdateWorkflow = ref(true)
 
+const selectedDomainInfo = ref(null)
+const isAutoNumberingField = (field) => {
+  if (!selectedDomainInfo.value || !field) return false
+  return field.id === selectedDomainInfo.value.identifierFieldId &&
+         selectedDomainInfo.value.numberingPattern &&
+         selectedDomainInfo.value.numberingPattern.trim() !== ''
+}
+
 const nodeFields = ref([])
 const rowData = ref([])
 const domainReferences = ref({}) 
@@ -1121,12 +1133,33 @@ onMounted(() => {
 
 const selectNode = async (node) => {
   selectedNode.value = node || null
+  selectedDomainInfo.value = null
   
   if (!node) {
     nodeFields.value = []
     rowData.value = []
     columnDefs.value = []
     return
+  }
+
+  let targetDomainId = null
+  if (node.isDomain) {
+    targetDomainId = node.id
+  } else if (node.domainId) {
+    targetDomainId = node.domainId
+  } else if (node.originalData && node.originalData.domainId) {
+    targetDomainId = node.originalData.domainId
+  }
+
+  if (targetDomainId) {
+    try {
+      const dom = await $fetch(`/api/domains/${targetDomainId}`, {
+        headers: { Authorization: `Bearer ${token.value}` }
+      })
+      selectedDomainInfo.value = dom
+    } catch (e) {
+      console.error('Failed to load selected domain details:', e)
+    }
   }
   
   if (node.isDomain) {

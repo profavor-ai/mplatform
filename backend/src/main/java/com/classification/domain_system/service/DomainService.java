@@ -27,6 +27,7 @@ public class DomainService {
         domain.setDescriptionFieldId(request.getDescriptionFieldId());
         domain.setIcon(request.getIcon());
         domain.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
+        domain.setNumberingPattern(request.getNumberingPattern());
         return domainRepository.save(domain);
     }
     
@@ -70,6 +71,7 @@ public class DomainService {
         domain.setDescriptionFieldId(request.getDescriptionFieldId());
         domain.setIcon(request.getIcon());
         domain.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
+        domain.setNumberingPattern(request.getNumberingPattern());
         return domainRepository.save(domain);
     }
 }

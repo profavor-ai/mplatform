@@ -44,6 +44,12 @@ public class Domain {
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder = 0;
 
+    @Column(name = "numbering_pattern")
+    private String numberingPattern;
+
+    @Column(name = "current_sequence", nullable = false, columnDefinition = "bigint default 0")
+    private Long currentSequence = 0L;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

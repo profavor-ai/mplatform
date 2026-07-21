@@ -2,6 +2,7 @@ package com.classification.domain_system.service;
 
 import com.classification.domain_system.entity.User;
 import com.classification.domain_system.repository.UserRepository;
+import com.classification.domain_system.repository.LoginLogRepository;
 import com.classification.domain_system.security.JwtUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -31,6 +32,9 @@ class AuthServiceTest {
 
     @Mock
     private JwtUtil jwtUtil;
+
+    @Mock
+    private LoginLogRepository loginLogRepository;
 
     @InjectMocks
     private AuthService authService;

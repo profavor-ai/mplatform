@@ -14,4 +14,5 @@ public class DomainRequest {
     private UUID descriptionFieldId;
     private String icon;
     private Integer sortOrder;
+    private String numberingPattern;
 }

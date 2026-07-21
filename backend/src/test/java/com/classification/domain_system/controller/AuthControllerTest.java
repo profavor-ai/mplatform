@@ -57,7 +57,7 @@ class AuthControllerTest {
             user.setUsername("testuser");
             user.setRole("USER");
 
-            when(authService.login(eq("testuser"), eq("password"), any())).thenReturn("jwt-token");
+            when(authService.login(eq("testuser"), eq("password"), any(), any())).thenReturn("jwt-token");
             when(authService.findByUsername("testuser")).thenReturn(user);
 
             mockMvc.perform(post("/api/auth/login")
@@ -72,7 +72,7 @@ class AuthControllerTest {
         @Test
         @DisplayName("잘못된 비밀번호 시 401 반환")
         void wrongPassword_Returns401() throws Exception {
-            when(authService.login(any(), any(), any()))
+            when(authService.login(any(), any(), any(), any()))
                     .thenThrow(new RuntimeException("Invalid credentials"));
 
             mockMvc.perform(post("/api/auth/login")
@@ -89,7 +89,7 @@ class AuthControllerTest {
             user.setUsername("admin");
             user.setRole("ADMIN");
 
-            when(authService.login(eq("admin"), eq("pass"), eq("127.0.0.1"))).thenReturn("token");
+            when(authService.login(eq("admin"), eq("pass"), eq("127.0.0.1"), any())).thenReturn("token");
             when(authService.findByUsername("admin")).thenReturn(user);
 
             // MockMvc는 기본적으로 127.0.0.1을 사용하지만
@@ -100,7 +100,7 @@ class AuthControllerTest {
                     .andExpect(status().isOk());
 
             // authService.login 이 "127.0.0.1"로 호출되었음을 검증
-            verify(authService).login(eq("admin"), eq("pass"), eq("127.0.0.1"));
+            verify(authService).login(eq("admin"), eq("pass"), eq("127.0.0.1"), any());
         }
     }
 

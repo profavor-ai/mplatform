@@ -17,26 +17,16 @@ public class DatabaseCheckTest {
     @Test
     public void printDatabaseData() {
         System.out.println("====================================================");
-        System.out.println("[DB CHECK] Users Table Info:");
-        List<Map<String, Object>> users = jdbcTemplate.queryForList("SELECT id, username, role FROM users");
-        for (Map<String, Object> u : users) {
-            System.out.println("User -> ID: " + u.get("id") + ", Username: " + u.get("username") + ", Role: " + u.get("role"));
+        System.out.println("[DB CHECK] Domain Table Info:");
+        List<Map<String, Object>> domains = jdbcTemplate.queryForList("SELECT id, name, identifier_field_id, display_name_field_id, numbering_pattern, current_sequence FROM \"domain\"");
+        for (Map<String, Object> d : domains) {
+            System.out.println("Domain -> ID: " + d.get("id") + ", Name: " + d.get("name") + ", IdentifierFieldId: " + d.get("identifier_field_id") + ", Pattern: " + d.get("numbering_pattern"));
         }
 
-        System.out.println("[DB CHECK] Recent Approval Requests:");
-        List<Map<String, Object>> requests = jdbcTemplate.queryForList(
-                "SELECT id, status, requester_id, target_type FROM approval_request ORDER BY created_at DESC LIMIT 5");
-        for (Map<String, Object> req : requests) {
-            System.out.println("Request -> ID: " + req.get("id") + ", Status: " + req.get("status") 
-                    + ", RequesterID: " + req.get("requester_id") + ", Type: " + req.get("target_type"));
-            
-            List<Map<String, Object>> steps = jdbcTemplate.queryForList(
-                    "SELECT id, step_order, step_type, assignee_id, status FROM approval_step WHERE request_id = ? ORDER BY step_order",
-                    req.get("id"));
-            for (Map<String, Object> step : steps) {
-                System.out.println("  └ Step -> Order: " + step.get("step_order") + ", Type: " + step.get("step_type")
-                        + ", AssigneeID: " + step.get("assignee_id") + ", Status: " + step.get("status"));
-            }
+        System.out.println("[DB CHECK] Field Definition Table Info:");
+        List<Map<String, Object>> fields = jdbcTemplate.queryForList("SELECT id, domain_id, field_key, name, required, type FROM field_definition");
+        for (Map<String, Object> f : fields) {
+            System.out.println("Field -> ID: " + f.get("id") + ", DomainID: " + f.get("domain_id") + ", Key: " + f.get("field_key") + ", Name: " + f.get("name") + ", Required: " + f.get("required") + ", Type: " + f.get("type"));
         }
         System.out.println("====================================================");
     }

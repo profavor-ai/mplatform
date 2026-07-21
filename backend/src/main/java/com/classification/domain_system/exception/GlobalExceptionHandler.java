@@ -15,11 +15,11 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 
 @RestControllerAdvice
-@RequiredArgsConstructor
 @Slf4j
 public class GlobalExceptionHandler {
 
-    private final ErrorLogService errorLogService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private ErrorLogService errorLogService;
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleAllExceptions(Exception ex, HttpServletRequest request) {
@@ -38,7 +38,9 @@ public class GlobalExceptionHandler {
         String errorMessage = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getName();
 
         try {
-            errorLogService.logError(userId, requestUri, errorMessage, stackTrace);
+            if (errorLogService != null) {
+                errorLogService.logError(userId, requestUri, errorMessage, stackTrace);
+            }
         } catch (Exception e) {
             log.error("Failed to save error log to DB", e);
         }

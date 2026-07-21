@@ -9,19 +9,25 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.classification.domain_system.repository.ClassificationNodeRepository;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class DataQualityServiceTest {
 
     @Mock
     private FieldDefinitionService fieldDefinitionService;
+
+    @Mock
+    private ClassificationNodeRepository nodeRepository;
 
     @InjectMocks
     private DataQualityService dataQualityService;
@@ -31,6 +37,7 @@ class DataQualityServiceTest {
     @BeforeEach
     void setUp() {
         nodeId = UUID.randomUUID();
+        lenient().when(nodeRepository.findById(nodeId)).thenReturn(Optional.empty());
     }
 
     // ─────────────────────────────────────────────────────────────────

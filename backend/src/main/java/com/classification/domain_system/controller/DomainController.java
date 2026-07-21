@@ -49,6 +49,11 @@ public class DomainController {
     public ResponseEntity<Domain> updateDomain(@PathVariable UUID id, @RequestBody DomainRequest request) {
         return ResponseEntity.ok(domainService.updateDomain(id, request));
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Domain> getDomain(@PathVariable UUID id) {
+        return ResponseEntity.ok(domainService.getDomain(id));
+    }
     
     
     @GetMapping("/{domainId}/fields/page")

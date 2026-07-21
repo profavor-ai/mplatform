@@ -148,6 +148,7 @@
           <va-button size="small" preset="secondary" border-color="primary" @click="openIconPicker(true)">Select Icon</va-button>
         </div>
       </div>
+      <va-input v-model="newDomain.numberingPattern" label="Numbering Pattern" placeholder="e.g. ITEM-{YYYY}-{SEQ:5} (Leave empty for manual)" class="mb-4 w-full" />
       <va-input v-model="newDomain.sortOrder" type="number" label="Sort Order" class="mb-4 w-full" />
       
       <!-- Field Mappings (Only show in Edit mode because we need fields) -->
@@ -983,7 +984,8 @@ const handleNodeEdit = async (node) => {
       displayNameFieldId: rawDomain.displayNameFieldId,
       descriptionFieldId: rawDomain.descriptionFieldId,
       icon: rawDomain.icon || '',
-      sortOrder: rawDomain.sortOrder || 0
+      sortOrder: rawDomain.sortOrder || 0,
+      numberingPattern: rawDomain.numberingPattern || ''
     }
     showDomainModal.value = true
   } else {
@@ -1000,7 +1002,7 @@ const handleNodeEdit = async (node) => {
 
 const openDomainModal = () => {
   isEditMode.value = false
-  newDomain.value = { name: {ko:'', en:''}, description: {ko:'', en:''}, identifierFieldId: null, displayNameFieldId: null, descriptionFieldId: null, icon: '' }
+  newDomain.value = { name: {ko:'', en:''}, description: {ko:'', en:''}, identifierFieldId: null, displayNameFieldId: null, descriptionFieldId: null, icon: '', sortOrder: 0, numberingPattern: '' }
   showDomainModal.value = true
 }
 
@@ -1070,7 +1072,8 @@ const saveDomain = async () => {
         displayNameFieldId: newDomain.value.displayNameFieldId,
         descriptionFieldId: newDomain.value.descriptionFieldId,
         icon: newDomain.value.icon,
-        sortOrder: newDomain.value.sortOrder
+        sortOrder: newDomain.value.sortOrder,
+        numberingPattern: newDomain.value.numberingPattern
       }
     })
     showDomainModal.value = false
