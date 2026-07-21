@@ -95,11 +95,45 @@ public class IntegrationTestService {
         if (broker == null || broker.trim().isEmpty()) {
             return new ConnectionTestResponse(false, "브로커 URL이 입력되지 않았습니다.");
         }
-        // Basic validation for MQ
-        if (broker.startsWith("kafka://") || broker.startsWith("amqp://") || broker.startsWith("tcp://")) {
-            return new ConnectionTestResponse(true, "메시지 큐 설정 형식이 유효합니다 (형식 검증 완료).");
-        } else {
-            return new ConnectionTestResponse(false, "지원하지 않는 브로커 프로토콜입니다 (kafka://, amqp:// 등 사용 권장).");
+
+        String topic = config.path("topic").asText();
+        if (topic == null || topic.trim().isEmpty()) {
+            return new ConnectionTestResponse(false, "토픽/큐 이름이 입력되지 않았습니다.");
+        }
+
+        try {
+            java.net.URI uri = new java.net.URI(broker);
+            String scheme = uri.getScheme();
+
+            if (!"kafka".equals(scheme) && !"amqp".equals(scheme) && !"tcp".equals(scheme)) {
+                return new ConnectionTestResponse(false, "지원하지 않는 브로커 프로토콜입니다 (kafka://, amqp:// 사용 권장).");
+            }
+
+            String host = uri.getHost();
+            int port = uri.getPort();
+            if (host == null || host.isBlank()) {
+                return new ConnectionTestResponse(false, "브로커 호스트를 파싱할 수 없습니다.");
+            }
+            if (port <= 0) {
+                // 기본 포트 할당
+                port = "kafka".equals(scheme) ? 9092 : 5672;
+            }
+
+            // 소켓 연결 테스트 (3초 타임아웃)
+            try (java.net.Socket socket = new java.net.Socket()) {
+                socket.connect(new java.net.InetSocketAddress(host, port), 3000);
+                String brokerType = "kafka".equals(scheme) ? "Kafka" : "RabbitMQ";
+                return new ConnectionTestResponse(true,
+                        String.format("%s 브로커 연결 성공! (%s:%d)", brokerType, host, port));
+            }
+        } catch (java.net.ConnectException e) {
+            return new ConnectionTestResponse(false, "브로커에 연결할 수 없습니다 (Connection refused): " + e.getMessage());
+        } catch (java.net.SocketTimeoutException e) {
+            return new ConnectionTestResponse(false, "브로커 연결 시간 초과 (3초): " + e.getMessage());
+        } catch (java.net.UnknownHostException e) {
+            return new ConnectionTestResponse(false, "브로커 호스트를 찾을 수 없습니다: " + e.getMessage());
+        } catch (Exception e) {
+            return new ConnectionTestResponse(false, "브로커 연결 실패: " + e.getMessage());
         }
     }
 }

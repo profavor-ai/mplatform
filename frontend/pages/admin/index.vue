@@ -277,8 +277,22 @@ const formatDate = (dateString) => {
   const date = parseDate(dateString)
   if (!date) return ''
   const tz = useCookie('timezone', { default: () => 'Asia/Seoul' }).value
-  const formatted = date.toLocaleString(undefined, { timeZone: tz })
+  const targetLocale = locale.value === 'ko' ? 'ko-KR' : 'en-US'
+  const formatted = date.toLocaleString(targetLocale, { timeZone: tz })
   return formatted.replace(/\s*(GMT|UTC|KST|PST|EST|CET)[-+0-9:]*/gi, '').trim()
+}
+
+const parseLocalizedValue = (val) => {
+  if (!val) return ''
+  try {
+    const obj = JSON.parse(val)
+    if (typeof obj === 'object' && obj !== null) {
+      return obj[locale.value] || obj.ko || obj.en || val
+    }
+  } catch (e) {
+    // not JSON
+  }
+  return val
 }
 
 const formatShortDate = (dateString) => {
@@ -356,6 +370,7 @@ const columnDefs = computed(() => [
     headerName: t('colNameAttr'), 
     field: 'nameAttribute', 
     width: 180,
+    valueFormatter: (params) => parseLocalizedValue(params.value),
     filter: 'agTextColumnFilter',
     sortable: false
   },
@@ -380,7 +395,8 @@ const columnDefs = computed(() => [
     field: 'createdAt', 
     width: 150,
     valueFormatter: (params) => formatDate(params.value),
-    filter: 'agDateColumnFilter'
+    filter: 'agDateColumnFilter',
+    sort: 'desc'
   },
   { 
     headerName: t('colStatus'), 

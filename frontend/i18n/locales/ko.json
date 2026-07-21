@@ -200,6 +200,9 @@
   "permissions": "권한",
   "no_pending_requests": "대기 중인 요청이 없습니다.",
   "requested_access_to": "접근 권한 요청:",
+  "menu_access_statistics": "메뉴 접근 통계",
+  "menu_access_logs": "메뉴 접근 로그",
+  "user_login_logs": "사용자 로그인 로그",
   "integration": {
     "channels": {
       "title": "연계 채널 관리",

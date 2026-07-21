@@ -267,7 +267,7 @@
           <strong>Error Message: </strong> <span class="text-danger">{{ selectedError.errorMessage }}</span>
         </div>
         <div class="mb-4">
-          <strong>Logged At: </strong> {{ new Date(selectedError.loggedAt).toLocaleString() }} (User: {{ selectedError.userId }})
+          <strong>Logged At: </strong> {{ new Date(selectedError.loggedAt).toLocaleString(locale === 'ko' ? 'ko-KR' : 'en-US') }} (User: {{ selectedError.userId }})
         </div>
         <div>
           <strong>Stack Trace:</strong>
@@ -336,6 +336,12 @@ const getMenuName = (path) => {
   if (cleanPath.includes('/admin/system-logs') || cleanPath.includes('/admin/menu-logs') || cleanPath.includes('/admin/menulogs')) {
     return isKo ? '시스템 로그' : 'System Logs'
   }
+  if (cleanPath.includes('/admin/integration/channels')) {
+    return isKo ? '연계 채널' : 'Integration Channels'
+  }
+  if (cleanPath.includes('/admin/integration/logs')) {
+    return isKo ? '연계 로그' : 'Integration Logs'
+  }
   return path
 }
 
@@ -366,7 +372,7 @@ const columnDefs = ref([
     flex: 1.2,
     valueFormatter: (params) => {
       if (!params.value) return ''
-      return new Date(params.value).toLocaleString()
+      return new Date(params.value).toLocaleString(locale.value === 'ko' ? 'ko-KR' : 'en-US')
     }
   }
 ])
@@ -508,7 +514,7 @@ const loginColumnDefs = ref([
     flex: 1,
     valueFormatter: (params) => {
       if (!params.value) return ''
-      return new Date(params.value).toLocaleString()
+      return new Date(params.value).toLocaleString(locale.value === 'ko' ? 'ko-KR' : 'en-US')
     }
   }
 ])
@@ -631,7 +637,7 @@ const errorColumnDefs = ref([
     flex: 1.2,
     valueFormatter: (params) => {
       if (!params.value) return ''
-      return new Date(params.value).toLocaleString()
+      return new Date(params.value).toLocaleString(locale.value === 'ko' ? 'ko-KR' : 'en-US')
     }
   }
 ])
@@ -695,6 +701,7 @@ const showIntegrationDetailsModal = ref(false)
 const selectedIntegrationLog = ref(null)
 
 const integrationColumns = [
+  { key: 'channelName', label: 'Channel', sortable: false },
   { key: 'eventType', label: 'Event', sortable: false },
   { key: 'status', label: 'Status', sortable: false },
   { key: 'retryCount', label: 'Retry Count', sortable: false },
@@ -728,10 +735,14 @@ const fetchIntegrationLogs = async (pageIndex) => {
       headers: { Authorization: `Bearer ${token.value}` }
     })
     
-    integrationLogs.value = data.content.map(log => ({
-      ...log,
-      createdAt: new Date(log.createdAt).toLocaleString()
-    }))
+    integrationLogs.value = data.content.map(log => {
+      const channel = channelOptions.value.find(c => c.id === log.channelId)
+      return {
+        ...log,
+        channelName: channel ? channel.name : 'Unknown',
+        createdAt: new Date(log.createdAt).toLocaleString(locale.value === 'ko' ? 'ko-KR' : 'en-US')
+      }
+    })
     integrationTotalPages.value = data.totalPages
     integrationCurrentPage.value = (data.number + 1)
   } catch (e) {

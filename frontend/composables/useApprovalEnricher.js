@@ -71,9 +71,17 @@ export const useApprovalEnricher = () => {
   
   const getTranslatedName = (nameObj) => {
     if (!nameObj) return ''
-    if (typeof nameObj === 'string') return nameObj
+    let obj = nameObj
+    if (typeof nameObj === 'string') {
+      try {
+        obj = JSON.parse(nameObj)
+      } catch (e) {
+        return nameObj
+      }
+    }
+    if (typeof obj !== 'object' || obj === null) return obj
     const locale = useCookie('locale', { default: () => 'ko' }).value
-    return nameObj[locale] || nameObj.en || nameObj.ko || JSON.stringify(nameObj)
+    return obj[locale] || obj.en || obj.ko || JSON.stringify(obj)
   }
 
   const enrichRequest = async (req) => {
@@ -130,7 +138,7 @@ export const useApprovalEnricher = () => {
         if (nameField && recordData[nameField.key] !== undefined) {
           let val = recordData[nameField.key]
           if (typeof val === 'object' && val !== null) {
-            val = val.ko || val.en || JSON.stringify(val)
+            val = JSON.stringify(val)
           }
           enriched.nameAttribute = val
         }
@@ -142,7 +150,7 @@ export const useApprovalEnricher = () => {
             const field = fields.find(f => f.key === key)
             const fName = field ? getTranslatedName(field.name) : key
             let val = recordData[key]
-            if (typeof val === 'object' && val !== null) val = val.ko || val.en || JSON.stringify(val)
+            if (typeof val === 'object' && val !== null) val = getTranslatedName(val)
             parts.push(`${fName}: ${val}`)
           }
           enriched.summary = parts.join(', ')
@@ -154,8 +162,8 @@ export const useApprovalEnricher = () => {
               const fName = field ? getTranslatedName(field.name) : key
               let oldVal = previousData[key]
               let newVal = recordData[key]
-              if (typeof oldVal === 'object' && oldVal !== null) oldVal = oldVal.ko || oldVal.en || JSON.stringify(oldVal)
-              if (typeof newVal === 'object' && newVal !== null) newVal = newVal.ko || newVal.en || JSON.stringify(newVal)
+              if (typeof oldVal === 'object' && oldVal !== null) oldVal = getTranslatedName(oldVal)
+              if (typeof newVal === 'object' && newVal !== null) newVal = getTranslatedName(newVal)
               parts.push(`${fName}: ${oldVal || '없음'} -> ${newVal || '없음'}`)
             }
           }
@@ -185,7 +193,7 @@ export const useApprovalEnricher = () => {
                 keyLower.includes('name') || keyLower.includes('title')
             )) {
               let val = recordData[key]
-              if (typeof val === 'object' && val !== null) val = val.ko || val.en || JSON.stringify(val)
+              if (typeof val === 'object' && val !== null) val = JSON.stringify(val)
               enriched.nameAttribute = val
             }
           }

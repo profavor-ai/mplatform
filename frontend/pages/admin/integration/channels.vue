@@ -79,9 +79,9 @@
 
           <!-- Channel Config UI -->
           <va-card outlined class="mb-4">
-            <va-card-title class="flex justify-between items-center">
+            <va-card-title style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
               <span>{{ $t('integration.channels.detail_config') }}</span>
-              <va-button size="small" preset="secondary" color="info" icon="cloud_done" @click="testConnection" :loading="isTesting">{{ $t('integration.channels.test_connection') }}</va-button>
+              <va-button size="small" preset="secondary" color="info" icon="cloud_done" @click="testConnection" :loading="isTesting" style="flex: 0 0 auto; width: max-content;">{{ $t('integration.channels.test_connection') }}</va-button>
             </va-card-title>
             <va-card-content>
               <template v-if="formData.type === 'WEB_SERVICE'">
@@ -118,9 +118,9 @@
 
           <!-- Field Mapping UI -->
           <va-card outlined class="mb-4">
-            <va-card-title class="flex justify-between items-center">
+            <va-card-title style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
               <span>{{ $t('integration.channels.field_mapping') }}</span>
-              <va-button size="small" preset="secondary" icon="add" @click="addMapping">{{ $t('integration.channels.add_field') }}</va-button>
+              <va-button size="small" preset="secondary" icon="add" @click="addMapping" style="flex: 0 0 auto; width: max-content;">{{ $t('integration.channels.add_field') }}</va-button>
             </va-card-title>
             <va-card-content>
               <div class="text-xs text-gray-400 mb-2">
@@ -328,6 +328,29 @@ const onMappingGridReady = (params) => {
   params.api.sizeColumnsToFit()
 }
 
+const validateSpelExpression = (expr) => {
+  if (!expr) return true
+  let openBrackets = 0
+  let openParens = 0
+  let inSingleQuote = false
+  let inDoubleQuote = false
+  
+  for (let i = 0; i < expr.length; i++) {
+    const c = expr[i]
+    if (c === "'" && !inDoubleQuote) inSingleQuote = !inSingleQuote
+    else if (c === '"' && !inSingleQuote) inDoubleQuote = !inDoubleQuote
+    else if (!inSingleQuote && !inDoubleQuote) {
+      if (c === '[') openBrackets++
+      else if (c === ']') openBrackets--
+      else if (c === '(') openParens++
+      else if (c === ')') openParens--
+      
+      if (openBrackets < 0 || openParens < 0) return false
+    }
+  }
+  return openBrackets === 0 && openParens === 0 && !inSingleQuote && !inDoubleQuote
+}
+
 const mappingColumnDefs = computed(() => [
   { field: 'targetField', headerName: t('integration.channels.target_field'), flex: 1, minWidth: 220, editable: true },
   { 
@@ -348,7 +371,19 @@ const mappingColumnDefs = computed(() => [
       return field ? field.name : params.value
     }
   },
-  { field: 'sourceExpression', headerName: t('integration.channels.source_expr'), flex: 3, minWidth: 250, editable: true },
+  { 
+    field: 'sourceExpression', 
+    headerName: t('integration.channels.source_expr'), 
+    flex: 3, 
+    minWidth: 250, 
+    editable: true,
+    cellStyle: (params) => {
+      if (!validateSpelExpression(params.value)) {
+        return { backgroundColor: '#ffebee', color: 'red', border: '1px solid red' }
+      }
+      return { backgroundColor: 'transparent', color: 'inherit', border: '1px solid transparent' }
+    }
+  },
   {
     headerName: t('integration.channels.management'),
     width: 120,
@@ -356,9 +391,11 @@ const mappingColumnDefs = computed(() => [
     cellStyle: { textAlign: 'center' },
     cellRenderer: (params) => {
       const eDiv = document.createElement('div')
-      eDiv.innerHTML = `<button style="color: red; cursor: pointer; border: none; background: none; font-weight: bold;">${t('delete')}</button>`
+      eDiv.innerHTML = `<button type="button" style="color: red; cursor: pointer; border: none; background: none; font-weight: bold;">${t('delete')}</button>`
       const btn = eDiv.querySelector('button')
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
         params.api.applyTransaction({ remove: [params.node.data] })
       })
       return eDiv

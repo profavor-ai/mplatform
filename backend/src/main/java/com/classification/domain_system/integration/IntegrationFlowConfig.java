@@ -38,6 +38,7 @@ public class IntegrationFlowConfig {
     private final IntegrationLogService logService;
     private final JdbcDynamicExecutionService jdbcService;
     private final WebServiceDynamicExecutionService wsService;
+    private final MessageQueueDynamicExecutionService mqService;
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Bean
@@ -143,8 +144,12 @@ public class IntegrationFlowConfig {
     @Bean
     public org.springframework.integration.core.GenericHandler<String> mqOutboundHandler() {
         return (payload, headers) -> {
-            // TODO: Kafka/RabbitMQ 토픽 발행 로직
-            System.out.println("MQ Target Not Fully Implemented. Payload: " + payload);
+            String configJson = headers.get("CHANNEL_CONFIG", String.class);
+            try {
+                mqService.executeMq(configJson, payload);
+            } catch (Exception e) {
+                throw new RuntimeException("MESSAGE_QUEUE Execution failed: " + e.getMessage(), e);
+            }
             return payload;
         };
     }

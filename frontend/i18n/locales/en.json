@@ -200,6 +200,9 @@
   "permissions": "Permissions",
   "no_pending_requests": "No pending requests.",
   "requested_access_to": "requested access to",
+  "menu_access_statistics": "Menu Access Statistics",
+  "menu_access_logs": "Menu Access Logs",
+  "user_login_logs": "User Login Logs",
   "integration": {
     "channels": {
       "title": "Integration Channels",
