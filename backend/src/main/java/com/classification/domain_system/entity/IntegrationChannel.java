@@ -1,0 +1,55 @@
+package com.classification.domain_system.entity;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Entity
+@Table(name = "integration_channels")
+@Getter
+@Setter
+public class IntegrationChannel {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    @Column(nullable = false, length = 100)
+    private String name;
+
+    @Column(nullable = false, length = 50)
+    private String type; // WEB_SERVICE, JDBC, MESSAGE_QUEUE
+
+    @Column(name = "node_id")
+    private UUID nodeId; // Associated Domain (ClassificationNode) ID
+
+    @Column(columnDefinition = "TEXT")
+    private String configJson; // Target endpoint, DB connection, Topic name, etc.
+
+    @Column(columnDefinition = "TEXT")
+    private String mappingConfigJson; // SpEL mapping rules: { mappings: [{targetField: "...", sourceExpression: "..."}] }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("isActive")
+    @Column(nullable = false)
+    private boolean isActive = true;
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+}

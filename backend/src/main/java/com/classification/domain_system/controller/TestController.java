@@ -1,34 +1,21 @@
 package com.classification.domain_system.controller;
 
-import org.springframework.web.bind.annotation.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import com.classification.domain_system.repository.RecordRepository;
-import com.classification.domain_system.entity.Record;
-import java.util.*;
-import org.springframework.data.domain.Pageable;
+import com.classification.domain_system.entity.IntegrationChannel;
+import com.classification.domain_system.repository.IntegrationChannelRepository;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+import lombok.RequiredArgsConstructor;
+
+import java.util.List;
 
 @RestController
-@RequestMapping("/api/dev")
+@RequiredArgsConstructor
 public class TestController {
 
-    @Autowired
-    private RecordRepository recordRepository;
+    private final IntegrationChannelRepository repository;
 
-    @GetMapping("/test-dup")
-    public Object testDup(@RequestParam UUID nodeId, @RequestParam String key, @RequestParam String val) {
-        Map<String, String> searchParams = new HashMap<>();
-        searchParams.put(key, val);
-        searchParams.put("op_" + key, "EQ");
-        
-        List<Record> duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
-        
-        Map<String, Object> result = new HashMap<>();
-        result.put("found_count", duplicates.size());
-        return result;
-    }
-
-    @GetMapping("/dump")
-    public Object dump() {
-        return recordRepository.findAll();
+    @GetMapping("/api/test/channels")
+    public List<IntegrationChannel> test() {
+        return repository.findAll();
     }
 }

@@ -55,5 +55,13 @@ public class MenuDataInitializer implements CommandLineRunner {
                 menuRepository.save(menu);
             }
         });
+
+        Menu adminMenu = menuRepository.findAll().stream().filter(m -> "Admin".equals(m.getName())).findFirst().orElse(null);
+        if (adminMenu != null) {
+            boolean channelsExist = menuRepository.findAll().stream().anyMatch(m -> "/admin/integration/channels".equals(m.getPath()));
+            if (!channelsExist) {
+                menuRepository.save(Menu.builder().name("Integration Channels").path("/admin/integration/channels").icon("hub").parentId(adminMenu.getId()).sortOrder(5).requiredRole("ADMIN").build());
+            }
+        }
     }
 }

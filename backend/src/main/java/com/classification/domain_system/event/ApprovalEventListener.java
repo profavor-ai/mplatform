@@ -31,6 +31,7 @@ public class ApprovalEventListener {
     private final RecordHistoryRepository recordHistoryRepository;
     private final FieldDefinitionService fieldDefinitionService;
     private final com.classification.domain_system.service.NumberingService numberingService;
+    private final org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
 
     @EventListener
     @Transactional
@@ -168,6 +169,7 @@ public class ApprovalEventListener {
             record.setVersion(1);
             recordRepository.save(record);
             logHistory(record, "CREATE", approval.getRequesterId(), null, finalData, approval.getId());
+            applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, record.getId(), record.getNode().getId(), "CREATE", finalData));
         } else if ("RECORD_UPDATE".equals(approval.getTargetType())) {
             Record record = recordRepository.findById(approval.getTargetId())
                     .orElseThrow(() -> new RuntimeException("Record not found"));
@@ -183,14 +185,17 @@ public class ApprovalEventListener {
                 record.setVersion(record.getVersion() + 1);
                 recordRepository.save(record);
                 logHistory(record, "UPDATE", approval.getRequesterId(), prevData, record.getData(), approval.getId());
+                applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, record.getId(), record.getNode().getId(), "UPDATE", record.getData()));
             } catch (Exception e) {
                 e.printStackTrace();
             }
         } else if ("RECORD_DELETE".equals(approval.getTargetType())) {
             Record record = recordRepository.findById(approval.getTargetId())
                     .orElseThrow(() -> new RuntimeException("Record not found"));
-            logHistory(record, "DELETE", approval.getRequesterId(), record.getData(), null, approval.getId());
+            String deletedData = record.getData();
+            logHistory(record, "DELETE", approval.getRequesterId(), deletedData, null, approval.getId());
             recordRepository.delete(record);
+            applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, record.getId(), record.getNode().getId(), "DELETE", deletedData));
         }
     }
 

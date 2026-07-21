@@ -6,6 +6,7 @@
         <va-tab name="access">Menu Access Logs</va-tab>
         <va-tab name="login">Login Logs</va-tab>
         <va-tab name="error">Error Logs</va-tab>
+        <va-tab name="integration">Integration Logs</va-tab>
       </template>
     </va-tabs>
 
@@ -13,8 +14,8 @@
     <div v-if="activeTab === 'access'">
       <va-card class="mb-4">
         <va-card-title>
-          <div class="d-flex justify-space-between align-center w-100">
-            <h2>{{ $t('menu_access_statistics') || 'Menu Access Statistics' }}</h2>
+          <div class="flex justify-between items-center w-full">
+            <h2 style="text-transform: none; font-size: 1.2rem; margin: 0; color: var(--va-dark);">{{ $t('menu_access_statistics') || 'Menu Access Statistics' }}</h2>
             <va-button-toggle
               v-model="accessChartPeriod"
               preset="secondary"
@@ -39,8 +40,8 @@
 
       <va-card>
         <va-card-title>
-          <div class="d-flex justify-space-between align-center w-100">
-            <h2>{{ $t('menu_access_logs') || 'Menu Access Logs' }}</h2>
+          <div class="flex justify-between items-center w-full">
+            <h2 style="text-transform: none; font-size: 1.2rem; margin: 0; color: var(--va-dark);">{{ $t('menu_access_logs') || 'Menu Access Logs' }}</h2>
             <va-button icon="refresh" preset="secondary" @click="refreshGrid">Refresh</va-button>
           </div>
         </va-card-title>
@@ -70,8 +71,8 @@
     <div v-if="activeTab === 'login'">
       <va-card class="mb-4">
         <va-card-title>
-          <div class="d-flex justify-space-between align-center w-100">
-            <h2>Login Frequency Statistics</h2>
+          <div class="flex justify-between items-center w-full">
+            <h2 style="text-transform: none; font-size: 1.2rem; margin: 0; color: var(--va-dark);">Login Frequency Statistics</h2>
             <va-button-toggle
               v-model="loginChartPeriod"
               preset="secondary"
@@ -96,8 +97,8 @@
 
       <va-card>
         <va-card-title>
-          <div class="d-flex justify-space-between align-center w-100">
-            <h2>{{ $t('user_login_logs') || 'Login History Logs' }}</h2>
+          <div class="flex justify-between items-center w-full">
+            <h2 style="text-transform: none; font-size: 1.2rem; margin: 0; color: var(--va-dark);">{{ $t('user_login_logs') || 'Login History Logs' }}</h2>
             <va-button icon="refresh" preset="secondary" @click="refreshLoginGrid">Refresh</va-button>
           </div>
         </va-card-title>
@@ -127,8 +128,8 @@
     <div v-if="activeTab === 'error'">
       <va-card>
         <va-card-title>
-          <div class="d-flex justify-space-between align-center w-100">
-            <h2>System Error Logs</h2>
+          <div class="flex justify-between items-center w-full">
+            <h2 style="text-transform: none; font-size: 1.2rem; margin: 0; color: var(--va-dark);">System Error Logs</h2>
             <va-button icon="refresh" preset="secondary" @click="refreshErrorGrid">Refresh</va-button>
           </div>
         </va-card-title>
@@ -156,6 +157,104 @@
           </div>
         </va-card-content>
       </va-card>
+    </div>
+
+    <!-- 4. Integration Logs Tab -->
+    <div v-if="activeTab === 'integration'">
+      <va-card>
+        <va-card-title>
+          <div class="flex justify-between items-center w-full">
+            <h2 style="text-transform: none; font-size: 1.2rem; margin: 0; color: var(--va-dark);">Integration Monitoring Logs</h2>
+            <div class="flex items-center" style="gap: 1rem;">
+              <va-select
+                v-model="selectedChannelId"
+                :options="channelOptions"
+                value-by="id"
+                text-by="name"
+                placeholder="모든 채널 (All Channels)"
+                clearable
+                style="width: 250px"
+                @update:modelValue="fetchIntegrationLogs(0)"
+              />
+              <va-button icon="refresh" preset="secondary" @click="fetchIntegrationLogs(integrationCurrentPage)">Refresh</va-button>
+            </div>
+          </div>
+        </va-card-title>
+        <va-card-content>
+          <va-data-table
+            :items="integrationLogs"
+            :columns="integrationColumns"
+            :loading="isIntegrationLoading"
+            striped
+            hoverable
+          >
+            <template #cell(status)="{ rowData }">
+              <va-badge
+                :text="rowData.status"
+                :color="rowData.status === 'SUCCESS' ? 'success' : 'danger'"
+              />
+            </template>
+            <template #cell(actions)="{ rowData }">
+              <va-button preset="plain" icon="visibility" @click="viewIntegrationDetails(rowData)" />
+            </template>
+          </va-data-table>
+          
+          <!-- Pagination -->
+          <div class="flex justify-center mt-4" v-if="integrationTotalPages > 0">
+            <va-pagination
+              v-model="integrationCurrentPage"
+              :pages="integrationTotalPages"
+              :visible-pages="5"
+              @update:modelValue="onIntegrationPageChange"
+            />
+          </div>
+        </va-card-content>
+      </va-card>
+
+      <!-- Integration Details Modal -->
+      <va-modal v-model="showIntegrationDetailsModal" title="Integration Log Detail" size="large" hide-default-actions>
+        <div class="p-4" style="min-width: 600px; max-height: 80vh; overflow-y: auto;" v-if="selectedIntegrationLog">
+          <div class="mb-4 flex gap-4">
+            <div><strong>Status:</strong> <va-badge :text="selectedIntegrationLog.status" :color="selectedIntegrationLog.status === 'SUCCESS' ? 'success' : 'danger'" /></div>
+            <div><strong>Event:</strong> {{ selectedIntegrationLog.eventType }}</div>
+            <div><strong>Retry Count:</strong> {{ selectedIntegrationLog.retryCount }}</div>
+            <div><strong>Logged At:</strong> {{ selectedIntegrationLog.createdAt }}</div>
+          </div>
+
+          <div class="mb-4" v-if="selectedIntegrationLog.errorMessage">
+            <label class="font-bold text-red-600 block mb-2">Error Message</label>
+            <div class="bg-red-50 p-3 rounded border border-red-200 text-red-800" style="white-space: pre-wrap; font-family: monospace; font-size: 0.85em;">
+              {{ selectedIntegrationLog.errorMessage }}
+            </div>
+          </div>
+
+          <div class="mb-4" v-if="selectedIntegrationLog.stackTrace">
+            <label class="font-bold text-red-600 block mb-2">Stack Trace</label>
+            <div class="bg-red-50 p-3 rounded border border-red-200 text-red-800 stack-trace-view" style="white-space: pre-wrap; font-family: monospace; font-size: 0.8em; max-height: 200px; overflow-y: auto;">
+              {{ selectedIntegrationLog.stackTrace }}
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="font-bold block mb-2">Original Payload</label>
+            <div class="bg-gray-100 p-3 rounded" style="white-space: pre-wrap; font-family: monospace; font-size: 0.85em;">
+              {{ formatJson(selectedIntegrationLog.originalPayload) }}
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="font-bold block mb-2">Mapped Payload</label>
+            <div class="bg-gray-100 p-3 rounded" style="white-space: pre-wrap; font-family: monospace; font-size: 0.85em;">
+              {{ formatJson(selectedIntegrationLog.mappedPayload) }}
+            </div>
+          </div>
+          
+          <div class="flex justify-end mt-4" style="gap: 1rem;">
+            <va-button v-if="selectedIntegrationLog.status === 'FAIL'" color="warning" @click="retryIntegrationLog(selectedIntegrationLog.id)">재전송 (Retry)</va-button>
+            <va-button color="secondary" @click="showIntegrationDetailsModal = false">Close</va-button>
+          </div>
+        </div>
+      </va-modal>
     </div>
 
     <!-- Stack Trace Detail Modal -->
@@ -194,6 +293,7 @@ import { BarChart, LineChart } from 'echarts/charts'
 import { TitleComponent, TooltipComponent, GridComponent } from 'echarts/components'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useI18n } from 'vue-i18n'
+import { useToast } from 'vuestic-ui'
 
 if (process.client) {
   use([CanvasRenderer, BarChart, LineChart, TitleComponent, TooltipComponent, GridComponent])
@@ -202,6 +302,7 @@ if (process.client) {
 const { locale } = useI18n()
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 const token = useCookie('auth_token')
+const { init } = useToast()
 const activeTab = ref('access')
 const isMounted = ref(false)
 
@@ -580,6 +681,99 @@ const onRowDoubleClicked = (event) => {
   }
 }
 
+// ----------------------------------------------------
+// 4. Integration Logs Data & Setup
+// ----------------------------------------------------
+const integrationLogs = ref([])
+const channelOptions = ref([])
+const selectedChannelId = ref(null)
+const isIntegrationLoading = ref(false)
+const integrationCurrentPage = ref(1)
+const integrationTotalPages = ref(0)
+
+const showIntegrationDetailsModal = ref(false)
+const selectedIntegrationLog = ref(null)
+
+const integrationColumns = [
+  { key: 'eventType', label: 'Event', sortable: false },
+  { key: 'status', label: 'Status', sortable: false },
+  { key: 'retryCount', label: 'Retry Count', sortable: false },
+  { key: 'createdAt', label: 'Logged At', sortable: false },
+  { key: 'actions', label: 'Details', width: '100px' }
+]
+
+const fetchChannels = async () => {
+  try {
+    const data = await $fetch('/api/admin/integration/channels', {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    channelOptions.value = data
+  } catch (e) {
+    console.error('Failed to load channels:', e)
+  }
+}
+
+const fetchIntegrationLogs = async (pageIndex) => {
+  isIntegrationLoading.value = true
+  try {
+    const query = new URLSearchParams({
+      page: pageIndex > 0 ? pageIndex - 1 : 0,
+      size: 20
+    })
+    if (selectedChannelId.value) {
+      query.append('channelId', selectedChannelId.value)
+    }
+    
+    const data = await $fetch(`/api/admin/integration/logs?${query.toString()}`, {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    
+    integrationLogs.value = data.content.map(log => ({
+      ...log,
+      createdAt: new Date(log.createdAt).toLocaleString()
+    }))
+    integrationTotalPages.value = data.totalPages
+    integrationCurrentPage.value = (data.number + 1)
+  } catch (e) {
+    console.error('Failed to load integration logs:', e)
+  } finally {
+    isIntegrationLoading.value = false
+  }
+}
+
+const onIntegrationPageChange = (page) => {
+  fetchIntegrationLogs(page)
+}
+
+const viewIntegrationDetails = (log) => {
+  selectedIntegrationLog.value = log
+  showIntegrationDetailsModal.value = true
+}
+
+const formatJson = (str) => {
+  if (!str) return 'N/A'
+  try {
+    return JSON.stringify(JSON.parse(str), null, 2)
+  } catch {
+    return str
+  }
+}
+
+const retryIntegrationLog = async (logId) => {
+  try {
+    await $fetch(`/api/admin/integration/logs/${logId}/retry`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    init({ message: '재전송 요청이 완료되었습니다.', color: 'success' })
+    showIntegrationDetailsModal.value = false
+    fetchIntegrationLogs(integrationCurrentPage.value)
+  } catch (e) {
+    console.error('Failed to retry integration log:', e)
+    init({ message: '재전송 요청 중 오류가 발생했습니다.', color: 'danger' })
+  }
+}
+
 // Watch language change to dynamically translate chart labels
 watch(locale, () => {
   updateChart()
@@ -588,10 +782,12 @@ watch(locale, () => {
   }
 })
 
-onMounted(() => {
+onMounted(async () => {
   isMounted.value = true
   updateChart()
   updateLoginChart()
+  await fetchChannels()
+  fetchIntegrationLogs(1)
 })
 </script>
 
