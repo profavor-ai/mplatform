@@ -4,53 +4,98 @@ import com.classification.domain_system.entity.FieldDefinition;
 import com.classification.domain_system.entity.Domain;
 import com.classification.domain_system.entity.ClassificationNode;
 import com.classification.domain_system.repository.ClassificationNodeRepository;
+import com.classification.domain_system.service.dq.DqEvaluationResult;
+import com.classification.domain_system.service.dq.DqRuleEngine;
 import org.springframework.stereotype.Service;
-import lombok.RequiredArgsConstructor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
 import java.util.UUID;
 import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
 
+/**
+ * DataQualityService — backward-compatible wrapper around DqRuleEngine.
+ * 
+ * Delegates to DqRuleEngine for DQ rule-based evaluation, and also performs
+ * legacy checks (Required + Type) that are not yet migrated to DQ rules.
+ * Once all fields have DQ rules configured, the legacy checks can be removed.
+ */
 @Service
 public class DataQualityService {
 
     private final FieldDefinitionService fieldDefinitionService;
     private final ClassificationNodeRepository nodeRepository;
+    private final DqRuleEngine dqRuleEngine;
     private final ObjectMapper objectMapper;
 
-    public DataQualityService(FieldDefinitionService fieldDefinitionService, ClassificationNodeRepository nodeRepository) {
+    public DataQualityService(FieldDefinitionService fieldDefinitionService,
+                              ClassificationNodeRepository nodeRepository,
+                              DqRuleEngine dqRuleEngine) {
         this.fieldDefinitionService = fieldDefinitionService;
         this.nodeRepository = nodeRepository;
+        this.dqRuleEngine = dqRuleEngine;
         this.objectMapper = new ObjectMapper();
     }
 
     public static class DQResult {
         public boolean isValid;
         public List<String> errors = new ArrayList<>();
+        public List<String> warnings = new ArrayList<>();
     }
 
     public DQResult validateData(UUID nodeId, String jsonString) {
         DQResult result = new DQResult();
+
+        // 1. Run new DQ Rule Engine
+        DqEvaluationResult engineResult = dqRuleEngine.evaluate(nodeId, jsonString);
+
+        // Add engine errors
+        result.errors.addAll(engineResult.getErrorMessages());
+        result.warnings.addAll(engineResult.getWarningMessages());
+
+        // 2. Legacy checks for fields that don't yet have DQ rules
+        runLegacyChecks(nodeId, jsonString, engineResult, result);
+
+        result.isValid = result.errors.isEmpty();
+        return result;
+    }
+
+    /**
+     * Legacy Required + Type checks.
+     * These are only applied for fields that have NO DQ rules configured,
+     * ensuring backward compatibility during the migration period.
+     */
+    private void runLegacyChecks(UUID nodeId, String jsonString,
+                                 DqEvaluationResult engineResult, DQResult result) {
         List<FieldDefinition> effectiveFields = fieldDefinitionService.getEffectiveFields(nodeId);
 
         ClassificationNode node = nodeRepository.findById(nodeId).orElse(null);
         Domain dom = node != null ? node.getDomain() : null;
 
-        JsonNode dataNode = null;
+        JsonNode dataNode;
         try {
             dataNode = objectMapper.readTree(jsonString);
         } catch (Exception e) {
-            result.isValid = false;
-            result.errors.add("Invalid JSON format");
-            return result;
+            // Already handled by DqRuleEngine
+            if (result.errors.isEmpty()) {
+                result.errors.add("Invalid JSON format");
+            }
+            return;
         }
 
+        // Collect field keys that already have engine violations to avoid duplicates
+        java.util.Set<String> engineCheckedFields = engineResult.getViolations().stream()
+                .map(DqEvaluationResult.Violation::getFieldKey)
+                .collect(java.util.stream.Collectors.toSet());
+
         for (FieldDefinition field : effectiveFields) {
+            // Skip fields that already have DQ rule violations
+            if (engineCheckedFields.contains(field.getKey())) {
+                continue;
+            }
+
             JsonNode valueNode = dataNode.get(field.getKey());
-            
+
             // 1. Required Check
             if (field.getRequired() != null && field.getRequired()) {
                 boolean isAutoNumbering = false;
@@ -58,21 +103,21 @@ public class DataQualityService {
                     String domIdStr = dom.getIdentifierFieldId().toString();
                     String fieldIdStr = field.getId() != null ? field.getId().toString() : "";
                     boolean matchesId = domIdStr.equalsIgnoreCase(fieldIdStr);
-                    
+
                     String targetKey = effectiveFields.stream()
                         .filter(f -> f.getId() != null && domIdStr.equalsIgnoreCase(f.getId().toString()))
                         .map(FieldDefinition::getKey)
                         .findFirst()
                         .orElse(null);
                     boolean matchesKey = field.getKey() != null && field.getKey().equalsIgnoreCase(targetKey);
-                    
+
                     if (matchesId || matchesKey) {
                         if (dom.getNumberingPattern() != null && !dom.getNumberingPattern().isBlank()) {
                             isAutoNumbering = true;
                         }
                     }
                 }
-                
+
                 if (!isAutoNumbering) {
                     if (valueNode == null || valueNode.isNull() || (valueNode.isTextual() && valueNode.asText().trim().isEmpty())) {
                         result.errors.add("Field '" + getFieldName(field) + "' is required.");
@@ -95,9 +140,6 @@ public class DataQualityService {
                 }
             }
         }
-
-        result.isValid = result.errors.isEmpty();
-        return result;
     }
 
     private String getFieldName(FieldDefinition field) {

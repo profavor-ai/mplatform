@@ -118,6 +118,9 @@ public class DomainController {
         return ResponseEntity.ok().build();
     }
 
+    private final com.classification.domain_system.service.dq.DqRuleEngine dqRuleEngine;
+    private final com.classification.domain_system.repository.DqRuleRepository dqRuleRepository;
+
     // FieldGroups
     @GetMapping("/{domainId}/groups")
     public ResponseEntity<List<FieldGroup>> getGroups(@PathVariable UUID domainId) {
@@ -145,5 +148,58 @@ public class DomainController {
             @PathVariable UUID groupId) {
         fieldGroupService.deleteGroup(groupId);
         return ResponseEntity.ok().build();
+    }
+
+    // ─── DQ Domain Endpoints ──────────────────────────────────────────
+
+    @GetMapping("/{domainId}/dq-score")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<java.util.Map<String, Object>> getDomainDqScore(@PathVariable UUID domainId) {
+        backfillDomainIds();
+        return ResponseEntity.ok(dqRuleEngine.runDomainDqScan(domainId));
+    }
+
+    @PostMapping("/{domainId}/dq-scan")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<java.util.Map<String, Object>> runDomainDqScan(@PathVariable UUID domainId) {
+        backfillDomainIds();
+        return ResponseEntity.ok(dqRuleEngine.runDomainDqScan(domainId));
+    }
+
+    @GetMapping("/{domainId}/dq-rules-count")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<java.util.Map<String, Long>> getDomainDqRulesCount(@PathVariable UUID domainId) {
+        backfillDomainIds();
+        long count = dqRuleRepository.countByDomainId(domainId);
+        return ResponseEntity.ok(java.util.Map.of("count", count));
+    }
+
+    private void backfillDomainIds() {
+        try {
+            List<com.classification.domain_system.entity.DqRule> nullRules = dqRuleRepository.findAll().stream()
+                    .filter(r -> r.getDomainId() == null && r.getFieldDefinition() != null)
+                    .toList();
+            for (com.classification.domain_system.entity.DqRule rule : nullRules) {
+                FieldDefinition field = rule.getFieldDefinition();
+                UUID domainId = null;
+                if (field.getDomain() != null) {
+                    domainId = field.getDomain().getId();
+                } else if (field.getDefinedAtNode() != null && field.getDefinedAtNode().getDomain() != null) {
+                    domainId = field.getDefinedAtNode().getDomain().getId();
+                } else if (field.getFieldGroup() != null) {
+                    if (field.getFieldGroup().getDomain() != null) {
+                        domainId = field.getFieldGroup().getDomain().getId();
+                    } else if (field.getFieldGroup().getSector() != null && field.getFieldGroup().getSector().getDomain() != null) {
+                        domainId = field.getFieldGroup().getSector().getDomain().getId();
+                    }
+                }
+                if (domainId != null) {
+                    rule.setDomainId(domainId);
+                    dqRuleRepository.save(rule);
+                }
+            }
+        } catch (Exception e) {
+            // ignore
+        }
     }
 }

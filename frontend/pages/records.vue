@@ -56,7 +56,7 @@
                 v-model="draftFilters[field.key]"
                 :options="parseOptions(field.options)"
                 value-by="value"
-                placeholder="선택해주세요"
+                :placeholder="currentLocale === 'en' ? 'Select an option' : '선택해주세요'"
                 clearable
                 class="w-full"
               />
@@ -64,7 +64,7 @@
                 v-else-if="field.type === 'BOOLEAN'"
                 v-model="draftFilters[field.key]"
                 :options="['true', 'false']"
-                placeholder="선택해주세요"
+                :placeholder="currentLocale === 'en' ? 'Select an option' : '선택해주세요'"
                 clearable
                 class="w-full"
               />
@@ -72,7 +72,7 @@
                 <va-input
                   v-model="draftFilters[field.key]"
                   type="number"
-                  placeholder="숫자 입력"
+                  :placeholder="currentLocale === 'en' ? 'Enter number' : '숫자 입력'"
                   clearable
                   class="w-full"
                   @keyup.enter="applyFilters"
@@ -89,7 +89,7 @@
                       <option value="GTE">&gt;=</option>
                       <option value="LT">&lt;</option>
                       <option value="LTE">&lt;=</option>
-                      <option value="BETWEEN">범위</option>
+                      <option value="BETWEEN">{{ currentLocale === 'en' ? 'Range' : '범위' }}</option>
                     </select>
                   </template>
                 </va-input>
@@ -97,20 +97,20 @@
                   v-if="draftFiltersOp[field.key] === 'BETWEEN'"
                   v-model="draftFiltersMax[field.key]"
                   type="number"
-                  placeholder="최대값 (Max)"
+                  :placeholder="currentLocale === 'en' ? 'Max value' : '최대값 (Max)'"
                   clearable
                   class="w-full"
                   @keyup.enter="applyFilters"
                 >
                   <template #prependInner>
-                    <span style="font-weight: bold; color: #666; margin-right: 0.5rem; border-right: 1px solid #ccc; padding-right: 0.5rem;">~ 이하</span>
+                    <span style="font-weight: bold; color: #666; margin-right: 0.5rem; border-right: 1px solid #ccc; padding-right: 0.5rem;">~ {{ currentLocale === 'en' ? 'below' : '이하' }}</span>
                   </template>
                 </va-input>
               </div>
               <va-input
                 v-else
                 v-model="draftFilters[field.key]"
-                placeholder="검색어 입력"
+                :placeholder="currentLocale === 'en' ? 'Enter keyword' : '검색어 입력'"
                 clearable
                 class="w-full"
                 @keyup.enter="applyFilters"
@@ -194,31 +194,36 @@
             >
               <div style="padding: 0.5rem 1rem; overflow: visible; box-sizing: border-box;">
                 <div class="row" style="row-gap: 1.25rem; margin: 0 -0.5rem; display: flex; flex-wrap: wrap;">
-                  <div v-for="field in group.fields" :key="field.id" :class="['flex', 'xs' + (field.gridWidth || 12)]" style="padding: 0 0.5rem; min-width: 0; margin-bottom: 0.5rem;">
-                    <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; min-width: 0; --va-input-font-size: 0.9rem;">
-                      <!-- Unified External Label -->
-                      <span :style="{ fontSize: '0.75rem', color: field.isHighlighted ? 'var(--va-primary)' : 'var(--va-text-secondary)', fontWeight: field.isHighlighted ? '800' : '600', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }">
-                        <va-icon v-if="field.isHighlighted" name="star" size="small" color="primary" />
-                        {{ getTranslatedName(field.name) }}{{ field.required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}
-                      </span>
+                  <template v-for="field in group.fields" :key="field.id">
+                    <div v-if="evalConditionRule(field, recordFormData).show" :class="['flex', 'xs' + (field.gridWidth || 12)]" style="padding: 0 0.5rem; min-width: 0; margin-bottom: 0.5rem;">
+                      <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; min-width: 0; --va-input-font-size: 0.9rem;">
+                        <!-- Unified External Label -->
+                        <span :style="{ fontSize: '0.75rem', color: evalConditionRule(field, recordFormData).highlight ? 'var(--va-primary)' : 'var(--va-text-secondary)', fontWeight: evalConditionRule(field, recordFormData).highlight ? '800' : '600', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px', minHeight: '18px', lineHeight: '18px' }">
+                          <va-icon v-if="evalConditionRule(field, recordFormData).highlight" name="star" size="small" color="primary" />
+                          {{ getTranslatedName(field.name) }}{{ evalConditionRule(field, recordFormData).required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}
+                        </span>
 
-                    <!-- Text / Number / Date -->
-                    <va-input 
-                      v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'DATE'].includes(field.type)" 
-                      v-model="recordFormData[field.key]" 
-                      :type="field.type === 'DATE' ? 'date' : (['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : 'text')"
-                      :disabled="isAutoNumberingField(field)"
-                      :placeholder="isAutoNumberingField(field) ? '자동 채번됩니다 (최종 승인 시)' : ''"
-                      class="w-full"
-                    />
+                      <!-- Text / Number / Date -->
+                      <va-input 
+                        v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'DATE'].includes(field.type)" 
+                        v-model="recordFormData[field.key]" 
+                        :type="field.type === 'DATE' ? (focusedDateFields['create_' + field.key] || recordFormData[field.key] ? 'date' : 'text') : (['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : 'text')"
+                        :readonly="evalConditionRule(field, recordFormData).readOnly"
+                        :disabled="isAutoNumberingField(field) || evalConditionRule(field, recordFormData).disabled"
+                        :lang="currentLocale === 'en' ? 'en-US' : 'ko-KR'"
+                        :placeholder="isAutoNumberingField(field) ? (currentLocale === 'en' ? 'Auto-generated on final approval' : '자동 채번됩니다 (최종 승인 시)') : (field.type === 'DATE' ? (currentLocale === 'en' ? 'YYYY-MM-DD' : '연도-월-일') : '')"
+                        class="w-full"
+                        @focus="focusedDateFields['create_' + field.key] = true"
+                        @blur="focusedDateFields['create_' + field.key] = false"
+                      />
                     
                     <!-- Multilingual -->
                     <div v-else-if="field.type === 'MULTILINGUAL'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
                       <va-input v-model="recordFormData[field.key].ko" style="flex: 1; min-width: 0;" class="slim-multilingual-input">
-                        <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">한국어</span></template>
+                        <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">{{ currentLocale === 'en' ? 'Korean' : '한국어' }}</span></template>
                       </va-input>
                       <va-input v-model="recordFormData[field.key].en" style="flex: 1; min-width: 0;" class="slim-multilingual-input">
-                        <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">English</span></template>
+                        <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">{{ currentLocale === 'en' ? 'English' : '영어' }}</span></template>
                       </va-input>
                     </div>
                     <!-- Calculated -->
@@ -289,7 +294,8 @@
                       </transition-group>
                     </div>
                     </div>
-                  </div>
+                    </div>
+                  </template>
                 </div>
               </div>
               </va-collapse>
@@ -302,14 +308,143 @@
       </div>
     </va-modal>
 
+    <!-- DQ Validation Modal (상신 전 DQ 검증 단계) -->
+    <va-modal
+      v-model="showDqValidationModal"
+      :title="currentLocale === 'en' ? 'Data Quality Check' : 'DQ 품질 검증 결과'"
+      hide-default-actions
+      size="medium"
+    >
+      <div style="padding: 0.5rem 0; min-height: 250px;">
+        <div v-if="dqValidating" style="text-align: center; padding: 3rem;">
+          <va-progress-circle indeterminate color="primary" />
+          <p style="margin-top: 1rem; color: var(--va-secondary); font-weight: 500;">
+            {{ currentLocale === 'en' ? 'Evaluating Data Quality Rules...' : '품질 규칙(DQ Rule) 검증 중...' }}
+          </p>
+        </div>
+
+        <div v-else>
+          <!-- Status Banner -->
+          <div
+            v-if="(dqValidationResult.errors || []).length === 0 && (dqValidationResult.warnings || []).length === 0"
+            style="padding: 1.25rem; background: rgba(30, 203, 114, 0.1); border: 1px solid #1ecb72; border-radius: 8px; text-align: center; margin-bottom: 1.25rem;"
+          >
+            <va-icon name="check_circle" color="success" size="2.5rem" />
+            <h4 style="margin: 0.5rem 0 0.25rem 0; font-weight: 700; color: #15803d;">
+              {{ currentLocale === 'en' ? 'All Data Quality Checks Passed!' : '모든 품질 검증을 통과했습니다!' }}
+            </h4>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--va-secondary);">
+              {{ currentLocale === 'en' ? 'No DQ violations detected. Click below to enter your submission comment.' : '감지된 DQ 위반 사항이 없습니다. 아래 버튼을 눌러 상신 의견을 작성해 주세요.' }}
+            </p>
+          </div>
+
+          <div
+            v-else
+            style="padding: 1rem; border-radius: 8px; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.75rem;"
+            :style="{
+              background: (dqValidationResult.errors || []).length > 0 ? 'rgba(228, 34, 34, 0.1)' : 'rgba(232, 139, 36, 0.1)',
+              border: '1px solid ' + ((dqValidationResult.errors || []).length > 0 ? '#e42222' : '#e88b24')
+            }"
+          >
+            <va-icon
+              :name="(dqValidationResult.errors || []).length > 0 ? 'error' : 'warning'"
+              :color="(dqValidationResult.errors || []).length > 0 ? 'danger' : 'warning'"
+              size="2rem"
+            />
+            <div>
+              <h5 style="margin: 0; font-weight: 700;" :style="{ color: (dqValidationResult.errors || []).length > 0 ? '#b91c1c' : '#c2410c' }">
+                <template v-if="(dqValidationResult.errors || []).length > 0">
+                  {{ currentLocale === 'en' ? 'DQ Errors Detected' : 'DQ 품질 오류가 발견되었습니다' }}
+                </template>
+                <template v-else>
+                  {{ currentLocale === 'en' ? 'DQ Warnings Detected' : 'DQ 품질 경고가 발생했습니다' }}
+                </template>
+              </h5>
+              <span style="font-size: 0.85rem; color: var(--va-text-primary);">
+                <template v-if="currentLocale === 'en'">
+                  {{ (dqValidationResult.errors || []).length }} error(s), {{ (dqValidationResult.warnings || []).length }} warning(s) found.
+                </template>
+                <template v-else>
+                  오류 {{ (dqValidationResult.errors || []).length }}건, 경고 {{ (dqValidationResult.warnings || []).length }}건이 확인되었습니다.
+                </template>
+              </span>
+            </div>
+          </div>
+
+          <!-- List of Violations -->
+          <div v-if="((dqValidationResult.errors || []).length + (dqValidationResult.warnings || []).length) > 0"
+               style="max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.25rem;">
+            <!-- Errors -->
+            <div
+              v-for="(v, idx) in (dqValidationResult.errors || [])"
+              :key="'err-' + idx"
+              style="padding: 0.75rem; border-radius: 6px; border: 1px solid rgba(228, 34, 34, 0.3); background: var(--va-background-element); display: flex; align-items: flex-start; gap: 0.75rem;"
+            >
+              <va-badge text="ERROR" color="danger" />
+              <div style="flex: 1;">
+                <div style="font-weight: 700; font-size: 0.9rem; color: var(--va-text-primary);">
+                  {{ getFieldLabelByKey(v.fieldKey) }} <span style="font-size: 0.75rem; color: var(--va-secondary); font-weight: normal;">({{ v.fieldKey }})</span>
+                </div>
+                <div style="font-size: 0.85rem; color: #b91c1c; margin-top: 0.2rem;">
+                  {{ getViolationMessageText(v.message) }}
+                </div>
+                <div style="font-size: 0.75rem; color: var(--va-secondary); margin-top: 0.2rem;">
+                  {{ currentLocale === 'en' ? 'Input value:' : '입력값:' }} <code>{{ v.actualValue || (currentLocale === 'en' ? '(null/empty)' : '(null/빈값)') }}</code>
+                </div>
+              </div>
+            </div>
+
+            <!-- Warnings -->
+            <div
+              v-for="(v, idx) in (dqValidationResult.warnings || [])"
+              :key="'warn-' + idx"
+              style="padding: 0.75rem; border-radius: 6px; border: 1px solid rgba(232, 139, 36, 0.3); background: var(--va-background-element); display: flex; align-items: flex-start; gap: 0.75rem;"
+            >
+              <va-badge text="WARNING" color="warning" />
+              <div style="flex: 1;">
+                <div style="font-weight: 700; font-size: 0.9rem; color: var(--va-text-primary);">
+                  {{ getFieldLabelByKey(v.fieldKey) }} <span style="font-size: 0.75rem; color: var(--va-secondary); font-weight: normal;">({{ v.fieldKey }})</span>
+                </div>
+                <div style="font-size: 0.85rem; color: #c2410c; margin-top: 0.2rem;">
+                  {{ getViolationMessageText(v.message) }}
+                </div>
+                <div style="font-size: 0.75rem; color: var(--va-secondary); margin-top: 0.2rem;">
+                  {{ currentLocale === 'en' ? 'Input value:' : '입력값:' }} <code>{{ v.actualValue || (currentLocale === 'en' ? '(null/empty)' : '(null/빈값)') }}</code>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--va-background-border);">
+            <va-button preset="secondary" icon="edit" @click="fixDataAndReturn()">
+              {{ currentLocale === 'en' ? 'Fix Data' : '데이터 수정하기' }}
+            </va-button>
+            
+            <va-button color="primary" icon="arrow_forward" @click="proceedToDraftComment()">
+              {{ currentLocale === 'en' ? 'Proceed to Submit' : '상신 의견 작성하기' }}
+            </va-button>
+          </div>
+        </div>
+      </div>
+    </va-modal>
+
     <!-- Draft Comment Modal -->
-    <va-modal v-model="showDraftCommentModal" title="상신 의견 작성" ok-text="상신" cancel-text="취소" @ok="executePendingSave">
+    <va-modal
+      v-model="showDraftCommentModal"
+      :title="currentLocale === 'en' ? 'Submission Comment' : '상신 의견 작성'"
+      :ok-text="currentLocale === 'en' ? 'Submit' : '상신'"
+      :cancel-text="currentLocale === 'en' ? 'Cancel' : '취소'"
+      @ok="executePendingSave"
+    >
       <div style="padding: 1rem;">
-        <p style="margin-bottom: 1rem; color: #555;">(선택사항) 결재권자에게 남길 기안 의견을 작성해 주세요.</p>
+        <p style="margin-bottom: 1rem; color: #555;">
+          {{ currentLocale === 'en' ? '(Optional) Enter a comment for the approver.' : '(선택사항) 결재권자에게 남길 기안 의견을 작성해 주세요.' }}
+        </p>
         <va-input 
           v-model="draftCommentText" 
           type="textarea"
-          placeholder="의견을 입력하세요..." 
+          :placeholder="currentLocale === 'en' ? 'Enter your comment...' : '의견을 입력하세요...'" 
           style="width: 100%;"
         />
       </div>
@@ -350,18 +485,25 @@
             >
               <div style="padding: 0.5rem 1rem; overflow: visible; box-sizing: border-box;">
                 <div class="row" style="row-gap: 1.25rem; margin: 0 -0.5rem; display: flex; flex-wrap: wrap;">
-                  <div v-for="field in group.fields" :key="field.id" :class="['flex', 'xs' + (field.gridWidth || 12)]" style="padding: 0 0.5rem; min-width: 0; margin-bottom: 0.5rem;">
-                    <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; min-width: 0; --va-input-font-size: 0.9rem;">
-                      <span :style="{ fontSize: '0.75rem', color: field.isHighlighted ? 'var(--va-primary)' : 'var(--va-text-secondary)', fontWeight: field.isHighlighted ? '800' : '600', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }"><va-icon v-if="field.isHighlighted" name="star" size="small" color="primary" />{{ getTranslatedName(field.name) }}{{ field.required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}</span>
-                      <va-input 
-                        v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'DATE'].includes(field.type)" 
-                        v-model="selectedRecordData[field.key]" 
-                        :type="field.type === 'DATE' ? 'date' : (['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : 'text')"
-                        class="w-full"
-                        :readonly="!isEditingRecord"
-                        :disabled="isEditingRecord && isAutoNumberingField(field)"
-                        :placeholder="isEditingRecord && isAutoNumberingField(field) ? '자동 채번됩니다 (최종 승인 시)' : ''"
-                      />
+                  <template v-for="field in group.fields" :key="field.id">
+                    <div v-if="evalConditionRule(field, selectedRecordData).show" :class="['flex', 'xs' + (field.gridWidth || 12)]" style="padding: 0 0.5rem; min-width: 0; margin-bottom: 0.5rem;">
+                      <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; min-width: 0; --va-input-font-size: 0.9rem;">
+                        <span :style="{ fontSize: '0.75rem', color: evalConditionRule(field, selectedRecordData).highlight ? 'var(--va-primary)' : 'var(--va-text-secondary)', fontWeight: evalConditionRule(field, selectedRecordData).highlight ? '800' : '600', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px', minHeight: '18px', lineHeight: '18px' }">
+                          <va-icon v-if="evalConditionRule(field, selectedRecordData).highlight" name="star" size="small" color="primary" />
+                          {{ getTranslatedName(field.name) }}{{ evalConditionRule(field, selectedRecordData).required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}
+                        </span>
+                        <va-input 
+                          v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'DATE'].includes(field.type)" 
+                          v-model="selectedRecordData[field.key]" 
+                          :type="field.type === 'DATE' ? (focusedDateFields['edit_' + field.key] || selectedRecordData[field.key] ? 'date' : 'text') : (['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : 'text')"
+                          class="w-full"
+                          :readonly="!isEditingRecord || evalConditionRule(field, selectedRecordData).readOnly"
+                          :disabled="isEditingRecord && (isAutoNumberingField(field) || evalConditionRule(field, selectedRecordData).disabled)"
+                          :lang="currentLocale === 'en' ? 'en-US' : 'ko-KR'"
+                          :placeholder="isEditingRecord && isAutoNumberingField(field) ? (currentLocale === 'en' ? 'Auto-generated on final approval' : '자동 채번됩니다 (최종 승인 시)') : (field.type === 'DATE' ? (currentLocale === 'en' ? 'YYYY-MM-DD' : '연도-월-일') : '')"
+                          @focus="focusedDateFields['edit_' + field.key] = true"
+                          @blur="focusedDateFields['edit_' + field.key] = false"
+                        />
                       <div v-else-if="field.type === 'DOMAIN_REFERENCE'" class="w-full" style="display: flex; gap: 0.5rem; align-items: center;">
                         <va-input 
                           :model-value="getDomainRefDisplayName(field.key, selectedRecordData[field.key])" 
@@ -373,10 +515,10 @@
                       <!-- Multilingual Edit -->
                       <div v-else-if="field.type === 'MULTILINGUAL'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
                         <va-input v-model="selectedRecordData[field.key].ko" style="flex: 1; min-width: 0;" :readonly="!isEditingRecord" class="slim-multilingual-input">
-                          <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">한국어</span></template>
+                          <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">{{ currentLocale === 'en' ? 'Korean' : '한국어' }}</span></template>
                         </va-input>
                         <va-input v-model="selectedRecordData[field.key].en" style="flex: 1; min-width: 0;" :readonly="!isEditingRecord" class="slim-multilingual-input">
-                          <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">English</span></template>
+                          <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">{{ currentLocale === 'en' ? 'English' : '영어' }}</span></template>
                         </va-input>
                       </div>
                       <va-input 
@@ -456,7 +598,8 @@
                         :readonly="!isEditingRecord"
                       />
                     </div>
-                  </div>
+                    </div>
+                  </template>
                 </div>
               </div>
               </va-collapse>
@@ -1013,6 +1156,7 @@ const gridApi = ref(null)
 const showCreateModal = ref(false)
 const activeSectorTab = ref(0)
 const recordFormData = ref({})
+const focusedDateFields = ref({})
 
 const parseName = (nameObj) => {
   if (!nameObj) return null;
@@ -1244,6 +1388,7 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
     const colDef = {
       headerName: getTranslatedName(f.name),
       field: `data.${f.key}`,
+      colId: f.key,
       valueGetter: (params) => {
         if (!params.data || !params.data.data) return null;
         if (params.data.data[f.key] !== undefined) return params.data.data[f.key];
@@ -1477,6 +1622,16 @@ const columnDefs = ref([])
               }
             }
           })
+          
+          if (params.sortModel && params.sortModel.length > 0) {
+            const sort = params.sortModel[0]
+            let colId = sort.colId || ''
+            if (colId.startsWith('data.')) {
+              colId = colId.substring(5)
+            }
+            searchParams.append('sortField', colId)
+            searchParams.append('sortOrder', sort.sort.toUpperCase())
+          }
           
           searchParams.append('page', page);
           searchParams.append('size', size);
@@ -1911,6 +2066,90 @@ const formatDataForSave = (dataObj) => {
   return formatted
 }
 
+const evaluateConditionExpression = (expr, formData) => {
+  if (!expr || !expr.trim() || !formData) return false
+  try {
+    const replaced = expr.replace(/#{([a-zA-Z0-9_]+)}/g, (_, key) => {
+      const val = formData[key]
+      if (val === undefined || val === null) return 'null'
+      if (typeof val === 'number' || typeof val === 'boolean') return String(val)
+      if (typeof val === 'object') return JSON.stringify(JSON.stringify(val))
+      return JSON.stringify(String(val))
+    })
+    const fn = new Function(`return Boolean(${replaced});`)
+    return fn()
+  } catch (e) {
+    return false
+  }
+}
+
+const evalConditionRule = (field, formData) => {
+  const defaultRes = { show: true, highlight: field?.isHighlighted || false, required: field?.required || false, readOnly: field?.isReadOnly || false, disabled: false }
+  if (!field || !field.options || !formData) return defaultRes
+  
+  try {
+    const opts = typeof field.options === 'string' ? JSON.parse(field.options) : field.options
+    const rule = opts.conditionRule
+    if (!rule || rule.enabled === false) return defaultRes
+
+    let actions = ['SHOW']
+    if (rule.action) {
+      actions = Array.isArray(rule.action) ? rule.action : [rule.action]
+    }
+    let isMatch = false
+
+    if (rule.expression && String(rule.expression).trim() !== '') {
+      isMatch = evaluateConditionExpression(rule.expression, formData)
+    } else if (rule.dependsOnFieldKey) {
+      const targetVal = String(formData[rule.dependsOnFieldKey] ?? '').trim()
+      const condVal = String(rule.value ?? '').trim()
+      const op = rule.operator || 'EQUALS'
+
+      if (op === 'EQUALS' || op === '==') isMatch = targetVal.toLowerCase() === condVal.toLowerCase()
+      else if (op === 'NOT_EQUALS' || op === '!=') isMatch = targetVal.toLowerCase() !== condVal.toLowerCase()
+      else if (op === 'CONTAINS') isMatch = targetVal.toLowerCase().includes(condVal.toLowerCase())
+      else if (op === 'NOT_EMPTY') isMatch = targetVal.length > 0
+      else if (op === 'EMPTY') isMatch = targetVal.length === 0
+      else if (op === 'GREATER_THAN' || op === '>') isMatch = Number(targetVal) > Number(condVal)
+      else if (op === 'GREATER_THAN_OR_EQUAL' || op === '>=') isMatch = Number(targetVal) >= Number(condVal)
+      else if (op === 'LESS_THAN' || op === '<') isMatch = Number(targetVal) < Number(condVal)
+      else if (op === 'LESS_THAN_OR_EQUAL' || op === '<=') isMatch = Number(targetVal) <= Number(condVal)
+    } else {
+      return defaultRes
+    }
+
+    // Evaluate multi-select actions simultaneously
+    let show = true
+    if (actions.includes('SHOW')) {
+      show = isMatch
+    }
+
+    let highlight = field?.isHighlighted || false
+    if (actions.includes('HIGHLIGHT')) {
+      highlight = isMatch ? true : highlight
+    }
+
+    let required = field?.required || false
+    if (actions.includes('REQUIRE')) {
+      required = isMatch ? true : required
+    }
+
+    let readOnly = field?.isReadOnly || false
+    if (actions.includes('READ_ONLY')) {
+      readOnly = isMatch ? true : readOnly
+    }
+
+    let disabled = false
+    if (actions.includes('DISABLE') || actions.includes('EDIT_FORBIDDEN')) {
+      disabled = isMatch ? true : disabled
+    }
+
+    return { show, highlight, required, readOnly, disabled }
+  } catch (e) {}
+
+  return defaultRes
+}
+
 const saveEditedRecord = async () => {
   try {
     let reqId = currentUser.value?.uuid
@@ -2061,13 +2300,28 @@ const showDraftCommentModal = ref(false)
 const draftCommentText = ref('')
 const pendingSaveAction = ref(null)
 
+const showDqValidationModal = ref(false)
+const dqValidationResult = ref({ valid: true, errors: [], warnings: [] })
+const dqValidating = ref(false)
+
 const handleExcelUploaded = () => {
   showExcelUploader.value = false;
   fetchRecords();
   alert('Bulk upload completed! Requests are now in PENDING status.');
 }
 
-const promptDraftComment = (action) => {
+const getFieldLabelByKey = (key) => {
+  const f = nodeFields.value?.find(field => field.key === key)
+  return f ? getTranslatedName(f.name) : key
+}
+
+const getViolationMessageText = (msgObj) => {
+  if (!msgObj) return 'Validation error'
+  if (typeof msgObj === 'string') return msgObj
+  return msgObj[currentLocale.value] || msgObj.ko || msgObj.en || Object.values(msgObj)[0] || 'Validation error'
+}
+
+const promptDraftComment = async (action) => {
   if (action === 'UPDATE') {
     const orig = JSON.stringify(formatDataForSave(originalRecordData.value))
     const curr = JSON.stringify(formatDataForSave(selectedRecordData.value))
@@ -2077,6 +2331,41 @@ const promptDraftComment = (action) => {
     }
   }
   pendingSaveAction.value = action
+
+  const targetData = action === 'CREATE' ? recordFormData.value : selectedRecordData.value
+  const formattedData = formatDataForSave(targetData)
+
+  dqValidating.value = true
+  showDqValidationModal.value = true
+  try {
+    const res = await $fetch(`/api/dq-rules/validate?nodeId=${selectedNode.value.id}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token.value}` },
+      body: { data: JSON.stringify(formattedData) }
+    })
+    dqValidationResult.value = res || { valid: true, errors: [], warnings: [] }
+  } catch (e) {
+    console.error('DQ Validation error:', e)
+    dqValidationResult.value = { valid: true, errors: [], warnings: [] }
+  } finally {
+    dqValidating.value = false
+  }
+}
+
+const fixDataAndReturn = () => {
+  showDqValidationModal.value = false
+}
+
+const proceedToDraftComment = () => {
+  if ((dqValidationResult.value.errors || []).length > 0) {
+    const confirmMsg = currentLocale.value === 'en'
+      ? 'DQ Error(s) exist. Do you still want to proceed with submission?'
+      : '품질 오류(ERROR)가 존재합니다. 그대로 상신을 진행하시겠습니까?'
+    if (!confirm(confirmMsg)) {
+      return
+    }
+  }
+  showDqValidationModal.value = false
   draftCommentText.value = ''
   showDraftCommentModal.value = true
 }
@@ -2273,24 +2562,12 @@ const saveRecord = async () => {
   transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.5, 1);
 }
 
-.slim-multilingual-input :deep(.va-input-wrapper__field) {
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  align-items: center;
-  min-height: 28px !important;
-  height: 28px !important;
-}
 .slim-multilingual-input :deep(.va-input-wrapper__container) {
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  margin-top: 0 !important;
-  margin-bottom: 0 !important;
-  min-height: 28px !important;
-  height: 28px !important;
+  align-items: center;
+  margin: 0;
 }
-.slim-multilingual-input :deep(input) {
-  height: 100% !important;
-  line-height: 28px !important;
+.slim-multilingual-input :deep(.va-input-wrapper__field) {
+  align-items: center;
 }
 
 </style>

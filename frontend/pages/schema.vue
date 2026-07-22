@@ -55,6 +55,7 @@
                   :theme="gridTheme"
                   :autoSizeStrategy="autoSizeStrategy"
                   :columnDefs="columnDefs"
+                  :rowHeight="42"
                   rowSelection="single"
                   rowModelType="infinite"
                   :pagination="true"
@@ -289,15 +290,151 @@
         <va-input v-model="newField.gridWidth" type="number" label="Form Grid Width (1-12)" class="w-full" style="max-width: 170px;" placeholder="Auto" clearable />
         <va-input v-model="newField.tableColumnWidth" type="number" label="AG-Grid Width (px)" class="w-full" style="max-width: 170px;" placeholder="Auto" clearable />
       </div>
-      <div style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
-        <va-checkbox v-model="newField.required" :label="t('required')" />
-        <va-checkbox v-model="newField.isMultiValue" :label="t('multi_value')" />
-        <va-checkbox v-model="newField.isSearchable" :label="t('searchable_1')" />
-        <va-checkbox v-model="newField.isEncrypted" :label="t('encrypted')" />
-        <va-checkbox v-model="newField.isReadOnly" :label="t('read_only')" />
-        <va-checkbox v-model="newField.isImmutable" :label="t('immutable')" />
-        <va-checkbox v-model="newField.isHidden" :label="t('hidden')" />
-        <va-checkbox v-model="newField.isHighlighted" label="Highlight (강조)" />
+      <div style="margin-top: 1.25rem; padding: 1rem; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px;">
+        <div style="font-size: 0.75rem; font-weight: 700; color: var(--va-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">
+          Field Attributes & Controls (필드 속성)
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.6rem;">
+          <div class="option-pill" :class="{ active: newField.required }" @click="newField.required = !newField.required">
+            <va-checkbox v-model="newField.required" @click.stop />
+            <va-icon name="star" size="small" :color="newField.required ? 'danger' : 'secondary'" />
+            <span style="flex: 1;">{{ t('required') }}</span>
+          </div>
+
+          <div class="option-pill" :class="{ active: newField.isMultiValue }" @click="newField.isMultiValue = !newField.isMultiValue">
+            <va-checkbox v-model="newField.isMultiValue" @click.stop />
+            <va-icon name="dataset" size="small" :color="newField.isMultiValue ? 'primary' : 'secondary'" />
+            <span style="flex: 1;">{{ t('multi_value') }}</span>
+          </div>
+
+          <div class="option-pill" :class="{ active: newField.isSearchable }" @click="newField.isSearchable = !newField.isSearchable">
+            <va-checkbox v-model="newField.isSearchable" @click.stop />
+            <va-icon name="search" size="small" :color="newField.isSearchable ? 'primary' : 'secondary'" />
+            <span style="flex: 1;">{{ t('searchable_1') }}</span>
+          </div>
+
+          <div class="option-pill" :class="{ active: newField.isEncrypted }" @click="newField.isEncrypted = !newField.isEncrypted">
+            <va-checkbox v-model="newField.isEncrypted" @click.stop />
+            <va-icon name="lock" size="small" :color="newField.isEncrypted ? 'warning' : 'secondary'" />
+            <span style="flex: 1;">{{ t('encrypted') }}</span>
+          </div>
+
+          <div class="option-pill" :class="{ active: newField.isReadOnly }" @click="newField.isReadOnly = !newField.isReadOnly">
+            <va-checkbox v-model="newField.isReadOnly" @click.stop />
+            <va-icon name="visibility_off" size="small" :color="newField.isReadOnly ? 'info' : 'secondary'" />
+            <span style="flex: 1;">{{ t('read_only') }}</span>
+          </div>
+
+          <div class="option-pill" :class="{ active: newField.isImmutable }" @click="newField.isImmutable = !newField.isImmutable">
+            <va-checkbox v-model="newField.isImmutable" @click.stop />
+            <va-icon name="edit_off" size="small" :color="newField.isImmutable ? 'danger' : 'secondary'" />
+            <span style="flex: 1;">{{ t('immutable') }}</span>
+          </div>
+
+          <div class="option-pill" :class="{ active: newField.isHidden }" @click="newField.isHidden = !newField.isHidden">
+            <va-checkbox v-model="newField.isHidden" @click.stop />
+            <va-icon name="hide_source" size="small" :color="newField.isHidden ? 'secondary' : 'secondary'" />
+            <span style="flex: 1;">{{ t('hidden') }}</span>
+          </div>
+
+          <div class="option-pill" :class="{ active: newField.isHighlighted }" @click="newField.isHighlighted = !newField.isHighlighted">
+            <va-checkbox v-model="newField.isHighlighted" @click.stop />
+            <va-icon name="auto_awesome" size="small" :color="newField.isHighlighted ? 'warning' : 'secondary'" />
+            <span style="flex: 1;">Highlight (강조)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Conditional Field Control Section (조건부 연동 설정) -->
+      <div style="margin-top: 1.25rem; padding: 1rem; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <div style="font-size: 0.75rem; font-weight: 700; color: var(--va-primary); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px;">
+            <va-icon name="bolt" size="small" color="primary" />
+            Conditional Field Control (조건부 연동 설정)
+          </div>
+          <va-checkbox v-model="newField.conditionEnabled" label="연동 사용 (Enable)" />
+        </div>
+
+        <div v-if="newField.conditionEnabled" style="display: flex; flex-direction: column; gap: 0.75rem; padding-top: 0.25rem;">
+          <!-- Mode Tabs -->
+          <div style="display: flex; gap: 0.5rem; align-items: center; font-size: 0.85rem;">
+            <span style="font-weight: 600; color: var(--va-text-secondary); width: 80px;">설정 방식:</span>
+            <va-button-toggle
+              v-model="newField.conditionMode"
+              size="small"
+              :options="[
+                { label: '드롭다운 선택 (GUI)', value: 'GUI' },
+                { label: '표현식 직접 입력 (Expression)', value: 'EXPRESSION' }
+              ]"
+            />
+          </div>
+
+          <!-- Action Selector (Multi-select) -->
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <span style="font-weight: 600; font-size: 0.85rem; color: var(--va-text-secondary); width: 80px;">제어 동작:</span>
+            <va-select
+              v-model="newField.conditionAction"
+              style="flex: 1;"
+              multiple
+              :options="[
+                { label: '👁️ 조건 충족 시만 노출 (SHOW)', value: 'SHOW' },
+                { label: '✨ 조건 충족 시 하이라이트 (HIGHLIGHT)', value: 'HIGHLIGHT' },
+                { label: '🔒 조건 충족 시 필수값 지정 (REQUIRE)', value: 'REQUIRE' },
+                { label: '📖 조건 충족 시 읽기 전용 (READ_ONLY)', value: 'READ_ONLY' },
+                { label: '🚫 조건 충족 시 수정 금지 (DISABLE)', value: 'DISABLE' }
+              ]"
+              value-by="value"
+              text-by="label"
+            />
+          </div>
+
+          <!-- Mode 1: GUI Builder -->
+          <div v-if="newField.conditionMode === 'GUI'" style="display: grid; grid-template-columns: 2fr 1.5fr 2fr; gap: 0.5rem; align-items: center;">
+            <va-select
+              v-model="newField.dependsOnFieldKey"
+              label="기준 필드 (Depends On)"
+              :options="availableConditionFields"
+              value-by="value"
+              text-by="text"
+              clearable
+            />
+            <va-select
+              v-model="newField.conditionOperator"
+              label="연산자"
+              :options="[
+                { label: '== (일치)', value: 'EQUALS' },
+                { label: '!= (불일치)', value: 'NOT_EQUALS' },
+                { label: '> (초과)', value: 'GREATER_THAN' },
+                { label: '>= (이상)', value: 'GREATER_THAN_OR_EQUAL' },
+                { label: '< (미만)', value: 'LESS_THAN' },
+                { label: '<= (이하)', value: 'LESS_THAN_OR_EQUAL' },
+                { label: 'Contains (포함)', value: 'CONTAINS' },
+                { label: 'Is Not Empty (값 존재)', value: 'NOT_EMPTY' },
+                { label: 'Is Empty (값 없음)', value: 'EMPTY' }
+              ]"
+              value-by="value"
+              text-by="label"
+            />
+            <va-input
+              v-model="newField.conditionValue"
+              label="비교 기준값"
+              placeholder="예: KOSPI 또는 1"
+            />
+          </div>
+
+          <!-- Mode 2: Expression Mode -->
+          <div v-else style="display: flex; flex-direction: column; gap: 0.4rem;">
+            <va-input
+              v-model="newField.conditionExpression"
+              label="표현식 수식 입력"
+              placeholder="예: #{market} == 'KOSPI' && #{per} > 1"
+              class="w-full"
+            />
+            <div style="font-size: 0.75rem; color: var(--va-text-secondary); background: rgba(0,0,0,0.03); padding: 0.4rem 0.6rem; border-radius: 4px;">
+              💡 <b>작성 팁:</b> <code>#{field_key}</code> 형태로 변수를 사용하세요. 예: <code>#{market} == 'KOSPI'</code>, <code>#{per} > 1</code>, <code>#{market} == 'KOSPI' || #{market} == 'KOSDAQ'</code>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
@@ -383,6 +520,13 @@
 
     <!-- Request Access Modal -->
     <DomainAccessRequestModal v-model="showRequestAccessModal" />
+
+    <!-- DQ Rule Editor Modal -->
+    <DqRuleEditor
+      v-model="showDqRuleEditor"
+      :fieldId="dqTargetFieldId"
+      :fieldName="dqTargetFieldName"
+    />
   </div>
 </template>
 
@@ -484,6 +628,18 @@ const applyIcon = () => {
 }
 
 const showRequestAccessModal = ref(false)
+
+// DQ Rule Editor
+const showDqRuleEditor = ref(false)
+const dqTargetFieldId = ref(null)
+const dqTargetFieldName = ref('')
+const openDqRuleEditor = (fieldData) => {
+  if (!fieldData) return
+  dqTargetFieldId.value = fieldData.id
+  const nameObj = typeof fieldData.name === 'string' ? JSON.parse(fieldData.name || '{}') : fieldData.name
+  dqTargetFieldName.value = nameObj?.[currentLocale.value] || nameObj?.ko || nameObj?.en || fieldData.key || 'Field'
+  showDqRuleEditor.value = true
+}
 
 const isEditMode = ref(false)
 const editingId = ref(null)
@@ -722,26 +878,58 @@ const columnDefs = computed(() => [
   { 
     headerName: 'Actions', 
     field: 'id',
-    width: 100,
+    width: 180,
+    minWidth: 180,
     cellRenderer: (params) => {
       if (!params || !params.data) return '';
-      const span = document.createElement('span');
+      const container = document.createElement('div');
+      container.style.display = 'flex';
+      container.style.gap = '8px';
+      container.style.alignItems = 'center';
+      container.style.height = '100%';
+
       if (params.data.domainId && !selectedNode.value.isDomain) {
+        const span = document.createElement('span');
         span.style.color = '#666';
         span.style.fontStyle = 'italic';
         span.innerText = 'Inherited';
+        container.appendChild(span);
       } else {
-        span.style.cursor = 'pointer';
-        span.style.color = '#2c82e0';
-        span.style.textDecoration = 'underline';
-        span.innerText = 'Edit';
+        const editBtn = document.createElement('span');
+        editBtn.style.cursor = 'pointer';
+        editBtn.style.color = '#2c82e0';
+        editBtn.style.fontWeight = '600';
+        editBtn.style.fontSize = '12px';
+        editBtn.style.lineHeight = '1';
+        editBtn.style.padding = '3px 8px';
+        editBtn.style.borderRadius = '4px';
+        editBtn.style.border = '1px solid #2c82e0';
+        editBtn.style.display = 'inline-flex';
+        editBtn.style.alignItems = 'center';
+        editBtn.style.boxSizing = 'border-box';
+        editBtn.innerText = 'Edit';
+        editBtn.addEventListener('click', () => openFieldModal(params.data));
+        container.appendChild(editBtn);
       }
-      return span;
-    },
-    onCellClicked: (params) => {
-      if (!params || !params.data) return;
-      if (params.data.domainId && !selectedNode.value.isDomain) return;
-      openFieldModal(params.data);
+
+      // DQ Rules button — always visible
+      const dqBtn = document.createElement('span');
+      dqBtn.style.cursor = 'pointer';
+      dqBtn.style.color = '#e88b24';
+      dqBtn.style.fontWeight = '600';
+      dqBtn.style.fontSize = '12px';
+      dqBtn.style.lineHeight = '1';
+      dqBtn.style.padding = '3px 6px';
+      dqBtn.style.borderRadius = '4px';
+      dqBtn.style.border = '1px solid #e88b24';
+      dqBtn.style.display = 'inline-flex';
+      dqBtn.style.alignItems = 'center';
+      dqBtn.style.boxSizing = 'border-box';
+      dqBtn.innerText = 'DQ';
+      dqBtn.addEventListener('click', () => openDqRuleEditor(params.data));
+      container.appendChild(dqBtn);
+
+      return container;
     }
   }
 ])
@@ -1013,6 +1201,25 @@ const openNodeModal = () => {
   showNodeModal.value = true
 }
 
+const availableConditionFields = computed(() => {
+  return (fields.value || [])
+    .filter(f => !isEditMode.value || f.id !== editingId.value)
+    .map(f => ({
+      value: f.key,
+      text: `${getTranslatedName(f.name)} (${f.key})`
+    }))
+})
+
+const resetConditionFields = () => {
+  newField.value.conditionEnabled = false
+  newField.value.conditionMode = 'GUI'
+  newField.value.conditionAction = ['SHOW']
+  newField.value.dependsOnFieldKey = ''
+  newField.value.conditionOperator = 'EQUALS'
+  newField.value.conditionValue = ''
+  newField.value.conditionExpression = ''
+}
+
 const openFieldModal = (rowData = null) => {
   if (rowData) {
     isEditMode.value = true
@@ -1033,28 +1240,42 @@ const openFieldModal = (rowData = null) => {
     } else {
       newFieldOptionsList.value = []
     }
-    // Parse targetDomainId from options for DOMAIN_REFERENCE fields
-    if (rowData.type === 'DOMAIN_REFERENCE' && rowData.options) {
+    // Parse targetDomainId, formula, conditionRule from options
+    if (rowData.options) {
       try {
-        const opts = JSON.parse(rowData.options)
-        if (opts.targetDomainId) {
-          newField.value.targetDomainId = opts.targetDomainId
+        const opts = typeof rowData.options === 'string' ? JSON.parse(rowData.options) : rowData.options
+        if (opts.targetDomainId) newField.value.targetDomainId = opts.targetDomainId
+        if (opts.formula) newField.value.formula = opts.formula
+        if (opts.conditionRule) {
+          const cond = opts.conditionRule
+          newField.value.conditionEnabled = cond.enabled !== false
+          newField.value.conditionMode = cond.expression ? 'EXPRESSION' : 'GUI'
+          let acts = ['SHOW']
+          if (cond.action) {
+            acts = Array.isArray(cond.action) ? cond.action : [cond.action]
+          }
+          newField.value.conditionAction = acts
+          newField.value.dependsOnFieldKey = cond.dependsOnFieldKey || ''
+          newField.value.conditionOperator = cond.operator || 'EQUALS'
+          newField.value.conditionValue = cond.value || ''
+          newField.value.conditionExpression = cond.expression || ''
+        } else {
+          resetConditionFields()
         }
-      } catch (e) {}
-    }
-    // Parse formula from options for CALCULATED fields
-    if (rowData.type === 'CALCULATED' && rowData.options) {
-      try {
-        const opts = JSON.parse(rowData.options)
-        if (opts.formula) {
-          newField.value.formula = opts.formula
-        }
-      } catch (e) {}
+      } catch (e) { resetConditionFields() }
+    } else {
+      resetConditionFields()
     }
   } else {
     isEditMode.value = false
     editingId.value = null
-    newField.value = { name: {ko:'', en:''}, key: '', type: 'STRING', required: false, order: 0, fieldGroupId: null, targetDomainId: null, isMultiValue: false, isSearchable: true, isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, isHighlighted: false, formula: '', unit: '', gridWidth: null, tableColumnWidth: null }
+    newField.value = { 
+      name: {ko:'', en:''}, key: '', type: 'STRING', required: false, order: 0, 
+      fieldGroupId: null, targetDomainId: null, isMultiValue: false, isSearchable: true, 
+      isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, isHighlighted: false, 
+      formula: '', unit: '', gridWidth: null, tableColumnWidth: null 
+    }
+    resetConditionFields()
     newFieldOptionsList.value = []
   }
   showFieldModal.value = true
@@ -1114,19 +1335,20 @@ const saveField = async () => {
     return
   }
   
+  let existingOptsObj = {}
   if (['SELECT', 'MULTI_SELECT'].includes(newField.value.type)) {
     const hasEmptyKey = newFieldOptionsList.value.some(opt => !opt.key || String(opt.key).trim() === '')
     if (hasEmptyKey) {
       alert(t('enter_key_all_options'))
       return
     }
-    newField.value.options = JSON.stringify(newFieldOptionsList.value)
+    existingOptsObj = { optionsList: newFieldOptionsList.value }
   } else if (newField.value.type === 'DOMAIN_REFERENCE') {
     if (!newField.value.targetDomainId) {
       alert(t('please_select_a_target_domain'))
       return
     }
-    newField.value.options = JSON.stringify({ targetDomainId: newField.value.targetDomainId })
+    existingOptsObj = { targetDomainId: newField.value.targetDomainId }
   } else if (newField.value.type === 'CALCULATED') {
     if (!newField.value.formula || String(newField.value.formula).trim() === '') {
       alert(t('enter_formula'))
@@ -1141,8 +1363,33 @@ const saveField = async () => {
       alert(t('syntax_error_in_formula_e_message'))
       return
     }
-    newField.value.options = JSON.stringify({ formula: newField.value.formula.trim() })
+    existingOptsObj = { formula: newField.value.formula.trim() }
+  } else if (newField.value.options) {
+    try {
+      existingOptsObj = typeof newField.value.options === 'string' ? JSON.parse(newField.value.options) : newField.value.options
+    } catch(e){}
   }
+
+  if (typeof existingOptsObj !== 'object' || Array.isArray(existingOptsObj)) {
+    existingOptsObj = { rawOptions: existingOptsObj }
+  }
+
+  if (newField.value.conditionEnabled) {
+    let acts = newField.value.conditionAction || ['SHOW']
+    if (!Array.isArray(acts)) acts = [acts]
+    existingOptsObj.conditionRule = {
+      enabled: true,
+      action: acts,
+      expression: newField.value.conditionMode === 'EXPRESSION' ? newField.value.conditionExpression : '',
+      dependsOnFieldKey: newField.value.conditionMode === 'GUI' ? newField.value.dependsOnFieldKey : '',
+      operator: newField.value.conditionMode === 'GUI' ? newField.value.conditionOperator : '',
+      value: newField.value.conditionMode === 'GUI' ? newField.value.conditionValue : ''
+    }
+  } else {
+    delete existingOptsObj.conditionRule
+  }
+
+  newField.value.options = JSON.stringify(existingOptsObj)
   
   try {
     let url = ''
@@ -1360,5 +1607,28 @@ const deleteGroup = async (id) => {
 /* Tree Container */
 :deep(.va-tree) {
   overflow-x: hidden;
+}
+
+.option-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--va-background-border);
+  border-radius: 8px;
+  background: var(--va-background-card, #ffffff);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.option-pill:hover {
+  border-color: #2c82e0;
+  background: var(--va-background-element, #f4f6f9);
+}
+.option-pill.active {
+  border-color: #2c82e0;
+  background: rgba(44, 130, 224, 0.08);
 }
 </style>

@@ -79,6 +79,8 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
             }
         }
 
+        appendOrderByClause(sql, pageable);
+
         if (pageable.isPaged()) {
             sql.append(" LIMIT :limit OFFSET :offset");
         }
@@ -214,6 +216,8 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
             }
         }
 
+        appendOrderByClause(sql, pageable);
+
         if (pageable.isPaged()) {
             sql.append(" LIMIT :limit OFFSET :offset");
         }
@@ -285,5 +289,44 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
 
         List<Record> results = query.getResultList();
         return new PageImpl<>(results, pageable, total);
+    }
+
+    private void appendOrderByClause(StringBuilder sql, Pageable pageable) {
+        if (pageable != null && pageable.getSort().isSorted()) {
+            sql.append(" ORDER BY ");
+            boolean first = true;
+            for (org.springframework.data.domain.Sort.Order order : pageable.getSort()) {
+                if (!first) sql.append(", ");
+                String prop = order.getProperty();
+                if (prop.startsWith("data.")) {
+                    prop = prop.substring(5);
+                }
+                String dir = order.getDirection().name();
+                if ("id".equalsIgnoreCase(prop)) {
+                    sql.append("r.id ").append(dir);
+                } else if ("status".equalsIgnoreCase(prop)) {
+                    sql.append("r.status ").append(dir);
+                } else if ("createdAt".equalsIgnoreCase(prop) || "created_at".equalsIgnoreCase(prop)) {
+                    sql.append("r.created_at ").append(dir);
+                } else if ("updatedAt".equalsIgnoreCase(prop) || "updated_at".equalsIgnoreCase(prop)) {
+                    sql.append("r.updated_at ").append(dir);
+                } else if ("nodeName".equalsIgnoreCase(prop) || "node".equalsIgnoreCase(prop)) {
+                    sql.append("r.node_id ").append(dir);
+                } else {
+                    String safeProp = prop.replaceAll("[^a-zA-Z0-9_]", "_");
+                    String lowerProp = safeProp.toLowerCase();
+                    sql.append("CASE WHEN NULLIF(r.data->>'").append(safeProp).append("', '') ~ '^-?[0-9]+(\\\\.[0-9]+)?$' ")
+                       .append("THEN CAST(NULLIF(r.data->>'").append(safeProp).append("', '') AS NUMERIC) ")
+                       .append("WHEN NULLIF(r.data->>'").append(lowerProp).append("', '') ~ '^-?[0-9]+(\\\\.[0-9]+)?$' ")
+                       .append("THEN CAST(NULLIF(r.data->>'").append(lowerProp).append("', '') AS NUMERIC) ")
+                       .append("ELSE NULL END ").append(dir).append(" NULLS LAST, ");
+                    sql.append("COALESCE(NULLIF(r.data->>'").append(safeProp).append("', ''), NULLIF(r.data->>'")
+                       .append(lowerProp).append("', '')) ").append(dir).append(" NULLS LAST");
+                }
+                first = false;
+            }
+        } else {
+            sql.append(" ORDER BY r.created_at DESC");
+        }
     }
 }

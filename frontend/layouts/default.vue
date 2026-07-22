@@ -186,7 +186,21 @@ const filteredMenus = computed(() => {
   
   if (!menus.value) return []
   const menusCopy = JSON.parse(JSON.stringify(menus.value))
-  return filterTree(menusCopy)
+  const filtered = filterTree(menusCopy)
+  
+  // Ensure DQ Dashboard is accessible in sidebar
+  const hasDqDashboard = filtered.some(m => m.path === '/dq-dashboard' || (m.children && m.children.some(c => c.path === '/dq-dashboard')))
+  if (!hasDqDashboard) {
+    filtered.push({
+      id: 'dq-dashboard-auto',
+      name: 'DQ Dashboard',
+      path: '/dq-dashboard',
+      icon: 'analytics',
+      requiredRole: 'USER',
+      children: []
+    })
+  }
+  return filtered
 })
 const timezoneOptions = ref([
   { label: '[GMT+09:00] Asia/Seoul (Seoul)', value: 'Asia/Seoul' },
@@ -269,7 +283,16 @@ const toggleLang = () => {
   currentLocale.value = newLang
   if (setLocale) setLocale(newLang)
   else locale.value = newLang
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = newLang === 'en' ? 'en-US' : 'ko-KR'
+  }
 }
+
+watch(currentLocale, (newLang) => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = newLang === 'en' ? 'en-US' : 'ko-KR'
+  }
+}, { immediate: true })
 const showSidebar = ref(true)
 const isMobile = ref(false)
 

@@ -1,6 +1,8 @@
 package com.classification.domain_system.service;
 
 import com.classification.domain_system.entity.FieldDefinition;
+import com.classification.domain_system.service.dq.DqEvaluationResult;
+import com.classification.domain_system.service.dq.DqRuleEngine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -17,8 +19,7 @@ import java.util.UUID;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class DataQualityServiceTest {
@@ -29,6 +30,9 @@ class DataQualityServiceTest {
     @Mock
     private ClassificationNodeRepository nodeRepository;
 
+    @Mock
+    private DqRuleEngine dqRuleEngine;
+
     @InjectMocks
     private DataQualityService dataQualityService;
 
@@ -38,10 +42,13 @@ class DataQualityServiceTest {
     void setUp() {
         nodeId = UUID.randomUUID();
         lenient().when(nodeRepository.findById(nodeId)).thenReturn(Optional.empty());
+        // Default: engine returns empty result (no violations)
+        lenient().when(dqRuleEngine.evaluate(eq(nodeId), any()))
+                .thenReturn(new DqEvaluationResult());
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // validateData - Required 체크
+    // validateData - Required 체크 (legacy)
     // ─────────────────────────────────────────────────────────────────
     @Nested
     @DisplayName("validateData - Required 필드 검증")
@@ -95,7 +102,7 @@ class DataQualityServiceTest {
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // validateData - 타입 체크
+    // validateData - 타입 체크 (legacy)
     // ─────────────────────────────────────────────────────────────────
     @Nested
     @DisplayName("validateData - 타입 검증")
@@ -181,6 +188,11 @@ class DataQualityServiceTest {
         @DisplayName("잘못된 JSON 형식이면 isValid=false, 'Invalid JSON format' 에러")
         void invalidJson_ReturnsInvalidResult() {
             when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of());
+            // Engine also catches this
+            DqEvaluationResult engineResult = new DqEvaluationResult();
+            engineResult.addViolation("_json", "PARSE", "ERROR",
+                    Map.of("en", "Invalid JSON format"), "NOT_JSON");
+            when(dqRuleEngine.evaluate(eq(nodeId), eq("NOT_JSON"))).thenReturn(engineResult);
 
             DataQualityService.DQResult result = dataQualityService.validateData(nodeId, "NOT_JSON");
 
@@ -195,7 +207,6 @@ class DataQualityServiceTest {
             field.setName(Map.of("en", "Ticker", "ko", "종목코드"));
             when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of(field));
 
-            // ticker 값 누락 → required 에러 메시지에 "Ticker"가 포함되어야 함
             DataQualityService.DQResult result = dataQualityService.validateData(nodeId, "{}");
 
             assertThat(result.errors).anyMatch(e -> e.contains("Ticker"));
@@ -223,6 +234,44 @@ class DataQualityServiceTest {
             DataQualityService.DQResult result = dataQualityService.validateData(nodeId, "{}");
 
             assertThat(result.errors).anyMatch(e -> e.contains("ticker"));
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // DQ 엔진 통합
+    // ─────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("DQ 엔진 통합")
+    class EngineIntegration {
+
+        @Test
+        @DisplayName("엔진에서 ERROR 발생 시 isValid=false")
+        void engineError_ShouldBeInvalid() {
+            DqEvaluationResult engineResult = new DqEvaluationResult();
+            engineResult.addViolation("email", "REGEX", "ERROR",
+                    Map.of("en", "Invalid email format"), "bad-email");
+            when(dqRuleEngine.evaluate(eq(nodeId), any())).thenReturn(engineResult);
+            when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of());
+
+            DataQualityService.DQResult result = dataQualityService.validateData(nodeId, "{\"email\":\"bad-email\"}");
+
+            assertThat(result.isValid).isFalse();
+            assertThat(result.errors).contains("Invalid email format");
+        }
+
+        @Test
+        @DisplayName("엔진에서 WARNING만 발생 시 isValid=true + warnings 포함")
+        void engineWarning_ShouldBeValidWithWarnings() {
+            DqEvaluationResult engineResult = new DqEvaluationResult();
+            engineResult.addViolation("nickname", "LENGTH", "WARNING",
+                    Map.of("en", "Nickname is too short"), "ab");
+            when(dqRuleEngine.evaluate(eq(nodeId), any())).thenReturn(engineResult);
+            when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of());
+
+            DataQualityService.DQResult result = dataQualityService.validateData(nodeId, "{\"nickname\":\"ab\"}");
+
+            assertThat(result.isValid).isTrue();
+            assertThat(result.warnings).contains("Nickname is too short");
         }
     }
 
