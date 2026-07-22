@@ -377,7 +377,7 @@ public class ApprovalService {
         UUID nodeId = record.getNode().getId();
         
         // 1. Data Quality Check
-        DataQualityService.DQResult dq = dqService.validateData(nodeId, request.getData());
+        DataQualityService.DQResult dq = dqService.validateData(nodeId, request.getData(), recordId);
         if (!dq.isValid) {
             throw new RuntimeException("Data Quality Check Failed: " + String.join(", ", dq.errors));
         }

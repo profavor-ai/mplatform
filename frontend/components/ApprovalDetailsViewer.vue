@@ -36,7 +36,7 @@
                                     </a>
                                   </div>
                                 </template>
-                                <template v-else>{{ f.val.before }}</template>
+                                 <template v-else>{{ formatValue(f.val.before) }}</template>
                               </div>
                             </div>
                             <div style="background-color: rgba(67, 160, 71, 0.1); padding: 0.75rem 1rem; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 0.5rem;">
@@ -49,7 +49,7 @@
                                     </a>
                                   </div>
                                 </template>
-                                <template v-else>{{ f.val.after }}</template>
+                                <template v-else>{{ formatValue(f.val.after) }}</template>
                               </div>
                             </div>
                           </div>
@@ -61,7 +61,7 @@
                                 </a>
                               </div>
                             </template>
-                            <template v-else>{{ f.val.before }}</template>
+                            <template v-else>{{ formatValue(f.val.before) }}</template>
                           </div>
                         </template>
                         <template v-else>
@@ -73,7 +73,7 @@
                                 </a>
                               </div>
                             </template>
-                            <template v-else>{{ f.val }}</template>
+                            <template v-else>{{ formatValue(f.val) }}</template>
                           </div>
                         </template>
                       </div>
@@ -90,78 +90,121 @@
       </div>
     </div>
 
-    <!-- Simple Approval Line Summary -->
-    <div style="margin-bottom: 1.5rem; padding: 0.75rem; background-color: var(--va-background-secondary); border-radius: 4px; border-left: 4px solid var(--va-primary); overflow-x: auto;">
-      <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 0.75rem;">{{ t('approvalLineSummary') }}</div>
-      
-      <div v-if="request?.steps && request.steps.length > 0" 
-           style="display: flex; align-items: center; width: 100%; overflow-x: auto; padding: 0.25rem 0;">
-        <template v-for="(s, idx) in getStepperSteps(request)" :key="idx">
-          <!-- Step Node -->
-          <div style="display: flex; flex-direction: row; align-items: center; gap: 0.5rem; flex-shrink: 0;">
-            <div 
-              :class="{'step-flash': s.isPending}"
-              :style="{
-                width: '32px', height: '32px', borderRadius: '50%', 
-                backgroundColor: s.hasError ? 'var(--va-danger)' : (s.isPending ? 'var(--va-warning)' : (idx < getCurrentStepIndex(request) ? 'var(--va-primary)' : 'var(--va-background-element)')),
-                border: idx <= getCurrentStepIndex(request) ? 'none' : '2px solid var(--va-background-border)',
-                color: s.isPending ? '#262824' : (idx < getCurrentStepIndex(request) ? 'white' : 'var(--va-text-secondary)'),
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.9rem',
-                boxShadow: s.isPending ? '0 0 0 rgba(255, 212, 58, 0.4)' : 'none'
-              }"
-            >
-              {{ s.stepOrder }}
+    <!-- Integration Log Details (Inbound 연계 이력) -->
+    <div v-if="request?.isIntegration || (request?.sourceSystem && (!request?.steps || request?.steps.length === 0))" 
+         style="margin-bottom: 1.5rem; padding: 1rem; background-color: var(--va-background-secondary); border-radius: 6px; border-left: 4px solid var(--va-info);">
+      <div style="font-weight: bold; font-size: 0.95rem; color: var(--va-text-primary); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+        <va-icon name="sync" color="info" size="small" />
+        <span>{{ $t('integration_log_info') || $t('integration.channels.integration_log_info') || '연계 상세 정보 (Integration Log)' }}</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1rem; font-size: 0.85rem;">
+        <div>
+          <span style="color: var(--va-text-secondary); margin-right: 0.5rem;">{{ $t('integration_channel_system') || '연계 채널/시스템' }}:</span>
+          <span style="font-weight: bold; color: var(--va-text-primary);">{{ request.sourceSystem || 'Inbound Webhook' }}</span>
+        </div>
+        <div>
+          <span style="color: var(--va-text-secondary); margin-right: 0.5rem;">{{ $t('integration_direction') || '연계 방향' }}:</span>
+          <va-badge color="warning" text="INBOUND (수신)" size="small" />
+        </div>
+        <div>
+          <span style="color: var(--va-text-secondary); margin-right: 0.5rem;">{{ $t('integration_received_at') || '수신 처리시각' }}:</span>
+          <span style="color: var(--va-text-primary);">{{ formatDate(request.createdAt || request.integrationLog?.createdAt) }}</span>
+        </div>
+        <div>
+          <span style="color: var(--va-text-secondary); margin-right: 0.5rem;">{{ $t('integration_status') || '처리 상태' }}:</span>
+          <va-badge :color="request.integrationLog?.status === 'FAIL' ? 'danger' : 'success'" :text="request.integrationLog?.status || 'SUCCESS'" size="small" />
+        </div>
+      </div>
+
+      <template v-if="request.integrationLog">
+        <div style="margin-top: 0.75rem;">
+          <div style="font-size: 0.82rem; font-weight: bold; color: var(--va-text-secondary); margin-bottom: 0.25rem;">{{ $t('integration_original_payload') || '외부 수신 원본 Payload (Original Payload)' }}:</div>
+          <pre style="background: #1e1e1e; color: #d4d4d4; padding: 0.5rem 0.75rem; border-radius: 4px; font-size: 0.8rem; overflow-x: auto; max-height: 150px; margin: 0;">{{ request.integrationLog.originalPayload }}</pre>
+        </div>
+
+        <div style="margin-top: 0.75rem;">
+          <div style="font-size: 0.82rem; font-weight: bold; color: var(--va-text-secondary); margin-bottom: 0.25rem;">{{ $t('integration_mapped_payload') || '매핑 변환 후 Payload (Mapped Payload)' }}:</div>
+          <pre style="background: #1e1e1e; color: #ce9178; padding: 0.5rem 0.75rem; border-radius: 4px; font-size: 0.8rem; overflow-x: auto; max-height: 150px; margin: 0;">{{ request.integrationLog.mappedPayload }}</pre>
+        </div>
+      </template>
+    </div>
+
+    <!-- Simple Approval Line Summary & Status (일반 결재 건) -->
+    <template v-else>
+      <!-- Simple Approval Line Summary -->
+      <div style="margin-bottom: 1.5rem; padding: 0.75rem; background-color: var(--va-background-secondary); border-radius: 4px; border-left: 4px solid var(--va-primary); overflow-x: auto;">
+        <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 0.75rem;">{{ t('approvalLineSummary') }}</div>
+        
+        <div v-if="request?.steps && request.steps.length > 0" 
+             style="display: flex; align-items: center; width: 100%; overflow-x: auto; padding: 0.25rem 0;">
+          <template v-for="(s, idx) in getStepperSteps(request)" :key="idx">
+            <!-- Step Node -->
+            <div style="display: flex; flex-direction: row; align-items: center; gap: 0.5rem; flex-shrink: 0;">
+              <div 
+                :class="{'step-flash': s.isPending}"
+                :style="{
+                  width: '32px', height: '32px', borderRadius: '50%', 
+                  backgroundColor: s.hasError ? 'var(--va-danger)' : (s.isPending ? 'var(--va-warning)' : (idx < getCurrentStepIndex(request) ? 'var(--va-primary)' : 'var(--va-background-element)')),
+                  border: idx <= getCurrentStepIndex(request) ? 'none' : '2px solid var(--va-background-border)',
+                  color: s.isPending ? '#262824' : (idx < getCurrentStepIndex(request) ? 'white' : 'var(--va-text-secondary)'),
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.9rem',
+                  boxShadow: s.isPending ? '0 0 0 rgba(255, 212, 58, 0.4)' : 'none'
+                }"
+              >
+                {{ s.stepOrder }}
+              </div>
+              <div style="font-size: 0.85rem; color: var(--va-text-primary); white-space: nowrap; display: flex; flex-direction: column; justify-content: center;">
+                <div>{{ s.name }} <span style="color: var(--va-text-secondary); font-size: 0.8rem;">({{ s.statusText }})</span></div>
+                <div v-if="s.processedDate" style="font-size: 0.72rem; color: var(--va-text-secondary); opacity: 0.8; margin-top: 2px;">
+                  {{ s.processedDate }}
+                </div>
+              </div>
             </div>
-            <div style="font-size: 0.85rem; color: var(--va-text-primary); white-space: nowrap; display: flex; flex-direction: column; justify-content: center;">
-              <div>{{ s.name }} <span style="color: var(--va-text-secondary); font-size: 0.8rem;">({{ s.statusText }})</span></div>
-              <div v-if="s.processedDate" style="font-size: 0.72rem; color: var(--va-text-secondary); opacity: 0.8; margin-top: 2px;">
-                {{ s.processedDate }}
+            <!-- Line -->
+            <div v-if="idx < getStepperSteps(request).length - 1" 
+                 style="flex-grow: 1; min-width: 40px; height: 2px; margin: 0 1rem;"
+                 :style="{ backgroundColor: idx < getCurrentStepIndex(request) - 0.5 ? 'var(--va-primary)' : 'var(--va-background-border)' }">
+            </div>
+          </template>
+        </div>
+        <div v-else style="font-weight: bold; color: var(--va-primary);">{{ t('noApprovalLine') }}</div>
+      </div>
+
+      <!-- Approval Line Status -->
+      <div v-if="request?.steps && request.steps.length > 0" style="margin-bottom: 1.5rem; padding-top: 0.5rem; border-top: 1px solid var(--va-background-border);">
+        <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--va-text-primary);">{{ t('approvalLineStatus') }}</div>
+        <div v-for="group in getGroupedSteps(request)" :key="group.order" style="margin-bottom: 0.25rem;">
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <div v-for="s in group.steps" :key="s.id" style="flex: 1; min-width: 200px; background: var(--va-background-element); padding: 0.5rem; border-radius: 4px; font-size: 0.85rem; border: 1px solid var(--va-background-border);">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px; align-items: center;">
+                <span style="font-weight: bold; color: var(--va-primary); display: flex; align-items: center;">
+                  <span style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; background-color:var(--va-primary); color:white; border-radius:50%; font-size:0.75rem; margin-right:6px; font-weight:bold;">{{ s.stepOrder }}</span>
+                  {{ getStepTypeLabel(s) }} - {{ getUserName(s.assigneeId) }}
+                </span>
+                <va-badge :color="s.stepType === 'DRAFT' ? 'info' : (s.status === 'APPROVED' ? 'success' : (s.status === 'REJECTED' ? 'danger' : 'warning'))" size="small">{{ getStepStatusLabel(s) }}</va-badge>
+              </div>
+              <div v-if="s.status === 'APPROVED' || s.status === 'REJECTED' || s.stepType === 'DRAFT'" style="font-size: 0.75rem; color: var(--va-text-secondary); margin-bottom: 4px; text-align: right;">
+                {{ formatDate(s.updatedAt) }} {{ t('processed') }}
+              </div>
+              <div v-if="s.comment" style="color: var(--va-text-primary); background: var(--va-background-secondary); padding: 4px 8px; border-radius: 4px; border-left: 3px solid var(--va-primary); font-style: italic;">
+                "{{ s.comment }}"
+              </div>
+              <div v-else style="color: var(--va-text-secondary); font-style: italic;">
+                {{ t('noComment') }}
               </div>
             </div>
           </div>
-          <!-- Line -->
-          <div v-if="idx < getStepperSteps(request).length - 1" 
-               style="flex-grow: 1; min-width: 40px; height: 2px; margin: 0 1rem;"
-               :style="{ backgroundColor: idx < getCurrentStepIndex(request) - 0.5 ? 'var(--va-primary)' : 'var(--va-background-border)' }">
-          </div>
-        </template>
-      </div>
-      <div v-else style="font-weight: bold; color: var(--va-primary);">{{ t('noApprovalLine') }}</div>
-    </div>
-
-    <!-- Approval Line Status -->
-    <div v-if="request?.steps && request.steps.length > 0" style="margin-bottom: 1.5rem; padding-top: 0.5rem; border-top: 1px solid var(--va-background-border);">
-      <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--va-text-primary);">{{ t('approvalLineStatus') }}</div>
-      <div v-for="group in getGroupedSteps(request)" :key="group.order" style="margin-bottom: 0.25rem;">
-        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-          <div v-for="s in group.steps" :key="s.id" style="flex: 1; min-width: 200px; background: var(--va-background-element); padding: 0.5rem; border-radius: 4px; font-size: 0.85rem; border: 1px solid var(--va-background-border);">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 4px; align-items: center;">
-              <span style="font-weight: bold; color: var(--va-primary); display: flex; align-items: center;">
-                <span style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; background-color:var(--va-primary); color:white; border-radius:50%; font-size:0.75rem; margin-right:6px; font-weight:bold;">{{ s.stepOrder }}</span>
-                {{ getStepTypeLabel(s) }} - {{ getUserName(s.assigneeId) }}
-              </span>
-              <va-badge :color="s.stepType === 'DRAFT' ? 'info' : (s.status === 'APPROVED' ? 'success' : (s.status === 'REJECTED' ? 'danger' : 'warning'))" size="small">{{ getStepStatusLabel(s) }}</va-badge>
-            </div>
-            <div v-if="s.status === 'APPROVED' || s.status === 'REJECTED' || s.stepType === 'DRAFT'" style="font-size: 0.75rem; color: var(--va-text-secondary); margin-bottom: 4px; text-align: right;">
-              {{ formatDate(s.updatedAt) }} {{ t('processed') }}
-            </div>
-            <div v-if="s.comment" style="color: var(--va-text-primary); background: var(--va-background-secondary); padding: 4px 8px; border-radius: 4px; border-left: 3px solid var(--va-primary); font-style: italic;">
-              "{{ s.comment }}"
-            </div>
-            <div v-else style="color: var(--va-text-secondary); font-style: italic;">
-              {{ t('noComment') }}
-            </div>
+        </div>
+        
+        <div v-if="getObserversList(request?.observerIds).length > 0" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--va-background-border);">
+          <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--va-text-secondary);">{{ t('observers') }}</div>
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <va-badge v-for="obsId in getObserversList(request?.observerIds)" :key="obsId" color="info" preset="secondary">{{ getUserName(obsId) }}</va-badge>
           </div>
         </div>
       </div>
-      
-      <div v-if="getObserversList(request?.observerIds).length > 0" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--va-background-border);">
-        <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--va-text-secondary);">{{ t('observers') }}</div>
-        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-          <va-badge v-for="obsId in getObserversList(request?.observerIds)" :key="obsId" color="info" preset="secondary">{{ getUserName(obsId) }}</va-badge>
-        </div>
-      </div>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -196,26 +239,44 @@ const loadUsers = async () => {
   }
 }
 
-const loadFieldNamesForRecord = async (targetId) => {
+const loadFieldNamesForRequest = async (req) => {
+  if (!req) return;
   try {
-    const record = await $fetch(`/api/records/${targetId}`, { headers: { Authorization: `Bearer ${token.value}` } })
-    const nodeId = record?.node?.id || record?.nodeId;
+    let nodeId = req.nodeId || props.nodeId;
+    if (!nodeId && req.targetId) {
+      try {
+        const record = await $fetch(`/api/records/${req.targetId}`, { headers: { Authorization: `Bearer ${token.value}` } })
+        nodeId = record?.node?.id || record?.nodeId;
+      } catch (e) {}
+    }
+    if (!nodeId && req.integrationLog?.channelId) {
+      try {
+        const ch = await $fetch(`/api/admin/integration/channels/${req.integrationLog.channelId}`, { headers: { Authorization: `Bearer ${token.value}` } })
+        nodeId = ch?.nodeId;
+      } catch (e) {}
+    }
     if (nodeId) {
       const fields = await $fetch(`/api/nodes/${nodeId}/fields/effective`, { headers: { Authorization: `Bearer ${token.value}` } })
       if (fields && fields.length > 0) {
+        const map = {}
         fields.forEach(f => {
-          fieldNameMap.value[f.key] = f
+          if (f.key) {
+            map[f.key] = f
+            map[f.key.toUpperCase()] = f
+            map[f.key.toLowerCase()] = f
+          }
         })
+        fieldNameMap.value = map
       }
     }
   } catch (e) {
-    console.error('Error loading field names for record:', e)
+    console.error('Error loading field names for request:', e)
   }
 }
 
-watch(() => props.request, async (newReq) => {
-  if (newReq && ['RECORD', 'RECORD_UPDATE', 'RECORD_CREATE', 'RECORD_DELETE', 'CREATE', 'UPDATE', 'DELETE'].includes(newReq.targetType) && newReq.targetId) {
-    await loadFieldNamesForRecord(newReq.targetId);
+watch(() => [props.request, props.nodeId], async ([newReq]) => {
+  if (newReq) {
+    await loadFieldNamesForRequest(newReq);
   }
 }, { immediate: true })
 
@@ -340,6 +401,31 @@ const getFilesList = (v) => {
   return []
 }
 
+const formatValue = (val) => {
+  if (val === null || val === undefined || val === '') return '-';
+  let obj = val;
+  if (typeof val === 'string') {
+    if (val.trim().startsWith('{')) {
+      try { obj = JSON.parse(val); } catch (e) { return val; }
+    } else {
+      return val;
+    }
+  }
+  if (typeof obj === 'object' && obj !== null) {
+    if ('ko' in obj || 'en' in obj) {
+      const loc = currentLocale.value === 'en' ? 'en' : 'ko';
+      const primary = obj[loc] || obj.ko || obj.en;
+      const secondary = loc === 'ko' ? obj.en : obj.ko;
+      if (primary && secondary && primary !== secondary) {
+        return `${primary} (${secondary})`;
+      }
+      return primary || secondary || '-';
+    }
+    return JSON.stringify(obj);
+  }
+  return String(val);
+}
+
 const getFileName = (url) => {
   if (!url) return ''
   if (typeof url !== 'string') return 'Unknown File'
@@ -412,27 +498,36 @@ const getGroupedChangesList = (changesString, targetType) => {
       valAfter = parsed[key]
     }
     
-    const f = Object.values(fieldNameMap.value || {}).find(field => String(field.key).toUpperCase() === key) || { name: key, fieldGroup: null }
+    const f = Object.values(fieldNameMap.value || {}).find(field => field && field.key && (String(field.key).toUpperCase() === key || String(field.key).toLowerCase() === key.toLowerCase())) || { name: key, fieldGroup: null }
     
     const parseName = (nameObj) => {
       if (!nameObj) return null;
-      if (typeof nameObj === 'string') { try { return JSON.parse(nameObj) } catch(e){ return null } }
-      return nameObj
+      if (typeof nameObj === 'string') {
+        try {
+          const parsed = JSON.parse(nameObj);
+          if (typeof parsed === 'object' && parsed !== null) return parsed;
+          return nameObj;
+        } catch(e){
+          return nameObj;
+        }
+      }
+      return nameObj;
     }
     const translate = (nameObj, defaultKo, defaultEn) => {
       const p = parseName(nameObj)
       if (!p) return currentLocale.value === 'ko' ? defaultKo : defaultEn
+      if (typeof p === 'string') return p;
       return p[currentLocale.value] || p.ko || p.en || (currentLocale.value === 'ko' ? defaultKo : defaultEn)
     }
     
     const sObj = f.fieldGroup?.sector
     const gObj = f.fieldGroup
 
-    const sName = translate(sObj?.name, '?쇰컲', 'General')
+    const sName = translate(sObj?.name, '일반', 'General')
     const sKey = sObj?.id || 'default'
     const sOrder = sObj?.sortOrder || 0
     
-    const gName = translate(gObj?.name, '?꾨뱶', 'Fields')
+    const gName = translate(gObj?.name, '기본 정보', 'Basic Info')
     const gKey = gObj?.id || 'default'
     const gOrder = gObj?.sortOrder || 0
     
@@ -448,6 +543,30 @@ const getGroupedChangesList = (changesString, targetType) => {
     let displayValBefore = valBefore;
     let displayValAfter = valAfter;
     
+    const parseMultilingual = (val) => {
+      if (!val) return val;
+      let obj = val;
+      if (typeof val === 'string') {
+        try {
+          obj = JSON.parse(val);
+        } catch (e) {
+          return val;
+        }
+      }
+      if (typeof obj === 'object' && obj !== null) {
+        const isEmpty = Object.values(obj).every(v => !v || String(v).trim() === '');
+        if (isEmpty) return '-';
+        const loc = currentLocale.value === 'en' ? 'en' : 'ko';
+        const primary = obj[loc] || obj.ko || obj.en;
+        const secondary = loc === 'ko' ? obj.en : obj.ko;
+        if (primary && secondary && primary !== secondary) {
+          return `${primary} (${secondary})`;
+        }
+        return primary || secondary || JSON.stringify(obj);
+      }
+      return val;
+    };
+
     if (f.type === 'DOMAIN_REFERENCE') {
       let tDomainId = null
       try { tDomainId = JSON.parse(f.options || '{}').targetDomainId } catch(e){}
@@ -460,29 +579,8 @@ const getGroupedChangesList = (changesString, targetType) => {
         if (valAfter && !domainRefDisplayMap.value[valAfter]) fetchDomainRefName(valAfter, tDomainId);
         displayValAfter = domainRefDisplayMap.value[valAfter] || valAfter;
       }
-    } else if (f.type === 'MULTILINGUAL') {
+    } else if (f.type === 'MULTILINGUAL' || typeof valAfter === 'object' || typeof valBefore === 'object' || (typeof valAfter === 'string' && valAfter.trim().startsWith('{')) || (typeof valBefore === 'string' && valBefore.trim().startsWith('{'))) {
       try {
-        const parseMultilingual = (val) => {
-          if (!val) return val;
-          let obj = val;
-          if (typeof val === 'string') {
-            try {
-              obj = JSON.parse(val);
-            } catch (e) {
-              return val;
-            }
-          }
-          if (typeof obj === 'object') {
-            const isEmpty = Object.values(obj).every(v => !v || String(v).trim() === '');
-            if (isEmpty) return '-';
-            const koStr = obj.ko ? `[KR] ${obj.ko}` : '';
-            const enStr = obj.en ? `[EN] ${obj.en}` : '';
-            if (koStr && enStr) return `${koStr} / ${enStr}`;
-            return koStr || enStr || JSON.stringify(obj);
-          }
-          return val;
-        };
-
         if (targetType === 'RECORD_UPDATE') {
           displayValBefore = parseMultilingual(valBefore);
           displayValAfter = parseMultilingual(valAfter);

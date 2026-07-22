@@ -186,7 +186,6 @@ const saveMenu = async () => {
 }
 
 const deleteMenu = async (id) => {
-  if (!confirm('Are you sure you want to delete this menu?')) return
   try {
     await $fetch(`/api/menus/${id}`, {
       method: 'DELETE',

@@ -30,6 +30,11 @@ public class IntegrationLogController {
         return repository.findAll(pr);
     }
 
+    @GetMapping("/by-record/{recordId}")
+    public java.util.List<IntegrationLog> getLogsByRecordId(@PathVariable UUID recordId) {
+        return repository.findByRecordIdOrderByCreatedAtDesc(recordId);
+    }
+
     @PostMapping("/{logId}/retry")
     public org.springframework.http.ResponseEntity<Void> retryLog(@PathVariable UUID logId) {
         logService.retryLog(logId);

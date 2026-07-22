@@ -25,7 +25,7 @@ public class RecordHistory {
     @Column(name = "change_type", nullable = false, length = 20)
     private String changeType; // CREATE, UPDATE, DELETE
 
-    @Column(name = "changed_by", nullable = false)
+    @Column(name = "changed_by", nullable = true)
     private UUID changedBy;
 
     @JdbcTypeCode(SqlTypes.JSON)

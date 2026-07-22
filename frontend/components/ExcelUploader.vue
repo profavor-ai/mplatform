@@ -11,6 +11,10 @@
 
       <!-- Body -->
       <div class="p-6 overflow-y-auto flex-1">
+        <div v-if="uploadErrorMsg" class="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-md text-sm flex justify-between items-center">
+          <span>{{ uploadErrorMsg }}</span>
+          <button @click="uploadErrorMsg = ''" class="font-bold ml-2">&times;</button>
+        </div>
         
         <!-- Step 1: File Upload -->
         <div v-if="step === 1" class="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-10 bg-gray-50 dark:bg-gray-900">
@@ -139,6 +143,7 @@ const currentUser = computed(() => {
 });
 
 const step = ref(1);
+const uploadErrorMsg = ref('');
 const parsedData = ref([]);
 const excelHeaders = ref([]);
 const mapping = ref({}); // { fieldKey: excelHeaderName }
@@ -255,7 +260,7 @@ const handleFileUpload = (e) => {
       const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
       
       if (data.length < 2) {
-        alert("The Excel file does not contain enough data.");
+        uploadErrorMsg.value = "The Excel file does not contain enough data.";
         return;
       }
       
@@ -291,7 +296,7 @@ const handleFileUpload = (e) => {
       step.value = 2;
     } catch (err) {
       console.error(err);
-      alert("Error parsing Excel file.");
+      uploadErrorMsg.value = "Error parsing Excel file.";
     }
   };
   reader.readAsBinaryString(file);
@@ -308,7 +313,7 @@ const startUpload = async () => {
   });
   
   if (missingReq.length > 0) {
-    alert("Please map all required fields: " + missingReq.map(f => getTranslatedName(f.name)).join(', '));
+    uploadErrorMsg.value = "Please map all required fields: " + missingReq.map(f => getTranslatedName(f.name)).join(', ');
     return;
   }
 

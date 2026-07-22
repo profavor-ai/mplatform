@@ -1,23 +1,37 @@
 <template>
   <div style="display: flex; flex-direction: column; padding-bottom: 2rem;">
-    <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem; color: var(--va-text-primary);">{{ t('user_management') }}</h1>
+    <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem; color: var(--va-text-primary);">
+      {{ $t('user_management') }}
+    </h1>
 
     <div style="display: flex; gap: 1.5rem; align-items: flex-start; flex-wrap: wrap;">
       <!-- User List -->
-      <va-card style="flex: 1; min-width: 300px; display: flex; flex-direction: column;">
+      <va-card style="flex: 1; min-width: 320px; display: flex; flex-direction: column;">
         <va-card-title style="display: flex; justify-content: space-between; align-items: center;">
-          <span>{{ t('user_management') }}</span>
-          <va-input v-model="searchQuery" :placeholder="t('search') || 'Search'" @keyup.enter="fetchUsers" clearable @clear="fetchUsers" style="max-width: 150px;" />
+          <span>{{ $t('user_management') }}</span>
+          <va-input v-model="searchQuery" :placeholder="$t('search') || 'Search'" @keyup.enter="fetchUsers" clearable @clear="fetchUsers" style="max-width: 150px;" />
         </va-card-title>
         <va-card-content style="flex: 1; display: flex; flex-direction: column;">
           <va-list style="flex: 1;">
-            <va-list-item v-for="user in users" :key="user.id" @click="selectUser(user)" style="cursor: pointer; padding: 0.5rem; border-radius: 4px;" :style="selectedUser?.id === user.id ? 'background-color: var(--va-background-element);' : ''">
+            <va-list-item
+              v-for="user in users"
+              :key="user.id"
+              @click="selectUser(user)"
+              style="cursor: pointer; padding: 0.75rem 0.5rem; border-radius: 6px; margin-bottom: 0.25rem;"
+              :style="{
+                backgroundColor: selectedUser?.id === user.id ? 'var(--va-background-element)' : 'transparent',
+                border: selectedUser?.id === user.id ? '1px solid var(--va-primary)' : '1px solid transparent'
+              }"
+            >
               <va-list-item-section avatar>
-                <va-icon name="account_circle" />
+                <va-icon name="account_circle" size="large" />
               </va-list-item-section>
               <va-list-item-section>
-                <va-list-item-title style="font-weight: bold;">{{ user.username }}</va-list-item-title>
-                <va-list-item-subtitle style="font-size: 0.85rem; color: var(--va-text-secondary);">{{ user.role }}</va-list-item-subtitle>
+                <va-list-item-title style="font-weight: bold; font-size: 1rem;">{{ user.username }}</va-list-item-title>
+                <div style="display: flex; gap: 0.35rem; align-items: center; margin-top: 0.2rem; flex-wrap: wrap;">
+                  <va-badge :text="user.role || 'USER'" color="primary" size="small" />
+                  <va-badge :text="getOrgName(user.organizationId)" color="info" outline size="small" />
+                </div>
               </va-list-item-section>
             </va-list-item>
           </va-list>
@@ -27,22 +41,50 @@
         </va-card-content>
       </va-card>
 
-      <!-- Permissions -->
-      <va-card v-if="selectedUser" style="flex: 2; min-width: 400px;">
-        <va-card-title>{{ t('permissions') }}: {{ selectedUser.username }}</va-card-title>
+      <!-- Permissions & Org Assignment -->
+      <va-card v-if="selectedUser" style="flex: 2; min-width: 420px;">
+        <va-card-title style="display: flex; justify-content: space-between; align-items: center;">
+          <span>{{ $t('permissions') }}: {{ selectedUser.username }}</span>
+          <va-badge :text="selectedUser.username" color="success" />
+        </va-card-title>
         <va-card-content>
-          <div style="margin-bottom: 1rem;">
-            <h3 style="font-weight: bold; margin-bottom: 0.5rem; color: var(--va-text-primary);">{{ t('user_role') }}</h3>
-            <div style="display: flex; gap: 0.5rem;">
-              <va-select v-model="selectedUserRole" :options="['USER', 'MANAGER', 'ADMIN']" style="flex: 1;" />
-              <va-button @click="updateRole" :disabled="selectedUserRole === selectedUser.role">{{ t('update_role') }}</va-button>
+          
+          <!-- Organization & Role Setting -->
+          <div style="background: var(--va-background-secondary); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
+            <h3 style="font-weight: 700; margin-bottom: 1rem; color: var(--va-text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
+              <va-icon name="apartment" color="primary" />
+              {{ $t('belongs_to_org') }} & {{ $t('user_role') }}
+            </h3>
+
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+              <va-select
+                v-model="selectedUserOrgId"
+                :options="organizations"
+                value-by="id"
+                text-by="displayName"
+                :label="$t('belongs_to_org')"
+                outline
+              />
+              <va-select
+                v-model="selectedUserRole"
+                :options="['ORG_ADMIN', 'DATA_STEWARD', 'DOMAIN_EDITOR', 'DQ_MANAGER', 'VIEWER', 'ADMIN', 'USER']"
+                :label="$t('user_role')"
+                outline
+              />
+              <div style="display: flex; justify-content: flex-end;">
+                <va-button color="primary" icon="save" @click="updateUserTenantInfo">
+                  {{ $t('save_changes') }}
+                </va-button>
+              </div>
             </div>
           </div>
+
           <va-divider style="margin: 1.5rem 0;" />
 
+          <!-- Domain Permissions -->
           <div style="margin-bottom: 1rem;">
-            <h3 style="font-weight: bold; margin-bottom: 0.5rem; color: var(--va-text-primary);">{{ t('granted_domains') }}</h3>
-            <div v-if="userPermissions.length === 0" style="color: var(--va-text-secondary); font-size: 0.85rem;">{{ t('no_specific_domain_permissions') }}</div>
+            <h3 style="font-weight: bold; margin-bottom: 0.5rem; color: var(--va-text-primary);">{{ $t('granted_domains') }}</h3>
+            <div v-if="userPermissions.length === 0" style="color: var(--va-text-secondary); font-size: 0.85rem;">{{ $t('no_specific_domain_permissions') }}</div>
             <div v-else style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
               <va-chip v-for="perm in userPermissions" :key="perm.id" color="success" style="margin-bottom: 0.5rem;">
                 {{ getDomainName(perm.domain.name) }}
@@ -54,10 +96,10 @@
           <va-divider style="margin: 1.5rem 0;" />
           
           <div>
-            <h3 style="font-weight: bold; margin-bottom: 0.5rem; color: var(--va-text-primary);">{{ t('grant_new_permission') }}</h3>
+            <h3 style="font-weight: bold; margin-bottom: 0.5rem; color: var(--va-text-primary);">{{ $t('grant_new_permission') }}</h3>
             <div style="display: flex; gap: 0.5rem;">
-              <va-select v-model="selectedDomainToGrant" :options="availableDomains" value-by="id" text-by="label" :placeholder="t('select_a_domain')" style="flex: 1;" />
-              <va-button @click="grantPermission" :disabled="!selectedDomainToGrant">{{ t('grant') }}</va-button>
+              <va-select v-model="selectedDomainToGrant" :options="availableDomains" value-by="id" text-by="label" :placeholder="$t('select_a_domain')" style="flex: 1;" />
+              <va-button @click="grantPermission" :disabled="!selectedDomainToGrant">{{ $t('grant') }}</va-button>
             </div>
           </div>
         </va-card-content>
@@ -66,9 +108,9 @@
 
     <!-- Requests -->
     <va-card style="margin-top: 1.5rem;">
-      <va-card-title>{{ t('pending_domain_access_requests') }}</va-card-title>
+      <va-card-title>{{ $t('pending_domain_access_requests') }}</va-card-title>
       <va-card-content>
-        <div v-if="pendingRequests.length === 0" style="color: var(--va-text-secondary); font-size: 0.85rem;">{{ t('no_pending_requests') }}</div>
+        <div v-if="pendingRequests.length === 0" style="color: var(--va-text-secondary); font-size: 0.85rem;">{{ $t('no_pending_requests') }}</div>
         <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
           <va-card v-for="group in groupedPendingRequests" :key="group.userId" outlined style="transition: transform 0.2s, box-shadow 0.2s; cursor: default; background-color: var(--va-background-primary);" class="hoverable-card">
             <va-card-content style="display: flex; flex-direction: column; height: 100%; padding: 1.5rem;">
@@ -80,30 +122,29 @@
                   <div style="font-weight: 700; font-size: 1.15rem; color: var(--va-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                     {{ group.username }}
                   </div>
-                  <div style="font-size: 0.8rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.25rem; margin-top: 0.1rem;">
-                    <va-icon name="schedule" size="14px" />
-                    <span>{{ group.formattedDate }}</span>
+                  <div style="font-size: 0.8rem; color: var(--va-text-secondary); margin-top: 0.2rem;">
+                    {{ group.formattedDate }}
                   </div>
                 </div>
               </div>
-              
-              <div style="margin-bottom: 1.5rem; flex-grow: 1;">
-                <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 0.5rem; font-weight: 600;">
-                  {{ t('requested_access_to') }}
+
+              <div style="flex: 1; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.85rem; font-weight: 600; color: var(--va-text-secondary); margin-bottom: 0.5rem;">
+                  {{ $t('requested_domains') }} ({{ group.domains.length }})
                 </div>
-                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                  <va-chip v-for="domain in group.domains" :key="domain" color="primary" outline size="small" style="font-weight: 600; background-color: rgba(var(--va-primary-rgb), 0.05);">
-                    {{ domain }}
+                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; max-height: 100px; overflow-y: auto; padding: 0.2rem;">
+                  <va-chip v-for="(dom, idx) in group.domains" :key="idx" size="small" color="primary" outline>
+                    {{ dom }}
                   </va-chip>
                 </div>
               </div>
-              
-              <div style="display: flex; gap: 0.75rem;">
-                <va-button style="flex: 1; font-weight: 600;" color="success" @click="approveRequestGroup(group.reqIds)">
-                  {{ t('approve') }}
+
+              <div style="display: flex; gap: 0.75rem; justify-content: flex-end; border-top: 1px solid var(--va-background-element); padding-top: 1rem;">
+                <va-button color="danger" preset="secondary" size="small" @click="handleBatchReject(group.reqIds)">
+                  {{ $t('reject') }}
                 </va-button>
-                <va-button style="flex: 1; font-weight: 600;" color="danger" outline @click="rejectRequestGroup(group.reqIds)">
-                  {{ t('reject') }}
+                <va-button color="success" size="small" @click="handleBatchApprove(group.reqIds)">
+                  {{ $t('approve') }}
                 </va-button>
               </div>
             </va-card-content>
@@ -112,41 +153,123 @@
       </va-card-content>
     </va-card>
 
+    <!-- System Notification Modal -->
+    <va-modal
+      v-model="showErrorAlertModal"
+      :title="errorAlertTitle || $t('system_notification')"
+      hide-default-actions
+      size="small"
+      :prevent-click-outside="true"
+      :no-outside-dismiss="true"
+    >
+      <div style="padding: 1.25rem 0; text-align: center;">
+        <div
+          v-if="errorAlertType === 'success'"
+          style="width: 60px; height: 60px; border-radius: 50%; background: rgba(30, 203, 114, 0.12); color: #15803d; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;"
+        >
+          <va-icon name="check_circle" size="2.5rem" color="success" />
+        </div>
+        <div
+          v-else-if="errorAlertType === 'warning'"
+          style="width: 60px; height: 60px; border-radius: 50%; background: rgba(232, 139, 36, 0.12); color: #c2410c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;"
+        >
+          <va-icon name="warning" size="2.5rem" color="warning" />
+        </div>
+        <div
+          v-else
+          style="width: 60px; height: 60px; border-radius: 50%; background: rgba(229, 57, 53, 0.12); color: #b91c1c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;"
+        >
+          <va-icon name="error" size="2.5rem" color="danger" />
+        </div>
+
+        <h3
+          style="margin: 0 0 0.75rem 0; font-weight: 700; font-size: 1.25rem;"
+          :style="{
+            color: errorAlertType === 'success' ? '#15803d' : (errorAlertType === 'warning' ? '#c2410c' : '#b91c1c')
+          }"
+        >
+          {{ errorAlertHeader || $t('system_notification') }}
+        </h3>
+
+        <div style="background: var(--va-background-secondary); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 1rem 1.25rem; text-align: left; font-size: 0.92rem; color: var(--va-text-primary); max-height: 200px; overflow-y: auto; margin-bottom: 1.5rem; word-break: break-word; white-space: pre-wrap;">
+          {{ errorAlertMessage }}
+        </div>
+
+        <div style="display: flex; justify-content: center;">
+          <va-button
+            :color="errorAlertType === 'success' ? 'success' : (errorAlertType === 'warning' ? 'warning' : 'primary')"
+            preset="solid"
+            style="min-width: 120px;"
+            @click="showErrorAlertModal = false"
+          >
+            {{ $t('close') || '확인' }}
+          </va-button>
+        </div>
+      </div>
+    </va-modal>
   </div>
 </template>
 
 <script setup>
-import { useI18n } from 'vue-i18n'
 import { ref, onMounted, computed } from 'vue'
 import { useCookie } from '#app'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+
+const getDomainName = (nameObj) => {
+  if (!nameObj) return 'Unknown'
+  const lang = (locale && locale.value) ? locale.value : 'ko'
+  if (typeof nameObj === 'string') {
+    try {
+      const parsed = JSON.parse(nameObj)
+      return parsed[lang] || parsed.ko || parsed.en || 'Unknown'
+    } catch {
+      return nameObj
+    }
+  }
+  return nameObj[lang] || nameObj.ko || nameObj.en || 'Unknown'
+}
+
 const token = useCookie('auth_token')
-const currentLocale = useCookie('locale', { default: () => 'ko' })
+const showErrorAlertModal = ref(false)
+const errorAlertTitle = ref('')
+const errorAlertHeader = ref('')
+const errorAlertMessage = ref('')
+const errorAlertType = ref('success')
 
+const showCustomAlert = (msg, header = '', title = '', type = 'success') => {
+  errorAlertMessage.value = msg
+  errorAlertHeader.value = header
+  errorAlertTitle.value = title
+  errorAlertType.value = type
+  showErrorAlertModal.value = true
+}
 const users = ref([])
-const allDomains = ref([])
-const selectedUser = ref(null)
-const userPermissions = ref([])
-const pendingRequests = ref([])
-const selectedDomainToGrant = ref(null)
-const selectedUserRole = ref(null)
-
-const searchQuery = ref('')
 const currentPage = ref(1)
 const totalPages = ref(1)
+const searchQuery = ref('')
+const selectedUser = ref(null)
+const selectedUserRole = ref('USER')
+const selectedUserOrgId = ref(null)
+const organizations = ref([])
+
+const userPermissions = ref([])
+const allDomains = ref([])
+const selectedDomainToGrant = ref(null)
+const pendingRequests = ref([])
 
 const parseDate = (dateString) => {
   if (!dateString) return null
   let str = String(dateString).trim()
-  if (/^\d+$/.test(str)) {
-    return new Date(parseInt(str, 10))
+  if (str.includes(' ') && !str.includes('T')) {
+    str = str.replace(' ', 'T')
   }
-  if (!str.endsWith('Z') && !str.includes('+') && !/[-+]\d{2}:\d{2}$/.test(str)) {
-    if (str.includes(' ') && !str.includes('T')) {
-      str = str.replace(' ', 'T')
-    }
-    const serverOffset = useCookie('server_offset', { default: () => '+09:00' }).value
+  if (!str.endsWith('Z') && !str.includes('+') && !str.includes('-')) {
+    const tz = useCookie('timezone', { default: () => 'Asia/Seoul' }).value
+    let serverOffset = '+09:00'
+    if (tz === 'UTC' || tz === 'GMT') serverOffset = 'Z'
+    else if (tz === 'America/New_York') serverOffset = '-05:00'
+    else if (tz === 'Europe/London') serverOffset = '+00:00'
     str += serverOffset
   }
   const d = new Date(str)
@@ -187,6 +310,23 @@ const groupedPendingRequests = computed(() => {
   }))
 })
 
+const fetchOrganizations = async () => {
+  try {
+    const res = await $fetch('/api/organizations', {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    organizations.value = res || []
+  } catch (e) {
+    console.error('Failed to fetch orgs:', e)
+  }
+}
+
+const getOrgName = (orgId) => {
+  if (!orgId) return 'Default Org'
+  const found = organizations.value.find(o => o.id === orgId)
+  return found ? (found.displayName || found.name) : 'Default Org'
+}
+
 const fetchUsers = async () => {
   try {
     const res = await $fetch('/api/permissions/users', {
@@ -197,8 +337,8 @@ const fetchUsers = async () => {
         search: searchQuery.value || ''
       }
     })
-    users.value = res.content
-    totalPages.value = res.totalPages
+    users.value = res.content || []
+    totalPages.value = res.totalPages || 1
   } catch (e) {
     console.error(e)
   }
@@ -218,19 +358,39 @@ const fetchPendingRequests = async () => {
 
 const selectUser = async (user) => {
   selectedUser.value = user
-  selectedUserRole.value = user.role
+  selectedUserRole.value = user.role || 'USER'
+  selectedUserOrgId.value = user.organizationId || (organizations.value[0]?.id || null)
   await loadUserPermissions(user.id)
 }
 
-const updateRole = async () => {
-  if (!selectedUser.value || !selectedUserRole.value) return
-  await $fetch(`/api/permissions/users/${selectedUser.value.id}/role`, {
-    method: 'PUT',
-    headers: { Authorization: `Bearer ${token.value}` },
-    body: { role: selectedUserRole.value }
-  })
-  selectedUser.value.role = selectedUserRole.value
-  await fetchUsers()
+const updateUserTenantInfo = async () => {
+  if (!selectedUser.value) return
+  try {
+    await $fetch(`/api/permissions/users/${selectedUser.value.id}/tenant-info`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token.value}` },
+      body: {
+        role: selectedUserRole.value,
+        organizationId: selectedUserOrgId.value
+      }
+    })
+    selectedUser.value.role = selectedUserRole.value
+    selectedUser.value.organizationId = selectedUserOrgId.value
+    await fetchUsers()
+    showCustomAlert(
+      t('user_info_updated_msg') || 'User organization and role updated successfully.',
+      t('update_success') || 'Update Success',
+      t('notification') || 'Notification',
+      'success'
+    )
+  } catch (e) {
+    showCustomAlert(
+      e.message || String(e),
+      t('update_failed') || 'Update Failed',
+      t('error') || 'Error',
+      'error'
+    )
+  }
 }
 
 const loadUserPermissions = async (userId) => {
@@ -239,18 +399,7 @@ const loadUserPermissions = async (userId) => {
   })
 }
 
-const getDomainName = (nameObj) => {
-  if (!nameObj) return 'Unknown'
-  if (typeof nameObj === 'string') {
-    try {
-      const parsed = JSON.parse(nameObj)
-      return parsed[currentLocale.value] || parsed.ko || parsed.en || 'Unknown'
-    } catch {
-      return nameObj
-    }
-  }
-  return nameObj[currentLocale.value] || nameObj.ko || nameObj.en || 'Unknown'
-}
+
 
 const availableDomains = computed(() => {
   const grantedIds = userPermissions.value.map(p => p.domain.id)
@@ -278,63 +427,41 @@ const revokePermission = async (domainId) => {
   await loadUserPermissions(selectedUser.value.id)
 }
 
-const approveRequest = async (reqId) => {
-  await $fetch(`/api/permissions/requests/${reqId}/approve`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token.value}` }
-  })
-  await fetchPendingRequests()
-  if (selectedUser.value) {
-    await loadUserPermissions(selectedUser.value.id)
+const handleBatchApprove = async (reqIds) => {
+  try {
+    await Promise.all(reqIds.map(id => 
+      $fetch(`/api/permissions/requests/${id}/approve`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token.value}` }
+      })
+    ))
+    await fetchPendingRequests()
+    if (selectedUser.value) {
+      await loadUserPermissions(selectedUser.value.id)
+    }
+  } catch (e) {
+    console.error(e)
   }
 }
 
-const rejectRequest = async (reqId) => {
-  await $fetch(`/api/permissions/requests/${reqId}/reject`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token.value}` }
-  })
-  await fetchPendingRequests()
-}
-
-const approveRequestGroup = async (reqIds) => {
-  await Promise.all(reqIds.map(reqId => 
-    $fetch(`/api/permissions/requests/${reqId}/approve`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
-  ))
-  await fetchPendingRequests()
-  if (selectedUser.value) {
-    await loadUserPermissions(selectedUser.value.id)
+const handleBatchReject = async (reqIds) => {
+  try {
+    await Promise.all(reqIds.map(id => 
+      $fetch(`/api/permissions/requests/${id}/reject`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token.value}` },
+      })
+    ))
+    await fetchPendingRequests()
+  } catch (e) {
+    console.error(e)
   }
-}
-
-const rejectRequestGroup = async (reqIds) => {
-  await Promise.all(reqIds.map(reqId => 
-    $fetch(`/api/permissions/requests/${reqId}/reject`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
-  ))
-  await fetchPendingRequests()
 }
 
 onMounted(() => {
+  fetchOrganizations()
   fetchUsers()
   fetchDomains()
   fetchPendingRequests()
 })
 </script>
-
-<style scoped>
-.bg-primary-light {
-  background-color: var(--va-background-element);
-}
-
-.hoverable-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
-}
-
-</style>

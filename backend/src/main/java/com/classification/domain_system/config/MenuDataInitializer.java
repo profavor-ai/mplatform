@@ -62,6 +62,19 @@ public class MenuDataInitializer implements CommandLineRunner {
 
         Menu adminMenu = menuRepository.findAll().stream().filter(m -> "Admin".equals(m.getName())).findFirst().orElse(null);
         if (adminMenu != null) {
+            boolean orgExist = menuRepository.findAll().stream().anyMatch(m -> "/admin/organizations".equals(m.getPath()));
+            if (!orgExist) {
+                menuRepository.save(Menu.builder()
+                        .name("Organization Management")
+                        .path("/admin/organizations")
+                        .icon("corporate_fare")
+                        .parentId(adminMenu.getId())
+                        .sortOrder(1)
+                        .requiredRole("ADMIN")
+                        .isActive(true)
+                        .build());
+            }
+
             boolean channelsExist = menuRepository.findAll().stream().anyMatch(m -> "/admin/integration/channels".equals(m.getPath()));
             if (!channelsExist) {
                 menuRepository.save(Menu.builder()
@@ -69,7 +82,7 @@ public class MenuDataInitializer implements CommandLineRunner {
                         .path("/admin/integration/channels")
                         .icon("hub")
                         .parentId(adminMenu.getId())
-                        .sortOrder(5)
+                        .sortOrder(6)
                         .requiredRole("ADMIN")
                         .isActive(true)
                         .build());

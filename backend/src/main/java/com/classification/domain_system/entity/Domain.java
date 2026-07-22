@@ -21,6 +21,9 @@ public class Domain {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "organization_id")
+    private UUID organizationId;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false)
     private Map<String, String> name = new HashMap<>();

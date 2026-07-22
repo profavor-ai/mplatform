@@ -57,8 +57,32 @@ public class MatchingService {
                         if (!duplicates.isEmpty()) {
                             result.hasDuplicates = true;
                             duplicates.forEach(d -> result.duplicateRecordIds.add(d.getId()));
-                            result.message = "Duplicate found based on Identifier Field (" + idDef.getName() + ")";
+                            result.message = "Duplicate found based on Identifier Field (" + idDef.getKey() + ")";
                             return result;
+                        }
+                    }
+                }
+            }
+
+            // 1-1. Candidate Key Check (emp_id, id, code, required fields) if no explicit identifier field matched
+            if (!result.hasDuplicates) {
+                List<com.classification.domain_system.entity.FieldDefinition> domainFields = fieldDefinitionRepository.findDomainFieldsWithSort(node.getDomain().getId());
+                for (com.classification.domain_system.entity.FieldDefinition fd : domainFields) {
+                    String k = fd.getKey();
+                    if (data.containsKey(k) && data.get(k) != null && !data.get(k).toString().isBlank()) {
+                        String lowerK = k.toLowerCase();
+                        if (lowerK.endsWith("_id") || lowerK.endsWith("id") || lowerK.endsWith("_code") || lowerK.endsWith("code") || lowerK.endsWith("_no") || lowerK.endsWith("no") || Boolean.TRUE.equals(fd.getRequired())) {
+                            Object val = data.get(k);
+                            Map<String, String> searchParams = new HashMap<>();
+                            searchParams.put(k, val.toString());
+                            searchParams.put("op_" + k, "EQ");
+                            List<Record> duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
+                            if (!duplicates.isEmpty()) {
+                                result.hasDuplicates = true;
+                                duplicates.forEach(d -> result.duplicateRecordIds.add(d.getId()));
+                                result.message = "Duplicate found based on candidate key field (" + k + ")";
+                                return result;
+                            }
                         }
                     }
                 }

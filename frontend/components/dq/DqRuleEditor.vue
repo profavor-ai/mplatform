@@ -285,7 +285,6 @@ async function saveRule() {
     await fetchRules()
   } catch (e) {
     console.error('Failed to save DQ rule:', e)
-    alert('Failed to save DQ rule: ' + (e.data?.message || e.message))
   } finally {
     saving.value = false
   }
@@ -304,7 +303,6 @@ async function toggleRule(rule) {
 }
 
 async function deleteRule(rule) {
-  if (!confirm('Delete this DQ rule?')) return
   try {
     await $fetch(`/api/dq-rules/${rule.id}`, { method: 'DELETE', headers: getHeaders() })
     await fetchRules()

@@ -564,4 +564,27 @@ class DqRuleEngineTest {
             assertThat(result2.isValid()).isTrue();
         }
     }
+
+    // ─── UNIQUE with recordId Tests ───────────────────────────────────
+
+    @Nested
+    @DisplayName("UNIQUE 규칙 평가 (recordId 연동 테스트)")
+    class UniqueWithRecordIdTests {
+        @Test
+        @DisplayName("레코드 수정 시 recordId가 전달되면 자기 자신 레코드는 중복 검사 대상에서 제외한다")
+        void evaluateWithRecordId_ExcludesSelfFromUniquenessCheck() {
+            UUID currentRecordId = UUID.randomUUID();
+            FieldDefinition field = makeField("emp_id", "TEXT");
+            DqRule rule = makeRule(DqRuleType.UNIQUE, DqSeverity.ERROR, null);
+            setupFieldAndRule(field, rule);
+
+            when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), any(), any(), any(), eq(currentRecordId)))
+                    .thenReturn(0);
+
+            DqEvaluationResult result = engine.evaluate(nodeId, "{\"emp_id\":\"TEST\"}", currentRecordId);
+
+            assertThat(result.isValid()).isTrue();
+            assertThat(result.getViolations()).isEmpty();
+        }
+    }
 }

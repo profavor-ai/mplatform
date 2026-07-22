@@ -3,6 +3,7 @@ package com.classification.domain_system.service;
 import com.classification.domain_system.base.BaseServiceTest;
 import com.classification.domain_system.dto.RecordRequest;
 import com.classification.domain_system.entity.ApprovalRequest;
+import com.classification.domain_system.entity.WorkflowConfig;
 import com.classification.domain_system.entity.ApprovalStep;
 import com.classification.domain_system.entity.ClassificationNode;
 import com.classification.domain_system.entity.Domain;
@@ -306,6 +307,60 @@ class ApprovalServiceTest extends BaseServiceTest {
             assertThat(step.getStatus()).isEqualTo("APPROVED");
             verify(stepRepository).saveAndFlush(step);
             verify(eventPublisher).publishEvent(any(ApprovalStepApprovedEvent.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("requestRecordUpdate - DQ recordId 연동")
+    class RequestRecordUpdateDqTest {
+
+        @Test
+        @DisplayName("성공 - 레코드 수정 요청 시 recordId를 dqService.validateData에 전달하여 자기 자신 중복 오진 방지")
+        void passesRecordIdToDqService() {
+            UUID recordId = UUID.randomUUID();
+            UUID nodeId = UUID.randomUUID();
+            UUID requesterId = UUID.randomUUID();
+
+            Domain domain = new Domain();
+            domain.setId(UUID.randomUUID());
+
+            ClassificationNode node = new ClassificationNode();
+            node.setId(nodeId);
+            node.setDomain(domain);
+
+            Record record = new Record();
+            record.setId(recordId);
+            record.setStatus("ACTIVE");
+            record.setNode(node);
+
+            RecordRequest request = new RecordRequest();
+            request.setData("{\"emp_id\":\"TEST\"}");
+            request.setRequesterId(requesterId);
+            request.setComment("수정 요청");
+
+            DataQualityService.DQResult dqResult = new DataQualityService.DQResult();
+            dqResult.isValid = true;
+
+            MatchingService.DuplicateResult dupResult = new MatchingService.DuplicateResult();
+            dupResult.hasDuplicates = false;
+
+            given(recordRepository.findById(recordId)).willReturn(Optional.of(record));
+            given(dqService.validateData(eq(nodeId), eq("{\"emp_id\":\"TEST\"}"), eq(recordId))).willReturn(dqResult);
+            given(matchingService.checkDuplicates(eq(nodeId), any())).willReturn(dupResult);
+            given(approvalRepository.findByTargetIdAndStatus(eq(recordId), eq("PENDING"))).willReturn(Collections.emptyList());
+
+            WorkflowConfig config = new WorkflowConfig();
+            given(workflowConfigRepository.findByNodeIdAndActionType(eq(nodeId), eq("UPDATE"))).willReturn(Optional.of(config));
+
+            ApprovalRequest savedApproval = new ApprovalRequest();
+            savedApproval.setId(UUID.randomUUID());
+            savedApproval.setStatus("PENDING");
+            given(approvalRepository.saveAndFlush(any(ApprovalRequest.class))).willReturn(savedApproval);
+
+            ApprovalRequest result = approvalService.requestRecordUpdate(recordId, request);
+
+            assertThat(result).isNotNull();
+            verify(dqService).validateData(eq(nodeId), eq("{\"emp_id\":\"TEST\"}"), eq(recordId));
         }
     }
 }

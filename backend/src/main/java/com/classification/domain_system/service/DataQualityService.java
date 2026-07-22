@@ -44,10 +44,14 @@ public class DataQualityService {
     }
 
     public DQResult validateData(UUID nodeId, String jsonString) {
+        return validateData(nodeId, jsonString, null);
+    }
+
+    public DQResult validateData(UUID nodeId, String jsonString, UUID recordId) {
         DQResult result = new DQResult();
 
         // 1. Run new DQ Rule Engine
-        DqEvaluationResult engineResult = dqRuleEngine.evaluate(nodeId, jsonString);
+        DqEvaluationResult engineResult = dqRuleEngine.evaluate(nodeId, jsonString, recordId);
 
         // Add engine errors
         result.errors.addAll(engineResult.getErrorMessages());

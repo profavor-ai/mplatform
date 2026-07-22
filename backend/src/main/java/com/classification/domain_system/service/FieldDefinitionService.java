@@ -173,25 +173,35 @@ public class FieldDefinitionService {
     
     @Transactional(readOnly = true)
     public List<FieldDefinition> getEffectiveFields(UUID nodeId) {
-        ClassificationNode node = nodeRepository.findById(nodeId)
-                .orElseThrow(() -> new RuntimeException("Node not found"));
-        
-        List<FieldDefinition> domainFields = fieldRepository.findDomainFieldsWithSort(node.getDomain().getId());
-        List<FieldDefinition> nodeFields = fieldRepository.findNodeFieldsWithSort(nodeId);
-        
-        List<UUID> pathIds = new java.util.ArrayList<>();
-        ClassificationNode current = node.getParent();
-        while (current != null) {
-            pathIds.add(current.getId());
-            current = current.getParent();
+        if (nodeId == null) {
+            return java.util.Collections.emptyList();
         }
-            
-        List<FieldDefinition> inheritedFields = fieldRepository.findByDefinedAtNode_IdIn(pathIds);
+
+        ClassificationNode node = nodeRepository.findById(nodeId).orElse(null);
+        List<FieldDefinition> effectiveFields = new java.util.ArrayList<>();
         
-        java.util.List<FieldDefinition> effectiveFields = new java.util.ArrayList<>();
-        effectiveFields.addAll(domainFields);
-        effectiveFields.addAll(inheritedFields);
-        effectiveFields.addAll(nodeFields);
+        if (node != null) {
+            List<FieldDefinition> domainFields = fieldRepository.findDomainFieldsWithSort(node.getDomain().getId());
+            List<FieldDefinition> nodeFields = fieldRepository.findNodeFieldsWithSort(nodeId);
+            
+            List<UUID> pathIds = new java.util.ArrayList<>();
+            ClassificationNode current = node.getParent();
+            while (current != null) {
+                pathIds.add(current.getId());
+                current = current.getParent();
+            }
+                
+            List<FieldDefinition> inheritedFields = fieldRepository.findByDefinedAtNode_IdIn(pathIds);
+            
+            effectiveFields.addAll(domainFields);
+            effectiveFields.addAll(inheritedFields);
+            effectiveFields.addAll(nodeFields);
+        } else {
+            Domain domain = domainRepository.findById(nodeId).orElse(null);
+            if (domain != null) {
+                effectiveFields.addAll(fieldRepository.findDomainFieldsWithSort(domain.getId()));
+            }
+        }
 
         effectiveFields.sort((f1, f2) -> {
             int s1 = f1.getFieldGroup() != null && f1.getFieldGroup().getSector() != null ? (f1.getFieldGroup().getSector().getSortOrder() != null ? f1.getFieldGroup().getSector().getSortOrder() : 9999) : 9999;

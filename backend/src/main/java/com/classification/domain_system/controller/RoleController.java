@@ -1,0 +1,46 @@
+package com.classification.domain_system.controller;
+
+import com.classification.domain_system.entity.Role;
+import com.classification.domain_system.repository.RoleRepository;
+import com.classification.domain_system.service.RoleInitializer;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/roles")
+public class RoleController {
+
+    private final RoleRepository roleRepository;
+    private final RoleInitializer roleInitializer;
+
+    public RoleController(RoleRepository roleRepository, RoleInitializer roleInitializer) {
+        this.roleRepository = roleRepository;
+        this.roleInitializer = roleInitializer;
+    }
+
+    @GetMapping("/org/{orgId}")
+    public ResponseEntity<List<Role>> getRolesByOrg(@PathVariable UUID orgId) {
+        roleInitializer.createDefaultRolesForOrg(orgId);
+        return ResponseEntity.ok(roleRepository.findByOrganizationId(orgId));
+    }
+
+    @PostMapping
+    public ResponseEntity<Role> createRole(@RequestBody Role role) {
+        return ResponseEntity.ok(roleRepository.save(role));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Role> updateRole(@PathVariable UUID id, @RequestBody Role updated) {
+        return roleRepository.findById(id)
+                .map(existing -> {
+                    existing.setDisplayName(updated.getDisplayName());
+                    existing.setDescription(updated.getDescription());
+                    existing.setPermissions(updated.getPermissions());
+                    return ResponseEntity.ok(roleRepository.save(existing));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+}

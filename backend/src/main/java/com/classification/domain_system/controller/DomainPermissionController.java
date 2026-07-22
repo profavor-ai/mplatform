@@ -86,4 +86,22 @@ public class DomainPermissionController {
         userService.updateUserRole(userId, role);
         return ResponseEntity.ok().build();
     }
+
+    @PutMapping("/users/{userId}/tenant-info")
+    public ResponseEntity<Void> updateUserTenantInfo(@PathVariable String userId, @RequestBody Map<String, Object> payload) {
+        String role = (String) payload.get("role");
+        String orgIdStr = (String) payload.get("organizationId");
+        String teamIdStr = (String) payload.get("teamId");
+
+        UUID orgId = (orgIdStr != null && !orgIdStr.trim().isEmpty()) ? UUID.fromString(orgIdStr) : null;
+        UUID teamId = (teamIdStr != null && !teamIdStr.trim().isEmpty()) ? UUID.fromString(teamIdStr) : null;
+
+        User updateReq = new User();
+        updateReq.setRole(role);
+        updateReq.setOrganizationId(orgId);
+        updateReq.setTeamId(teamId);
+
+        userService.updateUserInfo(userId, updateReq);
+        return ResponseEntity.ok().build();
+    }
 }

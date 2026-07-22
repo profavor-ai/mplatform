@@ -124,7 +124,8 @@
                   :options="domains"
                   value-by="id"
                   text-by="name"
-                  :label="$t('integration.channels.select_domain')"
+                  :label="$t('integration.channels.select_domain') + (formData.direction === 'INBOUND' ? ' *' : '')"
+                  :rules="[v => formData.direction !== 'INBOUND' || !!v || $t('integration.channels.domain_required_for_inbound')]"
                   @update:modelValue="onDomainSelected"
                   clearable
                 />
@@ -133,7 +134,8 @@
                   :options="nodes"
                   value-by="id"
                   text-by="name"
-                  :label="$t('integration.channels.select_node')"
+                  :label="$t('integration.channels.select_node') + (formData.direction === 'INBOUND' ? ' *' : '')"
+                  :rules="[v => formData.direction !== 'INBOUND' || !!v || $t('integration.channels.node_required_for_inbound')]"
                   :disabled="!selectedDomainId"
                   clearable
                 />
@@ -729,7 +731,18 @@ const openEditModal = (row) => {
 
 const submitForm = async () => {
   if (!form.value.validate()) return
-  
+
+  if (formData.value.direction === 'INBOUND') {
+    if (!selectedDomainId.value) {
+      init({ message: t('integration.channels.domain_required_for_inbound'), color: 'danger' })
+      return
+    }
+    if (!formData.value.nodeId) {
+      init({ message: t('integration.channels.node_required_for_inbound'), color: 'danger' })
+      return
+    }
+  }
+
   serializeUiData()
 
   try {
@@ -750,12 +763,10 @@ const submitForm = async () => {
     fetchChannels()
   } catch (e) {
     console.error('Failed to save channel:', e)
-    alert(t('error_saving'))
   }
 }
 
 const confirmDelete = async (id) => {
-  if (!confirm(t('integration.channels.confirm_delete_channel'))) return
   try {
     await $fetch(`/api/admin/integration/channels/${id}`, {
       method: 'DELETE',
@@ -764,7 +775,6 @@ const confirmDelete = async (id) => {
     fetchChannels()
   } catch (e) {
     console.error('Failed to delete channel:', e)
-    alert(t('error_saving')) // Using error_saving as generic error for now or add specific
   }
 }
 

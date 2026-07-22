@@ -18,8 +18,19 @@ public class UserService {
     @Transactional(readOnly = true)
     public List<UserDto> getAllUsers() {
         return userRepository.findAll().stream()
-                .map(u -> new UserDto(u.getId(), u.getUsername(), u.getRole()))
+                .map(u -> new UserDto(u.getId(), u.getUsername(), u.getRole(), u.getOrganizationId(), u.getTeamId(), u.getIsActive()))
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public com.classification.domain_system.entity.User updateUserInfo(String userId, com.classification.domain_system.entity.User updateReq) {
+        com.classification.domain_system.entity.User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+        if (updateReq.getRole() != null) user.setRole(updateReq.getRole());
+        if (updateReq.getOrganizationId() != null) user.setOrganizationId(updateReq.getOrganizationId());
+        if (updateReq.getTeamId() != null) user.setTeamId(updateReq.getTeamId());
+        if (updateReq.getIsActive() != null) user.setIsActive(updateReq.getIsActive());
+        return userRepository.save(user);
     }
 
     @Transactional

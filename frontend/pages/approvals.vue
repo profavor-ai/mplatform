@@ -648,7 +648,6 @@ const getPendingColumnDefs = () => [
           showActionModal.value = true
         } catch (err) {
           console.error("Error opening modal:", err)
-          window.alert("모달 여는 중 오류 발생: " + err.message)
         }
       }
       eDiv.appendChild(eButton)
@@ -689,7 +688,6 @@ const pendingGridOptions = ref({
 
 const bulkApprove = async () => {
   if (!pendingSelectedRows.value.length) return
-  if (!confirm(t('bulk_approve_confirm', { count: pendingSelectedRows.value.length }))) return
   showLoading(t('bulk_approve_loading'))
   try {
     await Promise.all(pendingSelectedRows.value.map(row => handleAction(row.id, 'approve', true)))
@@ -702,7 +700,6 @@ const bulkApprove = async () => {
 
 const bulkReject = async () => {
   if (!pendingSelectedRows.value.length) return
-  if (!confirm(t('bulk_reject_confirm', { count: pendingSelectedRows.value.length }))) return
   showLoading(t('bulk_reject_loading'))
   try {
     await Promise.all(pendingSelectedRows.value.map(row => handleAction(row.id, 'reject', true)))
@@ -1470,7 +1467,6 @@ const loadRequests = async () => {
   }
 }
 const handleAction = async (stepId, action, isBulk = false) => {
-  if (!isBulk && !confirm(`Are you sure you want to ${action} this step?`)) return
   
   const comment = commentData.value[stepId] || ''
   

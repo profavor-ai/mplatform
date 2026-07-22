@@ -168,7 +168,7 @@
     />
 
     <!-- Create Record Modal -->
-    <va-modal v-model="showCreateModal" :title="`Create Record in ${selectedNode?.label}`" hide-default-actions>
+    <va-modal v-model="showCreateModal" :title="`Create Record in ${selectedNode?.label}`" hide-default-actions :prevent-click-outside="true" :no-outside-dismiss="true">
       <div style="max-height: 60vh; overflow-y: auto; overflow-x: hidden; padding: 1rem; box-sizing: border-box; width: 100%;">
         <div v-if="!hasCreateWorkflow" style="margin-bottom: 1rem; padding: 0.5rem; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; text-align: center; font-weight: bold;">
           This classification node does not have a CREATE workflow configured. You cannot save records.
@@ -198,7 +198,7 @@
               <div style="padding: 0.5rem 1rem; overflow: visible; box-sizing: border-box;">
                 <div class="row" style="row-gap: 1.25rem; margin: 0 -0.5rem; display: flex; flex-wrap: wrap;">
                   <template v-for="field in group.fields" :key="field.id">
-                    <div v-if="evalConditionRule(field, recordFormData).show" :class="['flex', 'xs' + (field.gridWidth || 12)]" style="padding: 0 0.5rem; min-width: 0; margin-bottom: 0.5rem;">
+                    <div v-if="evalConditionRule(field, recordFormData).show" :class="['flex', 'xs' + (field.gridWidth || 12)]" :data-field-key="field.key" style="padding: 0 0.5rem; min-width: 0; margin-bottom: 0.5rem;">
                       <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; min-width: 0; --va-input-font-size: 0.9rem;">
                         <!-- Unified External Label -->
                         <span :style="{ fontSize: '0.75rem', color: evalConditionRule(field, recordFormData).highlight ? 'var(--va-primary)' : 'var(--va-text-secondary)', fontWeight: evalConditionRule(field, recordFormData).highlight ? '800' : '600', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px', minHeight: '18px', lineHeight: '18px' }">
@@ -317,6 +317,8 @@
       :title="currentLocale === 'en' ? 'Data Quality Check' : 'DQ 품질 검증 결과'"
       hide-default-actions
       size="medium"
+      :prevent-click-outside="true"
+      :no-outside-dismiss="true"
     >
       <div style="padding: 0.5rem 0; min-height: 250px;">
         <div v-if="dqValidating" style="text-align: center; padding: 3rem;">
@@ -432,6 +434,101 @@
       </div>
     </va-modal>
 
+    <!-- Required Fields Warning Modal (Modern Modal replacing browser alert) -->
+    <va-modal
+      v-model="showRequiredWarningModal"
+      :title="currentLocale === 'en' ? 'Required Fields Missing' : '필수 항목 입력 안내'"
+      hide-default-actions
+      size="small"
+      :prevent-click-outside="true"
+      :no-outside-dismiss="true"
+    >
+      <div style="padding: 1rem 0; text-align: center;">
+        <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(229, 57, 53, 0.1); color: var(--va-danger); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
+          <va-icon name="warning" size="2rem" color="danger" />
+        </div>
+        <h4 style="margin: 0 0 0.5rem 0; font-weight: 700; color: var(--va-text-primary); font-size: 1.1rem;">
+          {{ currentLocale === 'en' ? 'Please fill in all required fields' : '필수 입력 항목을 확인해 주세요' }}
+        </h4>
+        <p style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 1.25rem;">
+          {{ currentLocale === 'en' ? 'The following fields must be completed before saving:' : '아래 필수 입력 항목이 누락되었습니다. 작성 후 다시 시도해 주세요.' }}
+        </p>
+
+        <div style="background: var(--va-background-secondary); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 0.75rem 1rem; text-align: left; max-height: 180px; overflow-y: auto; margin-bottom: 1.5rem;">
+          <div v-for="(item, idx) in missingRequiredFields" :key="idx" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0; font-size: 0.88rem; color: var(--va-danger); font-weight: 600;">
+            <va-icon name="error_outline" size="small" color="danger" />
+            <span>{{ item }}</span>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: center;">
+          <va-button color="primary" preset="solid" style="min-width: 110px;" @click="focusFirstMissingField">
+            {{ currentLocale === 'en' ? 'Got it' : '확인' }}
+          </va-button>
+        </div>
+      </div>
+    </va-modal>
+
+    <!-- System Notification Modal (supporting success, warning, error) -->
+    <va-modal
+      v-model="showErrorAlertModal"
+      :title="errorAlertTitle || (currentLocale === 'en' ? 'System Notification' : '시스템 알림')"
+      hide-default-actions
+      size="small"
+      :prevent-click-outside="true"
+      :no-outside-dismiss="true"
+    >
+      <div style="padding: 1.25rem 0; text-align: center;">
+        <!-- Success Icon -->
+        <div
+          v-if="errorAlertType === 'success'"
+          style="width: 60px; height: 60px; border-radius: 50%; background: rgba(30, 203, 114, 0.12); color: #15803d; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;"
+        >
+          <va-icon name="check_circle" size="2.5rem" color="success" />
+        </div>
+
+        <!-- Warning Icon -->
+        <div
+          v-else-if="errorAlertType === 'warning'"
+          style="width: 60px; height: 60px; border-radius: 50%; background: rgba(232, 139, 36, 0.12); color: #c2410c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;"
+        >
+          <va-icon name="warning" size="2.5rem" color="warning" />
+        </div>
+
+        <!-- Error Icon -->
+        <div
+          v-else
+          style="width: 60px; height: 60px; border-radius: 50%; background: rgba(229, 57, 53, 0.12); color: #b91c1c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;"
+        >
+          <va-icon name="error" size="2.5rem" color="danger" />
+        </div>
+
+        <h3
+          style="margin: 0 0 0.75rem 0; font-weight: 700; font-size: 1.25rem;"
+          :style="{
+            color: errorAlertType === 'success' ? '#15803d' : (errorAlertType === 'warning' ? '#c2410c' : '#b91c1c')
+          }"
+        >
+          {{ errorAlertHeader || (currentLocale === 'en' ? 'System Notification' : '시스템 알림') }}
+        </h3>
+
+        <div style="background: var(--va-background-secondary); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 1rem 1.25rem; text-align: left; font-size: 0.92rem; color: var(--va-text-primary); max-height: 200px; overflow-y: auto; margin-bottom: 1.5rem; word-break: break-word; white-space: pre-wrap;">
+          {{ errorAlertMessage }}
+        </div>
+
+        <div style="display: flex; justify-content: center;">
+          <va-button
+            :color="errorAlertType === 'success' ? 'success' : (errorAlertType === 'warning' ? 'warning' : 'primary')"
+            preset="solid"
+            style="min-width: 120px;"
+            @click="showErrorAlertModal = false"
+          >
+            {{ currentLocale === 'en' ? 'Close' : '확인' }}
+          </va-button>
+        </div>
+      </div>
+    </va-modal>
+
     <!-- Draft Comment Modal -->
     <va-modal
       v-model="showDraftCommentModal"
@@ -439,6 +536,8 @@
       :ok-text="currentLocale === 'en' ? 'Submit' : '상신'"
       :cancel-text="currentLocale === 'en' ? 'Cancel' : '취소'"
       @ok="executePendingSave"
+      :prevent-click-outside="true"
+      :no-outside-dismiss="true"
     >
       <div style="padding: 1rem;">
         <p style="margin-bottom: 1rem; color: #555;">
@@ -454,7 +553,7 @@
     </va-modal>
 
     <!-- Record Detail Modal -->
-    <va-modal v-model="showDetailModal" :title="isSnapshotMode ? `Record Snapshot - ${selectedNode?.label}` : `Record Details - ${selectedNode?.label}`" hide-default-actions>
+    <va-modal v-model="showDetailModal" :title="isSnapshotMode ? `Record Snapshot - ${selectedNode?.label}` : `Record Details - ${selectedNode?.label}`" hide-default-actions :prevent-click-outside="true" :no-outside-dismiss="true">
       <div style="max-height: 60vh; overflow-y: auto; overflow-x: hidden; padding: 1rem; box-sizing: border-box; width: 100%;">
         <div v-if="isSnapshotMode" style="margin-bottom: 1rem; padding: 0.5rem; background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 4px; text-align: center; font-weight: bold;">
           이전 데이터 스냅샷을 조회 중입니다. (읽기 전용)
@@ -489,7 +588,7 @@
               <div style="padding: 0.5rem 1rem; overflow: visible; box-sizing: border-box;">
                 <div class="row" style="row-gap: 1.25rem; margin: 0 -0.5rem; display: flex; flex-wrap: wrap;">
                   <template v-for="field in group.fields" :key="field.id">
-                    <div v-if="evalConditionRule(field, selectedRecordData).show" :class="['flex', 'xs' + (field.gridWidth || 12)]" style="padding: 0 0.5rem; min-width: 0; margin-bottom: 0.5rem;">
+                    <div v-if="evalConditionRule(field, selectedRecordData).show" :class="['flex', 'xs' + (field.gridWidth || 12)]" :data-field-key="field.key" style="padding: 0 0.5rem; min-width: 0; margin-bottom: 0.5rem;">
                       <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; min-width: 0; --va-input-font-size: 0.9rem;">
                         <span :style="{ fontSize: '0.75rem', color: evalConditionRule(field, selectedRecordData).highlight ? 'var(--va-primary)' : 'var(--va-text-secondary)', fontWeight: evalConditionRule(field, selectedRecordData).highlight ? '800' : '600', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px', minHeight: '18px', lineHeight: '18px' }">
                           <va-icon v-if="evalConditionRule(field, selectedRecordData).highlight" name="star" size="small" color="primary" />
@@ -619,10 +718,10 @@
     </va-modal>
 
     <!-- Record History Modal -->
-    <va-modal v-model="showHistoryModal" title="Record History" hide-default-actions size="large">
+    <va-modal v-model="showHistoryModal" title="Record History" hide-default-actions size="large" :prevent-click-outside="true" :no-outside-dismiss="true">
       <div style="max-height: 60vh; overflow-y: auto; padding: 1rem; box-sizing: border-box; width: 100%;">
         <div v-if="!historyLogs || historyLogs.length === 0" style="text-align: center; color: #777;">
-          이력 데이터가 없습니다.
+          {{ $t('no_history_data') || '이력 데이터가 없습니다.' }}
         </div>
         <div v-else>
           <va-data-table
@@ -641,7 +740,7 @@
               <va-badge
                 v-if="value === 'PENDING_APPROVAL'"
                 color="warning"
-                text="결재 진행중"
+                :text="$t('pending_approval') || '결재 진행중'"
               />
               <va-badge
                 v-else
@@ -651,38 +750,41 @@
             </template>
             <template #cell(diff)="{ row }">
               <div v-if="row.rowData.changeType === 'PENDING_APPROVAL' && row.rowData.rawRequest" style="padding: 0.25rem 0;">
-                <va-button size="small" outline @click="viewDiffDetails(row.rowData.rawRequest.changes, row.rowData.rawRequest.targetType, true)">변경 내역 보기</va-button>
+                <va-button size="small" outline @click="viewDiffDetails(row.rowData.rawRequest.changes, row.rowData.rawRequest.targetType, true)">{{ $t('view_changes') || '변경 내역 보기' }}</va-button>
                 <div style="margin-top: 0.25rem; font-size: 0.85rem; font-weight: bold; color: var(--va-primary); display: flex; align-items: center; gap: 0.25rem;">
                   <va-icon name="hourglass_empty" size="small" />
-                  <span>대기중: {{ getUserName(row.rowData.rawRequest.steps.find(s => s.status === 'PENDING')?.assigneeId) }}</span>
+                  <span>{{ $t('waiting_for') || '대기중' }}: {{ getUserName(row.rowData.rawRequest.steps.find(s => s.status === 'PENDING')?.assigneeId) }}</span>
                 </div>
               </div>
               <div v-else-if="row.rowData.changeType === 'UPDATE'" style="padding: 0.25rem 0;">
-                <va-button size="small" outline @click="viewDiffDetails(row.rowData.previousData, row.rowData.newData, false)">변경 내역 보기</va-button>
+                <va-button size="small" outline @click="viewDiffDetails(row.rowData.previousData, row.rowData.newData, false)">{{ $t('view_changes') || '변경 내역 보기' }}</va-button>
               </div>
               <div v-else-if="row.rowData.changeType === 'CREATE'" style="color: var(--va-success); font-size: 0.85rem; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
-                <va-badge color="success" text="CREATE" size="small" /> 초기 생성됨
+                <va-badge color="success" text="CREATE" size="small" /> {{ $t('initial_created') || '초기 생성됨' }}
               </div>
               <div v-else-if="row.rowData.changeType === 'DELETE'" style="color: #c62828; font-size: 0.85rem; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
-                <va-badge color="danger" text="DELETE" size="small" /> 삭제됨
+                <va-badge color="danger" text="DELETE" size="small" /> {{ $t('deleted_status') || '삭제됨' }}
               </div>
             </template>
             <template #cell(actions)="{ row }">
               <div v-if="row.rowData.changeType === 'CREATE'" style="display: flex; gap: 0.5rem;">
-                <va-button size="small" color="info" outline @click="viewSnapshot(row.rowData.newData)">스냅샷 보기</va-button>
-                <va-button v-if="row.rowData.approvalRequestId" size="small" color="secondary" outline @click="viewApprovalHistory(row.rowData)">결재 내역</va-button>
+                <va-button size="small" color="info" outline @click="viewSnapshot(row.rowData.newData)">{{ $t('view_snapshot') || '스냅샷 보기' }}</va-button>
+                <va-button v-if="row.rowData.approvalRequestId" size="small" color="secondary" outline @click="viewApprovalHistory(row.rowData)">{{ $t('approval_history_btn') || '결재 내역' }}</va-button>
+                <va-button v-else-if="row.rowData.sourceSystem" size="small" color="info" outline @click="viewIntegrationHistory(row.rowData)">{{ $t('integration_history_btn') || '연계 내역' }}</va-button>
               </div>
               <div v-else-if="row.rowData.changeType === 'DELETE'" style="display: flex; gap: 0.5rem;">
-                <va-button size="small" color="warning" outline @click="viewSnapshot(row.rowData.previousData)">마지막 스냅샷</va-button>
-                <va-button v-if="row.rowData.approvalRequestId" size="small" color="secondary" outline @click="viewApprovalHistory(row.rowData)">결재 내역</va-button>
+                <va-button size="small" color="warning" outline @click="viewSnapshot(row.rowData.previousData)">{{ $t('last_snapshot') || '마지막 스냅샷' }}</va-button>
+                <va-button v-if="row.rowData.approvalRequestId" size="small" color="secondary" outline @click="viewApprovalHistory(row.rowData)">{{ $t('approval_history_btn') || '결재 내역' }}</va-button>
+                <va-button v-else-if="row.rowData.sourceSystem" size="small" color="info" outline @click="viewIntegrationHistory(row.rowData)">{{ $t('integration_history_btn') || '연계 내역' }}</va-button>
               </div>
               <div v-else-if="row.rowData.changeType === 'UPDATE'" style="display: flex; gap: 0.5rem; flex-wrap: nowrap;">
-                <va-button size="small" color="warning" outline @click="viewSnapshot(row.rowData.previousData)">이전 스냅샷</va-button>
-                <va-button size="small" color="info" outline @click="viewSnapshot(row.rowData.newData)">이후 스냅샷</va-button>
-                <va-button v-if="row.rowData.approvalRequestId" size="small" color="secondary" outline @click="viewApprovalHistory(row.rowData)">결재 내역</va-button>
+                <va-button size="small" color="warning" outline @click="viewSnapshot(row.rowData.previousData)">{{ $t('prev_snapshot') || '이전 스냅샷' }}</va-button>
+                <va-button size="small" color="info" outline @click="viewSnapshot(row.rowData.newData)">{{ $t('next_snapshot') || '이후 스냅샷' }}</va-button>
+                <va-button v-if="row.rowData.approvalRequestId" size="small" color="secondary" outline @click="viewApprovalHistory(row.rowData)">{{ $t('approval_history_btn') || '결재 내역' }}</va-button>
+                <va-button v-else-if="row.rowData.sourceSystem" size="small" color="info" outline @click="viewIntegrationHistory(row.rowData)">{{ $t('integration_history_btn') || '연계 내역' }}</va-button>
               </div>
               <div v-else-if="row.rowData.changeType === 'PENDING_APPROVAL'" style="display: flex; gap: 0.5rem;">
-                <va-button size="small" color="warning" @click="viewApprovalHistory(row.rowData)">결재 모니터링</va-button>
+                <va-button size="small" color="warning" @click="viewApprovalHistory(row.rowData)">{{ $t('approval_monitoring') || '결재 모니터링' }}</va-button>
               </div>
             </template>
           </va-data-table>
@@ -694,7 +796,7 @@
     </va-modal>
 
     <!-- Record Snapshot Modal (New Modal) -->
-    <va-modal v-model="showSnapshotModal" :title="`Record Snapshot - ${selectedNode?.label}`" hide-default-actions>
+    <va-modal v-model="showSnapshotModal" :title="`Record Snapshot - ${selectedNode?.label}`" hide-default-actions :prevent-click-outside="true" :no-outside-dismiss="true">
       <div style="max-height: 60vh; overflow-y: auto; overflow-x: hidden; padding: 1rem; box-sizing: border-box; width: 100%;">
         <div style="margin-bottom: 1rem; padding: 0.5rem; background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 4px; text-align: center; font-weight: bold;">
           이전 데이터 스냅샷을 조회 중입니다. (읽기 전용)
@@ -804,7 +906,7 @@
     </va-modal>
 
     <!-- Diff Modal -->
-    <va-modal v-model="showDiffModal" title="변경 내역 상세" hide-default-actions size="large">
+    <va-modal v-model="showDiffModal" title="변경 내역 상세" hide-default-actions size="large" :prevent-click-outside="true" :no-outside-dismiss="true">
       <div style="padding: 1rem; box-sizing: border-box; width: 100%; max-height: 60vh; overflow-y: auto;">
         <div v-if="!selectedDiffs || selectedDiffs.length === 0" style="color: #777; font-style: italic;">
           변경된 필드가 없습니다.
@@ -836,8 +938,8 @@
       </div>
     </va-modal>
 
-    <!-- Approval History Modal -->
-    <va-modal v-model="showApprovalHistoryModal" title="결재 내역 상세" hide-default-actions size="large">
+    <!-- Approval / Integration History Modal -->
+    <va-modal v-model="showApprovalHistoryModal" :title="selectedApprovalRequest?.isIntegration ? ($t('integration.channels.integration_detail_title') || $t('integration_detail_title') || '연계 내역 상세') : ($t('integration.channels.approval_detail_title') || $t('approval_detail_title') || '결재 내역 상세')" hide-default-actions size="large" :prevent-click-outside="true" :no-outside-dismiss="true">
       <div style="max-height: 60vh; overflow-y: auto; padding: 1rem; box-sizing: border-box; width: 100%;">
         <div v-if="!selectedApprovalRequest" style="text-align: center; color: #777;">
           데이터를 불러오는 중입니다...
@@ -852,7 +954,7 @@
     </va-modal>
 
     <!-- Domain Reference Search Modal -->
-    <va-modal v-model="showDomainRefModal" title="Select Reference Record" hide-default-actions size="large">
+    <va-modal v-model="showDomainRefModal" title="Select Reference Record" hide-default-actions size="large" :prevent-click-outside="true" :no-outside-dismiss="true">
       <div style="height: 50vh; width: 100%; display: flex; flex-direction: column;">
         <div style="margin-bottom: 1rem; color: #666; font-size: 0.9rem;">
           원하시는 레코드를 목록에서 더블 클릭하여 선택해 주세요.
@@ -979,7 +1081,7 @@ const isDomainRefForCreate = ref(false)
 const openDomainRefModal = (fieldKey, isCreate = false) => {
   const refInfo = domainReferences.value[fieldKey]
   if (!refInfo) {
-    alert('Target domain reference info not loaded.')
+    showCustomAlert(t('target_domain_ref_not_loaded') || 'Target domain reference info not loaded.', t('notice') || 'Notice', t('notification') || 'Notification', 'warning')
     return
   }
   currentDomainRefFieldKey.value = fieldKey
@@ -1660,7 +1762,14 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
       defs.push(g)
     })
   
-  defs.push({ field: 'createdAt', headerName: 'Created At', sortable: true, width: 180 })
+  defs.push({
+    field: 'updatedAt',
+    headerName: t('updatedAt') || '변경일',
+    sortable: true,
+    width: 210,
+    valueGetter: (params) => params.data?.updatedAt || params.data?.createdAt,
+    valueFormatter: (params) => formatDate(params.value)
+  })
   return defs
 }
 
@@ -1880,6 +1989,23 @@ const formatViewingValue = (field, val) => {
 const showDetailModal = ref(false)
 const showHistoryModal = ref(false)
 const showSnapshotModal = ref(false)
+const showRequiredWarningModal = ref(false)
+const missingRequiredFields = ref([])
+const firstMissingFieldKey = ref(null)
+
+const showErrorAlertModal = ref(false)
+const errorAlertTitle = ref('')
+const errorAlertHeader = ref('')
+const errorAlertMessage = ref('')
+const errorAlertType = ref('error')
+
+const showCustomAlert = (msg, header = '', title = '', type = 'error') => {
+  errorAlertMessage.value = msg
+  errorAlertHeader.value = header
+  errorAlertTitle.value = title
+  errorAlertType.value = type
+  showErrorAlertModal.value = true
+}
 const snapshotRecordData = ref({})
 const activeSnapshotSectorTab = ref(0)
 const { showLoading, hideLoading } = useLoading()
@@ -1887,13 +2013,13 @@ const historyLogs = ref([])
 const showDiffModal = ref(false)
 const selectedDiffs = ref([])
 
-const historyColumns = [
-  { key: 'changedAt', label: '일시', sortable: true },
-  { key: 'changedBy', label: '처리자' },
-  { key: 'changeType', label: '유형' },
-  { key: 'diff', label: '변경 내역' },
-  { key: 'actions', label: '동작' }
-]
+const historyColumns = computed(() => [
+  { key: 'changedAt', label: t('date_time') || '일시', sortable: true },
+  { key: 'changedBy', label: t('processed_by') || '처리자' },
+  { key: 'changeType', label: t('change_type') || '유형' },
+  { key: 'diff', label: t('change_details') || '변경 내역' },
+  { key: 'actions', label: t('actions') || '동작' }
+])
 
 const showApprovalHistoryModal = ref(false)
 const selectedApprovalRequest = ref(null)
@@ -1956,8 +2082,42 @@ const viewApprovalHistory = async (row) => {
     selectedApprovalRequest.value = res
   } catch (e) {
     console.error('Failed to load approval details', e)
-    alert('Failed to load approval details')
+    showCustomAlert(t('failed_load_approval_details') || 'Failed to load approval details', t('error') || 'Error', t('notification') || 'Notification', 'error')
     showApprovalHistoryModal.value = false
+  }
+}
+
+const viewIntegrationHistory = async (row) => {
+  selectedApprovalRequest.value = null
+  selectedReflectionTime.value = row.changedAt
+  showApprovalHistoryModal.value = true
+  try {
+    const logs = await $fetch(`/api/admin/integration/logs/by-record/${row.recordId}`, {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    const log = logs && logs.length > 0 ? logs[0] : null
+    selectedApprovalRequest.value = {
+      isIntegration: true,
+      sourceSystem: row.sourceSystem || (log ? 'INBOUND' : 'SYSTEM'),
+      createdAt: row.changedAt,
+      changes: row.newData,
+      targetType: 'RECORD_CREATE',
+      targetId: row.recordId,
+      nodeId: selectedNode.value?.id,
+      integrationLog: log
+    }
+  } catch (e) {
+    console.error('Failed to load integration log details', e)
+    selectedApprovalRequest.value = {
+      isIntegration: true,
+      sourceSystem: row.sourceSystem || 'INBOUND',
+      createdAt: row.changedAt,
+      changes: row.newData,
+      targetType: 'RECORD_CREATE',
+      targetId: row.recordId,
+      nodeId: selectedNode.value?.id,
+      integrationLog: null
+    }
   }
 }
 
@@ -2122,7 +2282,7 @@ const openHistory = async () => {
     showHistoryModal.value = true
   } catch (e) {
     console.error('Failed to load history', e)
-    alert('Failed to load history')
+    showCustomAlert(t('failed_load_history') || 'Failed to load history', t('error') || 'Error', t('notification') || 'Notification', 'error')
   } finally {
     hideLoading()
   }
@@ -2294,7 +2454,12 @@ const saveEditedRecord = async () => {
     })
     isEditingRecord.value = false
     showDetailModal.value = false
-    alert('Record update request submitted successfully for approval.')
+    showCustomAlert(
+      currentLocale.value === 'en' ? 'Record update request submitted successfully for approval.' : '레코드 수정 요청이 정상 상신되었습니다.',
+      currentLocale.value === 'en' ? 'Request Submitted' : '요청 완료',
+      currentLocale.value === 'en' ? 'Notification' : '알림',
+      'success'
+    )
     await fetchRecords()
   } catch (e) {
     console.error('Failed to update record:', e)
@@ -2307,12 +2472,16 @@ const saveEditedRecord = async () => {
     } else if (errorMsg.includes('Domain is missing required field mappings')) {
       errorMsg = t('error_domain_missing_id')
     }
-    alert('Failed to submit update request: ' + errorMsg)
+    showCustomAlert(
+      errorMsg,
+      currentLocale.value === 'en' ? 'Failed to Submit Update Request' : '수정 요청 상신 실패',
+      currentLocale.value === 'en' ? 'Data Quality / Validation Error' : '데이터 품질 / 검증 오류',
+      'error'
+    )
   }
 }
 
 const requestDeleteRecord = async () => {
-  if (!confirm('Are you sure you want to request deletion for this record?')) return
   try {
     let reqId = currentUser.value?.uuid
     const payload = { requesterId: reqId, data: "{}" }
@@ -2322,12 +2491,22 @@ const requestDeleteRecord = async () => {
       body: payload
     })
     showDetailModal.value = false
-    alert('Record deletion request submitted successfully for approval.')
+    showCustomAlert(
+      currentLocale.value === 'en' ? 'Record deletion request submitted successfully for approval.' : '레코드 삭제 요청이 정상 상신되었습니다.',
+      currentLocale.value === 'en' ? 'Request Submitted' : '요청 완료',
+      currentLocale.value === 'en' ? 'Notification' : '알림',
+      'success'
+    )
     await fetchRecords()
   } catch (e) {
     console.error('Failed to request deletion:', e)
     const errorMsg = typeof e.response?._data === 'string' ? e.response._data : (e.response?._data?.message || e.message || 'Failed to request deletion.')
-    alert('Failed to submit deletion request: ' + errorMsg)
+    showCustomAlert(
+      errorMsg,
+      currentLocale.value === 'en' ? 'Failed to Submit Deletion Request' : '삭제 요청 상신 실패',
+      currentLocale.value === 'en' ? 'Error' : '오류',
+      'error'
+    )
   }
 }
 
@@ -2407,7 +2586,12 @@ const dqValidating = ref(false)
 const handleExcelUploaded = () => {
   showExcelUploader.value = false;
   fetchRecords();
-  alert('Bulk upload completed! Requests are now in PENDING status.');
+  showCustomAlert(
+    currentLocale.value === 'en' ? 'Bulk upload completed! Requests are now in PENDING status.' : '대량 엑셀 업로드가 완료되었습니다. 결재 대기 중(PENDING) 상태로 상신되었습니다.',
+    currentLocale.value === 'en' ? 'Upload Completed' : '업로드 완료',
+    currentLocale.value === 'en' ? 'Notification' : '알림',
+    'success'
+  );
 }
 
 const getFieldLabelByKey = (key) => {
@@ -2421,24 +2605,119 @@ const getViolationMessageText = (msgObj) => {
   return msgObj[currentLocale.value] || msgObj.ko || msgObj.en || Object.values(msgObj)[0] || 'Validation error'
 }
 
+const validateRequiredFields = (targetData) => {
+  const missingFields = []
+  firstMissingFieldKey.value = null
+  if (!nodeFields.value || !targetData) return missingFields
+
+  nodeFields.value.forEach(field => {
+    if (field.isRemoved) return
+    const rule = evalConditionRule(field, targetData)
+    if (!rule.show) return
+
+    const isReq = Boolean(rule.required || field.required)
+    if (isReq) {
+      const val = targetData[field.key]
+      let isEmpty = false
+
+      if (val === null || val === undefined) {
+        isEmpty = true
+      } else if (field.type === 'MULTILINGUAL') {
+        let obj = val
+        if (typeof val === 'string') {
+          try { obj = JSON.parse(val) } catch (e) {}
+        }
+        if (typeof obj === 'object' && obj !== null) {
+          const hasVal = Object.values(obj).some(v => v !== null && v !== undefined && String(v).trim() !== '')
+          if (!hasVal) isEmpty = true
+        } else if (String(val).trim() === '') {
+          isEmpty = true
+        }
+      } else if (typeof val === 'string') {
+        if (val.trim() === '') isEmpty = true
+      } else if (Array.isArray(val)) {
+        if (val.length === 0) isEmpty = true
+      }
+
+      if (isEmpty) {
+        const labelName = getTranslatedName(field.name) || field.key
+        missingFields.push(labelName)
+        if (!firstMissingFieldKey.value) {
+          firstMissingFieldKey.value = field.key
+        }
+      }
+    }
+  })
+
+  return missingFields
+}
+
+const focusFirstMissingField = () => {
+  showRequiredWarningModal.value = false
+  if (!firstMissingFieldKey.value) return
+
+  const targetKey = firstMissingFieldKey.value
+  
+  // Find sector index and group for targetKey
+  const fieldObj = nodeFields.value?.find(f => f.key === targetKey)
+  if (fieldObj) {
+    const sId = fieldObj.fieldGroup?.sector?.id || 'default'
+    const sIdx = groupedFieldsArray.value.findIndex(s => s.key === sId)
+    if (sIdx !== -1) {
+      activeSectorTab.value = sIdx
+      const groupObj = groupedFieldsArray.value[sIdx]?.groups?.find(g => g.key === (fieldObj.fieldGroup?.id || 'default'))
+      if (groupObj) {
+        groupObj.isOpen = true
+      }
+    }
+  }
+
+  nextTick(() => {
+    setTimeout(() => {
+      const wrapper = document.querySelector(`[data-field-key="${targetKey}"]`)
+      if (wrapper) {
+        wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        const inputEl = wrapper.querySelector('input, textarea, select')
+        if (inputEl && typeof inputEl.focus === 'function') {
+          inputEl.focus()
+        }
+      }
+    }, 150)
+  })
+}
+
 const promptDraftComment = async (action) => {
+  const targetData = action === 'CREATE' ? recordFormData.value : selectedRecordData.value
+
+  const missing = validateRequiredFields(targetData)
+  if (missing.length > 0) {
+    missingRequiredFields.value = missing
+    showRequiredWarningModal.value = true
+    return
+  }
+
   if (action === 'UPDATE') {
     const orig = JSON.stringify(formatDataForSave(originalRecordData.value))
     const curr = JSON.stringify(formatDataForSave(selectedRecordData.value))
     if (orig === curr) {
-      alert('변경된 데이터가 없습니다.')
+      showCustomAlert(
+        currentLocale.value === 'en' ? 'No data has been modified.' : '변경된 데이터가 없습니다.',
+        currentLocale.value === 'en' ? 'No Changes' : '변경 없음',
+        currentLocale.value === 'en' ? 'Notice' : '안내',
+        'warning'
+      )
       return
     }
   }
   pendingSaveAction.value = action
 
-  const targetData = action === 'CREATE' ? recordFormData.value : selectedRecordData.value
   const formattedData = formatDataForSave(targetData)
 
   dqValidating.value = true
   showDqValidationModal.value = true
   try {
-    const res = await $fetch(`/api/dq-rules/validate?nodeId=${selectedNode.value.id}`, {
+    const recIdQuery = action === 'UPDATE' && selectedRecordId.value ? `&recordId=${selectedRecordId.value}` : ''
+    const res = await $fetch(`/api/dq-rules/validate?nodeId=${selectedNode.value.id}${recIdQuery}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token.value}` },
       body: { data: JSON.stringify(formattedData) }
@@ -2457,14 +2736,6 @@ const fixDataAndReturn = () => {
 }
 
 const proceedToDraftComment = () => {
-  if ((dqValidationResult.value.errors || []).length > 0) {
-    const confirmMsg = currentLocale.value === 'en'
-      ? 'DQ Error(s) exist. Do you still want to proceed with submission?'
-      : '품질 오류(ERROR)가 존재합니다. 그대로 상신을 진행하시겠습니까?'
-    if (!confirm(confirmMsg)) {
-      return
-    }
-  }
   showDqValidationModal.value = false
   draftCommentText.value = ''
   showDraftCommentModal.value = true
@@ -2547,7 +2818,12 @@ const saveRecord = async () => {
     } else if (errorMsg.includes('Domain is missing required field mappings')) {
       errorMsg = t('error_domain_missing_id')
     }
-    alert(`Data Quality / Workflow Error:\n\n${errorMsg}`)
+    showCustomAlert(
+      errorMsg,
+      currentLocale.value === 'en' ? 'Failed to Create Record' : '레코드 생성 실패',
+      currentLocale.value === 'en' ? 'Data Quality / Validation Error' : '데이터 품질 / 검증 오류',
+      'error'
+    )
     console.error('Full error:', error, error.response?._data)
   }
 }

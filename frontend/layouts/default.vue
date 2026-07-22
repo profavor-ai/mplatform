@@ -20,6 +20,12 @@
                   <va-icon :name="isDark ? 'light_mode' : 'dark_mode'" size="large" />
                 </va-button>
                 
+                <!-- Organization Badge -->
+                <va-chip size="small" color="info" style="color: white; background: rgba(255, 255, 255, 0.2); border: none;" class="mr-2 hide-mobile">
+                  <va-icon name="corporate_fare" size="small" class="mr-1" />
+                  <span>{{ currentOrgName || 'Default Organization' }}</span>
+                </va-chip>
+
                 <!-- User Profile Dropdown -->
                 <va-dropdown placement="bottom-end" stick-to-edges>
                   <template #anchor>
@@ -256,7 +262,6 @@ const handleSaveTimezone = async () => {
     window.location.reload()
   } catch (e) {
     console.error('Failed to save timezone:', e)
-    alert('Failed to save timezone to the server.')
   } finally {
     isSavingTimezone.value = false
   }

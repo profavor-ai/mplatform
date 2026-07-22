@@ -26,4 +26,8 @@ public class User {
     private String password;
     private String role;
     private String timezone;
+
+    private UUID organizationId;
+    private UUID teamId;
+    private Boolean isActive = true;
 }

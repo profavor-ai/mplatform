@@ -107,10 +107,8 @@ const submitAccessRequest = async () => {
     ))
     isOpen.value = false
     selectedDomainToRequest.value = []
-    alert('Requests submitted successfully!')
   } catch (e) {
     console.error('Error submitting requests:', e)
-    alert('Failed to submit requests.')
   }
 }
 </script>

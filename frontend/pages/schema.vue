@@ -527,6 +527,60 @@
       :fieldId="dqTargetFieldId"
       :fieldName="dqTargetFieldName"
     />
+    <!-- System Notification Modal -->
+    <va-modal
+      v-model="showErrorAlertModal"
+      :title="errorAlertTitle || $t('system_notification')"
+      hide-default-actions
+      size="small"
+      :prevent-click-outside="true"
+      :no-outside-dismiss="true"
+    >
+      <div style="padding: 1.25rem 0; text-align: center;">
+        <div
+          v-if="errorAlertType === 'success'"
+          style="width: 60px; height: 60px; border-radius: 50%; background: rgba(30, 203, 114, 0.12); color: #15803d; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;"
+        >
+          <va-icon name="check_circle" size="2.5rem" color="success" />
+        </div>
+        <div
+          v-else-if="errorAlertType === 'warning'"
+          style="width: 60px; height: 60px; border-radius: 50%; background: rgba(232, 139, 36, 0.12); color: #c2410c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;"
+        >
+          <va-icon name="warning" size="2.5rem" color="warning" />
+        </div>
+        <div
+          v-else
+          style="width: 60px; height: 60px; border-radius: 50%; background: rgba(229, 57, 53, 0.12); color: #b91c1c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;"
+        >
+          <va-icon name="error" size="2.5rem" color="danger" />
+        </div>
+
+        <h3
+          style="margin: 0 0 0.75rem 0; font-weight: 700; font-size: 1.25rem;"
+          :style="{
+            color: errorAlertType === 'success' ? '#15803d' : (errorAlertType === 'warning' ? '#c2410c' : '#b91c1c')
+          }"
+        >
+          {{ errorAlertHeader || $t('system_notification') }}
+        </h3>
+
+        <div style="background: var(--va-background-secondary); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 1rem 1.25rem; text-align: left; font-size: 0.92rem; color: var(--va-text-primary); max-height: 200px; overflow-y: auto; margin-bottom: 1.5rem; word-break: break-word; white-space: pre-wrap;">
+          {{ errorAlertMessage }}
+        </div>
+
+        <div style="display: flex; justify-content: center;">
+          <va-button
+            :color="errorAlertType === 'success' ? 'success' : (errorAlertType === 'warning' ? 'warning' : 'primary')"
+            preset="solid"
+            style="min-width: 120px;"
+            @click="showErrorAlertModal = false"
+          >
+            {{ $t('close') || '확인' }}
+          </va-button>
+        </div>
+      </div>
+    </va-modal>
   </div>
 </template>
 
@@ -543,6 +597,20 @@ import { useCookie, useState } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
 
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
+
+const showErrorAlertModal = ref(false)
+const errorAlertTitle = ref('')
+const errorAlertHeader = ref('')
+const errorAlertMessage = ref('')
+const errorAlertType = ref('success')
+
+const showCustomAlert = (msg, header = '', title = '', type = 'success') => {
+  errorAlertMessage.value = msg
+  errorAlertHeader.value = header
+  errorAlertTitle.value = title
+  errorAlertType.value = type
+  showErrorAlertModal.value = true
+}
 
 const currentLocale = useCookie('locale', { default: () => 'ko' })
 const token = useCookie('auth_token', { default: () => '' })
@@ -1067,10 +1135,10 @@ const saveWorkflowConfigs = async () => {
       headers: getAuthHeaders(),
       body: payloads
     })
-    alert('Workflow configurations saved successfully.')
+    showCustomAlert('Workflow configurations saved successfully.', 'Save Success', 'Notification', 'success')
   } catch (e) {
     console.error('Failed to save workflows', e)
-    alert('Failed to save workflows.')
+    showCustomAlert('Failed to save workflows.', 'Save Failed', 'Error', 'error')
   }
 }
 
@@ -1320,7 +1388,7 @@ const saveDomain = async () => {
     showDomainModal.value = false
     await loadTree()
   } catch (e) {
-    alert(t('error_saving_domain'))
+    showCustomAlert(t('error_saving_domain'), 'Domain Save Error', 'Error', 'error')
   }
 }
 
@@ -1344,14 +1412,14 @@ const saveNode = async () => {
     showNodeModal.value = false
     await loadTree()
   } catch (e) {
-    alert('Error saving node')
+    showCustomAlert('Error saving node', 'Save Error', 'Error', 'error')
   }
 }
 
 const saveField = async () => {
   const duplicate = fields.value.find(f => f.key === newField.value.key && (!isEditMode.value || f.id !== editingId.value))
   if (duplicate) {
-    alert(t('field_key_already_exists_newfield_value_key'))
+    showCustomAlert(t('field_key_already_exists_newfield_value_key'), 'Key Duplicate', 'Warning', 'warning')
     return
   }
   
@@ -1359,19 +1427,19 @@ const saveField = async () => {
   if (['SELECT', 'MULTI_SELECT'].includes(newField.value.type)) {
     const hasEmptyKey = newFieldOptionsList.value.some(opt => !opt.key || String(opt.key).trim() === '')
     if (hasEmptyKey) {
-      alert(t('enter_key_all_options'))
+      showCustomAlert(t('enter_key_all_options'), 'Input Missing', 'Warning', 'warning')
       return
     }
     existingOptsObj = { optionsList: newFieldOptionsList.value }
   } else if (newField.value.type === 'DOMAIN_REFERENCE') {
     if (!newField.value.targetDomainId) {
-      alert(t('please_select_a_target_domain'))
+      showCustomAlert(t('please_select_a_target_domain'), 'Domain Missing', 'Warning', 'warning')
       return
     }
     existingOptsObj = { targetDomainId: newField.value.targetDomainId }
   } else if (newField.value.type === 'CALCULATED') {
     if (!newField.value.formula || String(newField.value.formula).trim() === '') {
-      alert(t('enter_formula'))
+      showCustomAlert(t('enter_formula'), 'Formula Missing', 'Warning', 'warning')
       return
     }
     try {
@@ -1380,7 +1448,7 @@ const saveField = async () => {
       const fn = new Function('ROUND', 'ABS', 'CEIL', 'FLOOR', `return ${testFormula};`)
       fn(ROUND, Math.abs, Math.ceil, Math.floor)
     } catch (e) {
-      alert(t('syntax_error_in_formula_e_message'))
+      showCustomAlert(t('syntax_error_in_formula_e_message'), 'Formula Syntax Error', 'Error', 'error')
       return
     }
     existingOptsObj = { formula: newField.value.formula.trim() }
@@ -1459,7 +1527,7 @@ const saveField = async () => {
     showFieldModal.value = false
     await onNodeSelected(selectedNode.value)
   } catch (error) {
-    alert('Error saving field')
+    showCustomAlert('Error saving field', 'Save Error', 'Error', 'error')
   }
 }
 
@@ -1482,7 +1550,7 @@ const onSectorRowSaved = async (event) => {
   const data = event.data
   const dId = selectedNode.value.domainId
   if (!data.name?.ko && !data.name?.en) {
-    alert('Sector name is required.')
+    showCustomAlert('Sector name is required.', 'Input Missing', 'Warning', 'warning')
     domainSectors.value = await $fetch(`/api/domains/${dId}/sectors`, { headers: getAuthHeaders() })
     return
   }
@@ -1493,19 +1561,19 @@ const onSectorRowSaved = async (event) => {
       await $fetch(`/api/domains/${dId}/sectors`, { method: 'POST', headers: getAuthHeaders(), body: data })
     }
     domainSectors.value = await $fetch(`/api/domains/${dId}/sectors`, { headers: getAuthHeaders() })
-  } catch(e) { alert('Error saving sector') }
+  } catch(e) { showCustomAlert('Error saving sector', 'Save Error', 'Error', 'error') }
 }
 
 const onGroupRowSaved = async (event) => {
   const data = event.data
   const dId = selectedNode.value.domainId
   if (!data.name?.ko && !data.name?.en) {
-    alert('Group name is required.')
+    showCustomAlert('Group name is required.', 'Input Missing', 'Warning', 'warning')
     domainGroups.value = await $fetch(`/api/domains/${dId}/groups`, { headers: getAuthHeaders() })
     return
   }
   if (!data.sector?.id) {
-    alert('Sector is required.')
+    showCustomAlert('Sector is required.', 'Input Missing', 'Warning', 'warning')
     domainGroups.value = await $fetch(`/api/domains/${dId}/groups`, { headers: getAuthHeaders() })
     return
   }
@@ -1524,7 +1592,7 @@ const onGroupRowSaved = async (event) => {
       await $fetch(`/api/domains/${dId}/groups`, { method: 'POST', headers: getAuthHeaders(), body: payload })
     }
     domainGroups.value = await $fetch(`/api/domains/${dId}/groups`, { headers: getAuthHeaders() })
-  } catch(e) { alert('Error saving group') }
+  } catch(e) { showCustomAlert('Error saving group', 'Save Error', 'Error', 'error') }
 }
 
 const deleteSelectedSector = async () => {
@@ -1562,7 +1630,7 @@ const deleteGroup = async (id) => {
     })
     domainGroups.value = await $fetch(`/api/domains/${dId}/groups`, { headers: { Authorization: `Bearer ${token.value}` } })
     cancelEditGroup()
-  } catch (e) { alert('Error deleting group.') }
+  } catch (e) { showCustomAlert('Error deleting group.', 'Delete Error', 'Error', 'error') }
 }
 </script>
 

@@ -3,9 +3,13 @@ package com.classification.domain_system.integration;
 import com.classification.domain_system.entity.ClassificationNode;
 import com.classification.domain_system.entity.IntegrationChannel;
 import com.classification.domain_system.entity.Record;
+import com.classification.domain_system.entity.RecordHistory;
 import com.classification.domain_system.repository.ClassificationNodeRepository;
 import com.classification.domain_system.repository.IntegrationChannelRepository;
+import com.classification.domain_system.repository.RecordHistoryRepository;
 import com.classification.domain_system.repository.RecordRepository;
+import com.classification.domain_system.service.MatchingService;
+import com.classification.domain_system.service.dq.DqRuleEngine;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +34,9 @@ public class InboundIntegrationService {
     private final IntegrationChannelRepository channelRepository;
     private final ClassificationNodeRepository nodeRepository;
     private final RecordRepository recordRepository;
+    private final RecordHistoryRepository recordHistoryRepository;
+    private final MatchingService matchingService;
+    private final DqRuleEngine dqRuleEngine;
     private final DataMappingTransformer mappingTransformer;
     private final IntegrationLogService logService;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -52,17 +60,27 @@ public class InboundIntegrationService {
         try {
             String transformedPayload = mappingTransformer.transformPayload(rawPayload, channel.getMappingConfigJson());
 
-            // 채널에 연계 노드가 설정된 경우 Record로 저장
+            // 채널에 연계 노드(또는 도메인)가 설정된 경우 Record로 저장
             List<UUID> savedRecordIds = new ArrayList<>();
+            ClassificationNode targetNode = null;
             if (channel.getNodeId() != null) {
-                ClassificationNode node = nodeRepository.findById(channel.getNodeId()).orElse(null);
-                if (node != null) {
-                    savedRecordIds = saveAsRecords(node, transformedPayload, channel.getName());
-                } else {
-                    log.warn("[Inbound] Channel [{}]의 nodeId [{}]에 해당하는 노드를 찾을 수 없습니다.", channel.getName(), channel.getNodeId());
+                targetNode = nodeRepository.findById(channel.getNodeId()).orElse(null);
+            }
+            if (targetNode == null) {
+                UUID domainId = extractDomainIdFromConfig(channel.getConfigJson());
+                if (domainId != null) {
+                    List<ClassificationNode> rootNodes = nodeRepository.findByDomain_IdAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId);
+                    if (!rootNodes.isEmpty()) {
+                        targetNode = rootNodes.get(0);
+                        log.info("[Inbound] Channel [{}]의 nodeId가 없으므로 도메인[{}]의 Root Node[{}]로 자동 지정합니다.", channel.getName(), domainId, targetNode.getId());
+                    }
                 }
+            }
+
+            if (targetNode != null) {
+                savedRecordIds = saveAsRecords(targetNode, transformedPayload, channel.getName());
             } else {
-                log.warn("[Inbound] Channel [{}]에 연계 노드가 설정되어 있지 않아 Record 저장을 건너뜁니다.", channel.getName());
+                throw new IllegalArgumentException("Inbound 연계 채널에 데이터 수신 대상 도메인 및 분류 노드가 설정되어 있지 않습니다. 연계 채널 설정을 확인해 주세요.");
             }
 
             UUID firstRecordId = savedRecordIds.isEmpty() ? null : savedRecordIds.get(0);
@@ -87,40 +105,98 @@ public class InboundIntegrationService {
     }
 
     /**
-     * 변환된 payload를 Record로 저장한다.
-     * payload가 JSON 배열이면 각 요소를 개별 Record로, 단일 객체이면 1건으로 저장한다.
+     * 변환된 payload를 Record로 저장하고 RecordHistory를 함께 생성한다.
+     * 중복 검사(MatchingService)를 거쳐 중복 데이터는 UPDATE, 신규 데이터는 INSERT하며, DQE 규칙 평가를 수행한다.
      */
     private List<UUID> saveAsRecords(ClassificationNode node, String transformedPayload, String sourceSystem) {
         List<UUID> savedIds = new ArrayList<>();
         try {
             JsonNode root = objectMapper.readTree(transformedPayload);
             if (root.isArray()) {
-                // 배열: 각 요소를 개별 Record로 저장
+                // 배열: 각 요소를 개별 Record로 Upsert 처리
                 for (JsonNode item : root) {
-                    Record record = new Record();
-                    record.setNode(node);
-                    record.setStatus("ACTIVE");
-                    record.setSourceSystem(sourceSystem);
-                    record.setData(objectMapper.writeValueAsString(item));
-                    Record saved = recordRepository.save(record);
-                    savedIds.add(saved.getId());
-                    log.debug("[Inbound] Record 저장 완료: id={}", saved.getId());
+                    String itemJson = objectMapper.writeValueAsString(item);
+                    UUID id = saveOrUpdateSingleRecord(node, itemJson, sourceSystem);
+                    if (id != null) savedIds.add(id);
                 }
             } else {
-                // 단일 객체
-                Record record = new Record();
-                record.setNode(node);
-                record.setStatus("ACTIVE");
-                record.setSourceSystem(sourceSystem);
-                record.setData(transformedPayload);
-                Record saved = recordRepository.save(record);
-                savedIds.add(saved.getId());
-                log.debug("[Inbound] Record 저장 완료: id={}", saved.getId());
+                // 단일 객체 Upsert 처리
+                UUID id = saveOrUpdateSingleRecord(node, transformedPayload, sourceSystem);
+                if (id != null) savedIds.add(id);
             }
         } catch (Exception e) {
-            log.error("[Inbound] Record 저장 중 오류: {}", e.getMessage(), e);
+            log.error("[Inbound] Record/RecordHistory 저장 중 오류: {}", e.getMessage(), e);
         }
         return savedIds;
+    }
+
+    private UUID saveOrUpdateSingleRecord(ClassificationNode node, String itemJson, String sourceSystem) {
+        MatchingService.DuplicateResult dupCheck = matchingService.checkDuplicates(node.getId(), itemJson);
+
+        if (dupCheck.hasDuplicates && dupCheck.duplicateRecordIds != null && !dupCheck.duplicateRecordIds.isEmpty()) {
+            // UPDATE: 기존 레코드 갱신
+            UUID existingId = dupCheck.duplicateRecordIds.get(0);
+            Record existingRecord = recordRepository.findById(existingId).orElse(null);
+            if (existingRecord != null) {
+                String prevData = existingRecord.getData();
+                existingRecord.setData(itemJson);
+                existingRecord.setSourceSystem(sourceSystem);
+                int nextVer = (existingRecord.getVersion() != null ? existingRecord.getVersion() : 1) + 1;
+                existingRecord.setVersion(nextVer);
+                existingRecord.setUpdatedAt(LocalDateTime.now());
+                Record saved = recordRepository.save(existingRecord);
+
+                RecordHistory history = new RecordHistory();
+                history.setRecordId(saved.getId());
+                history.setChangeType("UPDATE");
+                history.setChangedBy(null);
+                history.setPreviousData(prevData);
+                history.setNewData(itemJson);
+                history.setApprovalRequestId(null);
+                history.setVersion(nextVer);
+                history.setSourceSystem(sourceSystem);
+                recordHistoryRepository.save(history);
+
+                // DQE 평가 수행
+                try {
+                    dqRuleEngine.evaluate(node.getId(), itemJson, saved.getId());
+                } catch (Exception e) {
+                    log.error("[Inbound DQE] Error evaluating record [{}]: {}", saved.getId(), e.getMessage());
+                }
+
+                log.info("[Inbound] 기존 레코드 발견으로 UPDATE 처리 완료: id={}, ver={}", saved.getId(), nextVer);
+                return saved.getId();
+            }
+        }
+
+        // INSERT: 신규 레코드 생성
+        Record record = new Record();
+        record.setNode(node);
+        record.setStatus("ACTIVE");
+        record.setSourceSystem(sourceSystem);
+        record.setData(itemJson);
+        Record saved = recordRepository.save(record);
+
+        RecordHistory history = new RecordHistory();
+        history.setRecordId(saved.getId());
+        history.setChangeType("CREATE");
+        history.setChangedBy(null);
+        history.setPreviousData(null);
+        history.setNewData(itemJson);
+        history.setApprovalRequestId(null);
+        history.setVersion(1);
+        history.setSourceSystem(sourceSystem);
+        recordHistoryRepository.save(history);
+
+        // DQE 평가 수행
+        try {
+            dqRuleEngine.evaluate(node.getId(), itemJson, saved.getId());
+        } catch (Exception e) {
+            log.error("[Inbound DQE] Error evaluating record [{}]: {}", saved.getId(), e.getMessage());
+        }
+
+        log.info("[Inbound] 신규 레코드 INSERT 처리 완료: id={}", saved.getId());
+        return saved.getId();
     }
 
 
@@ -164,5 +240,18 @@ public class InboundIntegrationService {
         } catch (Exception e) {
             log.error("Authentication check exception for channel [{}]: {}", channel.getName(), e.getMessage());
         }
+    }
+
+    private UUID extractDomainIdFromConfig(String configJson) {
+        if (configJson == null || configJson.isBlank()) return null;
+        try {
+            JsonNode config = objectMapper.readTree(configJson);
+            if (config.has("domainId") && !config.get("domainId").isNull() && !config.get("domainId").asText().isBlank()) {
+                return UUID.fromString(config.get("domainId").asText());
+            }
+        } catch (Exception e) {
+            log.error("[Inbound] configJson domainId 추출 실패: {}", e.getMessage());
+        }
+        return null;
     }
 }

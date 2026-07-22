@@ -139,9 +139,10 @@ public class DqRuleController {
     @PostMapping("/dq-rules/validate")
     public ResponseEntity<DqEvaluationResponse> validatePreview(
             @RequestParam UUID nodeId,
+            @RequestParam(required = false) UUID recordId,
             @RequestBody Map<String, Object> body) {
         String data = body.containsKey("data") ? body.get("data").toString() : "{}";
-        DqEvaluationResult engineResult = dqRuleEngine.evaluate(nodeId, data);
+        DqEvaluationResult engineResult = dqRuleEngine.evaluate(nodeId, data, recordId);
         return ResponseEntity.ok(toEvaluationResponse(engineResult));
     }
 
