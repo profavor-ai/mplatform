@@ -20,7 +20,7 @@ public class IntegrationLog {
     @Column(nullable = false)
     private UUID channelId;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private UUID recordId;
 
     @Column(nullable = false, length = 50)

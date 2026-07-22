@@ -32,6 +32,9 @@ public class IntegrationChannelController {
 
     @PostMapping
     public IntegrationChannel create(@RequestBody IntegrationChannel channel) {
+        if (channel.getDirection() == null || channel.getDirection().isBlank()) {
+            channel.setDirection("OUTBOUND");
+        }
         return repository.save(channel);
     }
 
@@ -40,6 +43,9 @@ public class IntegrationChannelController {
         return repository.findById(id).map(channel -> {
             channel.setName(updated.getName());
             channel.setType(updated.getType());
+            if (updated.getDirection() != null && !updated.getDirection().isBlank()) {
+                channel.setDirection(updated.getDirection());
+            }
             channel.setNodeId(updated.getNodeId());
             channel.setConfigJson(updated.getConfigJson());
             channel.setMappingConfigJson(updated.getMappingConfigJson());

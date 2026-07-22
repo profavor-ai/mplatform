@@ -23,6 +23,17 @@ public class IntegrationChannel {
     @Column(nullable = false, length = 50)
     private String type; // WEB_SERVICE, JDBC, MESSAGE_QUEUE
 
+    @Column(nullable = false, length = 20)
+    @org.hibernate.annotations.ColumnDefault("'OUTBOUND'")
+    private String direction = "OUTBOUND"; // INBOUND, OUTBOUND
+
+    public String getDirection() {
+        if (this.direction == null || this.direction.isBlank()) {
+            return "OUTBOUND";
+        }
+        return this.direction;
+    }
+
     @Column(name = "node_id")
     private UUID nodeId; // Associated Domain (ClassificationNode) ID
 

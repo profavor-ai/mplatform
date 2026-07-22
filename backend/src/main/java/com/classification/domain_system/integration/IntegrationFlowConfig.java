@@ -68,6 +68,7 @@ public class IntegrationFlowConfig {
                     List<IntegrationChannel> activeChannels = channelRepository.findByIsActiveTrue();
                     
                     return activeChannels.stream()
+                        .filter(channel -> channel.getDirection() == null || "OUTBOUND".equalsIgnoreCase(channel.getDirection()))
                         .filter(channel -> channel.getNodeId() == null || channel.getNodeId().equals(event.getNodeId()))
                         .map(channel -> 
                             MessageBuilder.withPayload(event.getPayloadJson())

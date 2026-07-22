@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface IntegrationChannelRepository extends JpaRepository<IntegrationChannel, UUID> {
     List<IntegrationChannel> findByIsActiveTrue();
+    List<IntegrationChannel> findByIsActiveTrueAndDirection(String direction);
 }
