@@ -42,6 +42,7 @@ public class DqRuleController {
     @Transactional
     public ResponseEntity<DqRuleResponse> createRule(@PathVariable UUID fieldId,
                                                       @RequestBody DqRuleRequest request) {
+        checkAdminAccess();
         FieldDefinition field = fieldDefinitionRepository.findById(fieldId)
                 .orElseThrow(() -> new RuntimeException("Field not found: " + fieldId));
 
@@ -86,6 +87,7 @@ public class DqRuleController {
     @Transactional
     public ResponseEntity<DqRuleResponse> updateRule(@PathVariable UUID ruleId,
                                                       @RequestBody DqRuleRequest request) {
+        checkAdminAccess();
         DqRule rule = dqRuleRepository.findById(ruleId)
                 .orElseThrow(() -> new RuntimeException("DQ Rule not found: " + ruleId));
 
@@ -115,11 +117,21 @@ public class DqRuleController {
     @DeleteMapping("/dq-rules/{ruleId}")
     @Transactional
     public ResponseEntity<Void> deleteRule(@PathVariable UUID ruleId) {
+        checkAdminAccess();
         if (!dqRuleRepository.existsById(ruleId)) {
             throw new RuntimeException("DQ Rule not found: " + ruleId);
         }
         dqRuleRepository.deleteById(ruleId);
         return ResponseEntity.noContent().build();
+    }
+
+    private void checkAdminAccess() {
+        org.springframework.security.core.Authentication auth =
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()) || "ADMIN".equals(a.getAuthority()))) {
+            throw new org.springframework.security.access.AccessDeniedException("Access denied. Admin role required.");
+        }
     }
 
     // ─── Validation Preview ──────────────────────────────────────────

@@ -48,10 +48,14 @@ public class DqRuleEngine {
      * Returns a result containing all violations (both ERROR and WARNING).
      */
     public DqEvaluationResult evaluate(UUID nodeId, String jsonString) {
-        return evaluate(nodeId, jsonString, null);
+        return evaluate(nodeId, jsonString, null, null);
     }
 
     public DqEvaluationResult evaluate(UUID nodeId, String jsonString, UUID recordId) {
+        return evaluate(nodeId, jsonString, recordId, null);
+    }
+
+    public DqEvaluationResult evaluate(UUID nodeId, String jsonString, UUID recordId, Map<UUID, List<FieldDefinition>> nodeFieldsCache) {
         DqEvaluationResult result = new DqEvaluationResult();
 
         JsonNode dataNode;
@@ -67,7 +71,16 @@ public class DqRuleEngine {
         ClassificationNode node = nodeRepository.findById(nodeId).orElse(null);
         UUID domainId = node != null && node.getDomain() != null ? node.getDomain().getId() : null;
 
-        List<FieldDefinition> effectiveFields = fieldDefinitionService.getEffectiveFields(nodeId);
+        List<FieldDefinition> effectiveFields;
+        if (nodeFieldsCache != null && nodeFieldsCache.containsKey(nodeId)) {
+            effectiveFields = nodeFieldsCache.get(nodeId);
+        } else {
+            effectiveFields = fieldDefinitionService.getEffectiveFields(nodeId);
+            if (nodeFieldsCache != null) {
+                nodeFieldsCache.put(nodeId, effectiveFields);
+            }
+        }
+
         List<UUID> fieldIds = effectiveFields.stream()
                 .map(FieldDefinition::getId)
                 .filter(Objects::nonNull)
@@ -131,45 +144,61 @@ public class DqRuleEngine {
     /**
      * Scan all existing records in a domain against all active DQ rules,
      * record any violations in the dq_violation table, and calculate DQ score.
+     * Uses batch bulk deletion, node fields caching, and paged batch inserts for high performance.
      */
     @org.springframework.transaction.annotation.Transactional
     public Map<String, Object> runDomainDqScan(UUID domainId) {
-        List<com.classification.domain_system.entity.Record> records =
-                recordRepository.findByDomainId(domainId, org.springframework.data.domain.Pageable.unpaged()).getContent();
+        // Bulk delete existing violations for domain
+        violationRepository.deleteByDomainId(domainId);
 
-        for (com.classification.domain_system.entity.Record record : records) {
-            violationRepository.deleteByRecordId(record.getId());
+        // Node fields cache during scan session to prevent N+1 queries
+        Map<UUID, List<FieldDefinition>> nodeFieldsCache = new HashMap<>();
 
-            if (record.getNode() == null || record.getData() == null) continue;
+        int pageSize = 500;
+        int pageNumber = 0;
+        org.springframework.data.domain.Page<com.classification.domain_system.entity.Record> recordPage;
 
-            DqEvaluationResult evalResult = evaluate(record.getNode().getId(), record.getData(), record.getId());
+        do {
+            recordPage = recordRepository.findByDomainId(
+                    domainId, org.springframework.data.domain.PageRequest.of(pageNumber, pageSize));
+            List<DqViolation> batchViolations = new ArrayList<>();
 
-            for (DqEvaluationResult.Violation v : evalResult.getViolations()) {
-                DqViolation violation = new DqViolation();
-                violation.setRecordId(record.getId());
-                violation.setDqRuleId(v.getRuleId() != null ? v.getRuleId() : UUID.randomUUID());
-                violation.setFieldKey(v.getFieldKey());
-                violation.setSeverity(v.getSeverity());
-                violation.setMessage(v.getMessage());
-                violation.setActualValue(v.getActualValue());
-                violation.setCheckedAt(java.time.LocalDateTime.now());
-                violation.setResolved(false);
-                violationRepository.save(violation);
+            for (com.classification.domain_system.entity.Record record : recordPage.getContent()) {
+                if (record.getNode() == null || record.getData() == null) continue;
+
+                DqEvaluationResult evalResult = evaluate(record.getNode().getId(), record.getData(), record.getId(), nodeFieldsCache);
+
+                for (DqEvaluationResult.Violation v : evalResult.getViolations()) {
+                    DqViolation violation = new DqViolation();
+                    violation.setRecordId(record.getId());
+                    violation.setDqRuleId(v.getRuleId() != null ? v.getRuleId() : UUID.randomUUID());
+                    violation.setFieldKey(v.getFieldKey());
+                    violation.setSeverity(v.getSeverity());
+                    violation.setMessage(v.getMessage());
+                    violation.setActualValue(v.getActualValue());
+                    violation.setCheckedAt(java.time.LocalDateTime.now());
+                    violation.setResolved(false);
+                    batchViolations.add(violation);
+                }
             }
-        }
+
+            if (!batchViolations.isEmpty()) {
+                violationRepository.saveAll(batchViolations);
+            }
+            pageNumber++;
+        } while (recordPage.hasNext());
 
         return getDomainDqScore(domainId);
     }
 
     /**
-     * Calculate DQ score for a domain.
-     * Automatically triggers a batch scan to ensure scores and violations reflect all active rules.
+     * Calculate DQ score for a domain without triggering a rescan (read-only).
      */
     public Map<String, Object> getDomainDqScore(UUID domainId) {
         Map<String, Object> scoreData = new HashMap<>();
 
         long totalRecords = recordRepository.findByDomainId(
-                domainId, org.springframework.data.domain.Pageable.unpaged()).getTotalElements();
+                domainId, org.springframework.data.domain.PageRequest.of(0, 1)).getTotalElements();
 
         List<Object[]> violationsByField = violationRepository.countViolationsByFieldKeyForDomain(domainId);
         List<Object[]> violationsBySeverity = violationRepository.countViolationsBySeverityForDomain(domainId);
@@ -179,7 +208,7 @@ public class DqRuleEngine {
                 .sum();
 
         double score = totalRecords > 0
-                ? Math.round((1.0 - Math.min(1.0, (double) totalViolations / totalRecords)) * 10000.0) / 100.0
+                ? Math.round(Math.max(0.0, (1.0 - (double) totalViolations / totalRecords)) * 10000.0) / 100.0
                 : 100.0;
 
         scoreData.put("domainId", domainId);
@@ -357,7 +386,65 @@ public class DqRuleEngine {
         if ("GREATER_THAN".equalsIgnoreCase(op) || ">".equals(op)) return parseDouble(targetVal) > parseDouble(val);
         if ("GREATER_THAN_OR_EQUAL".equalsIgnoreCase(op) || ">=".equals(op)) return parseDouble(targetVal) >= parseDouble(val);
         if ("LESS_THAN".equalsIgnoreCase(op) || "<".equals(op)) return parseDouble(targetVal) < parseDouble(val);
-        if ("LESS_THAN_OR_EQUAL".equalsIgnoreCase(op) || "<=".equals(op)) return parseDouble(targetVal) <= parseDouble(val);
         return false;
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public com.classification.domain_system.dto.PageResponse<com.classification.domain_system.dto.DqViolationResponse> getDomainDqViolations(
+            UUID domainId, String severity, String fieldKey, org.springframework.data.domain.Pageable pageable) {
+        org.springframework.data.domain.Page<DqViolation> violationPage = violationRepository.findViolationsByDomainId(
+                domainId, severity, fieldKey, pageable);
+
+        List<com.classification.domain_system.dto.DqViolationResponse> responses = violationPage.getContent().stream().map(v -> {
+            com.classification.domain_system.dto.DqViolationResponse dto = new com.classification.domain_system.dto.DqViolationResponse();
+            dto.setId(v.getId());
+            dto.setRecordId(v.getRecordId());
+            dto.setDqRuleId(v.getDqRuleId());
+            dto.setFieldKey(v.getFieldKey());
+            dto.setSeverity(v.getSeverity());
+            dto.setMessage(v.getMessage());
+            dto.setActualValue(v.getActualValue());
+            dto.setCheckedAt(v.getCheckedAt());
+            dto.setResolved(v.getResolved());
+
+            recordRepository.findById(v.getRecordId()).ifPresent(r -> {
+                if (r.getNode() != null) {
+                    dto.setNodeName(r.getNode().getName());
+                }
+                dto.setRecordIdentifier(extractRecordIdentifier(r));
+            });
+
+            return dto;
+        }).collect(Collectors.toList());
+
+        org.springframework.data.domain.Page<com.classification.domain_system.dto.DqViolationResponse> dtoPage =
+                new org.springframework.data.domain.PageImpl<>(responses, pageable, violationPage.getTotalElements());
+        return com.classification.domain_system.dto.PageResponse.of(dtoPage);
+    }
+
+    private String extractRecordIdentifier(com.classification.domain_system.entity.Record record) {
+        if (record == null || record.getData() == null) {
+            return record != null ? record.getId().toString().substring(0, 8) : "N/A";
+        }
+        try {
+            JsonNode node = objectMapper.readTree(record.getData());
+            String[] preferredKeys = {"name", "NAME", "emp_id", "TICKER", "ticker", "code", "title", "department", "dept", "id"};
+            for (String k : preferredKeys) {
+                if (node.has(k) && !node.get(k).isNull()) {
+                    String val = node.get(k).asText().trim();
+                    if (!val.isEmpty()) return val;
+                }
+            }
+            var fields = node.fields();
+            while (fields.hasNext()) {
+                var entry = fields.next();
+                if (entry.getValue().isTextual() && !entry.getValue().asText().trim().isEmpty()) {
+                    return entry.getValue().asText().trim();
+                }
+            }
+        } catch (Exception e) {
+            // fallback
+        }
+        return record.getId().toString().substring(0, 8);
     }
 }

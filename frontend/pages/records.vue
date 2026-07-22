@@ -141,7 +141,10 @@
                 :paginationPageSize="20"
                 :paginationPageSizeSelector="[10, 20, 50]"
                 @grid-ready="onGridReady"
+                @row-double-clicked="onRowDoubleClicked"
+                @cell-double-clicked="onCellDoubleClicked"
                 @rowDoubleClicked="onRowDoubleClicked"
+                @cellDoubleClicked="onCellDoubleClicked"
               />
             </div>
           </va-card-content>
@@ -1252,10 +1255,137 @@ const isMultiple = (field) => {
   }
 }
 
+const route = useRoute()
+const initialRouteHandled = ref(false)
+
+function findNodeInTree(nodeId, nodesList = treeNodes.value) {
+  if (!nodesList || !Array.isArray(nodesList)) return null
+  for (const n of nodesList) {
+    if (n.id === nodeId || n.domainId === nodeId) return n
+    if (n.children && n.children.length > 0) {
+      const found = findNodeInTree(nodeId, n.children)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+const openRecordDetailModal = async (record) => {
+  if (!record) return
+  selectedRecordId.value = record.id
+
+  if ((!nodeFields.value || nodeFields.value.length === 0) && (record.node?.id || selectedNode.value?.id)) {
+    try {
+      const nodeId = record.node?.id || selectedNode.value?.id
+      const isDomain = selectedNode.value?.isDomain || (record.node && !record.node.parent)
+      const fieldsUrl = isDomain ? `/api/domains/${nodeId}/fields` : `/api/nodes/${nodeId}/fields/effective`
+      nodeFields.value = await $fetch(fieldsUrl, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => [])
+    } catch (e) {
+      console.error('Failed to load node fields for detail modal:', e)
+    }
+  }
+
+  const rawData = typeof record.data === 'string' ? JSON.parse(record.data) : (record.data || {})
+  const data = { ...rawData }
+  const fieldsToProcess = nodeFields.value || []
+  fieldsToProcess.forEach(f => {
+    if (f.type === 'MULTILINGUAL') {
+      if (!data[f.key]) {
+        data[f.key] = { ko: '', en: '' }
+      } else if (typeof data[f.key] === 'string') {
+        try { data[f.key] = JSON.parse(data[f.key]) } catch (e) { data[f.key] = { ko: data[f.key], en: '' } }
+      }
+    } else if (f.type === 'FILE') {
+      if (data[f.key]) {
+        try {
+          const arr = JSON.parse(data[f.key])
+          if (Array.isArray(arr)) {
+            data[f.key] = arr.map(url => ({ name: extractFilename(url), url: url }))
+          } else if (typeof data[f.key] === 'string') {
+            data[f.key] = [{ name: extractFilename(data[f.key]), url: data[f.key] }]
+          }
+        } catch(e) {
+          if (typeof data[f.key] === 'string') {
+            data[f.key] = [{ name: extractFilename(data[f.key]), url: data[f.key] }]
+          }
+        }
+      } else {
+        data[f.key] = []
+      }
+    }
+  })
+  selectedRecordData.value = data
+  originalRecordData.value = JSON.parse(JSON.stringify(data))
+  activeSectorTab.value = 0
+  isEditingRecord.value = false
+  isSnapshotMode.value = false
+  hasPendingUpdate.value = record.status === 'PENDING_APPROVAL' || false
+  showDetailModal.value = true
+}
+
+const handleInitialRouteParams = async () => {
+  if (initialRouteHandled.value) return
+  const queryRecordId = route.query.recordId
+  const queryDomainId = route.query.domainId
+  const queryNodeId = route.query.nodeId
+
+  if (queryRecordId) {
+    initialRouteHandled.value = true
+    try {
+      const rec = await $fetch(`/api/records/${queryRecordId}`, {
+        headers: { Authorization: `Bearer ${token.value}` }
+      }).catch(() => null)
+
+      if (rec) {
+        let targetNode = null
+        if (rec.node) {
+          targetNode = findNodeInTree(rec.node.id) || {
+            id: rec.node.id,
+            label: typeof rec.node.name === 'object' ? (rec.node.name[currentLocale.value] || rec.node.name.ko || rec.node.name.en) : rec.node.name,
+            isDomain: false,
+            domainId: rec.node.domainId || (rec.node.domain ? rec.node.domain.id : null)
+          }
+        } else if (rec.domainId) {
+          targetNode = findNodeInTree(rec.domainId) || {
+            id: rec.domainId,
+            label: 'Domain',
+            isDomain: true
+          }
+        }
+
+        if (targetNode) {
+          await selectNode(targetNode)
+        }
+        openRecordDetailModal(rec)
+        return
+      }
+    } catch (e) {
+      console.error('Failed to load record by query params:', e)
+    }
+  }
+
+  if (queryDomainId || queryNodeId) {
+    initialRouteHandled.value = true
+    const targetId = queryDomainId || queryNodeId
+    const foundNode = findNodeInTree(targetId)
+    if (foundNode) {
+      await selectNode(foundNode)
+      return
+    }
+  }
+
+  // Fallback: If no node is selected, select the first tree node automatically
+  if (!selectedNode.value && treeNodes.value && treeNodes.value.length > 0) {
+    initialRouteHandled.value = true
+    await selectNode(treeNodes.value[0])
+  }
+}
+
 const treeRef = ref(null)
 
-const onTreeLoaded = (nodes) => {
+const onTreeLoaded = async (nodes) => {
   treeNodes.value = nodes
+  await handleInitialRouteParams()
 }
 
 const loadTree = async () => {
@@ -1270,9 +1400,10 @@ watch(currentLocale, () => {
   }
 })
 
-onMounted(() => {
+onMounted(async () => {
   loadUsers()
-  loadTree()
+  await loadTree()
+  await handleInitialRouteParams()
 })
 
 const selectNode = async (node) => {
@@ -1674,6 +1805,8 @@ const columnDefs = ref([])
 
 const onGridReady = (params) => {
   gridApi.value = params.api
+  params.api.addEventListener('cellDoubleClicked', onCellDoubleClicked)
+  params.api.addEventListener('rowDoubleClicked', onRowDoubleClicked)
   fetchRecords()
 }
 
@@ -1995,47 +2128,14 @@ const openHistory = async () => {
   }
 }
 
+const onCellDoubleClicked = (params) => {
+  const record = params?.data || params?.node?.data
+  if (record) openRecordDetailModal(record)
+}
+
 const onRowDoubleClicked = (params) => {
-  if (!params.data || !params.data.data) return
-  selectedRecordId.value = params.data.id
-  const data = { ...params.data.data }
-  nodeFields.value.forEach(f => {
-    if (f.type === 'MULTILINGUAL') {
-      if (!data[f.key]) {
-        data[f.key] = { ko: '', en: '' }
-      } else if (typeof data[f.key] === 'string') {
-        try {
-          data[f.key] = JSON.parse(data[f.key])
-        } catch (e) {
-          data[f.key] = { ko: data[f.key], en: '' }
-        }
-      }
-    } else if (f.type === 'FILE') {
-      if (data[f.key]) {
-        try {
-          const arr = JSON.parse(data[f.key])
-          if (Array.isArray(arr)) {
-            data[f.key] = arr.map(url => ({ name: extractFilename(url), url: url }))
-          } else if (typeof data[f.key] === 'string') {
-            data[f.key] = [{ name: extractFilename(data[f.key]), url: data[f.key] }]
-          }
-        } catch(e) {
-          if (typeof data[f.key] === 'string') {
-            data[f.key] = [{ name: extractFilename(data[f.key]), url: data[f.key] }]
-          }
-        }
-      } else {
-        data[f.key] = []
-      }
-    }
-  })
-  selectedRecordData.value = data
-  originalRecordData.value = JSON.parse(JSON.stringify(data))
-  activeSectorTab.value = 0
-  isEditingRecord.value = false
-  isSnapshotMode.value = false
-  hasPendingUpdate.value = params.data.status === 'PENDING_APPROVAL' || false
-  showDetailModal.value = true
+  const record = params?.data || params?.node?.data
+  if (record) openRecordDetailModal(record)
 }
 
 const formatDataForSave = (dataObj) => {

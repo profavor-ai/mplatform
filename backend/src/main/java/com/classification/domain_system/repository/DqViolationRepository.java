@@ -30,4 +30,21 @@ public interface DqViolationRepository extends JpaRepository<DqViolation, UUID> 
     List<Object[]> countViolationsBySeverityForDomain(@Param("domainId") UUID domainId);
 
     void deleteByRecordId(UUID recordId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("DELETE FROM DqViolation v WHERE v.recordId IN " +
+           "(SELECT r.id FROM Record r WHERE r.node.domain.id = :domainId)")
+    void deleteByDomainId(@Param("domainId") UUID domainId);
+
+    @Query("SELECT v FROM DqViolation v WHERE v.recordId IN " +
+           "(SELECT r.id FROM Record r WHERE r.node.domain.id = :domainId) " +
+           "AND v.resolved = false " +
+           "AND (:severity IS NULL OR :severity = '' OR v.severity = :severity) " +
+           "AND (:fieldKey IS NULL OR :fieldKey = '' OR v.fieldKey = :fieldKey) " +
+           "ORDER BY v.checkedAt DESC")
+    Page<DqViolation> findViolationsByDomainId(
+            @Param("domainId") UUID domainId,
+            @Param("severity") String severity,
+            @Param("fieldKey") String fieldKey,
+            Pageable pageable);
 }

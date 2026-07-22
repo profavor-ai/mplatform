@@ -1094,13 +1094,16 @@ const onNodeSelected = async (nodes) => {
   const dId = node.domainId
   try {
     const wfUrl = node.isDomain ? `/api/workflow-configs/domain/${node.id}` : `/api/workflow-configs/node/${node.id}`
-    const [sData, gData, wfData] = await Promise.all([
+    const fieldUrl = node.isDomain ? `/api/domains/${node.id}/fields` : `/api/nodes/${node.id}/fields/effective`
+    const [sData, gData, wfData, fData] = await Promise.all([
       $fetch(`/api/domains/${dId}/sectors`, { headers: getAuthHeaders() }),
       $fetch(`/api/domains/${dId}/groups`, { headers: getAuthHeaders() }),
-      $fetch(wfUrl, { headers: getAuthHeaders() }).catch(() => [])
+      $fetch(wfUrl, { headers: getAuthHeaders() }).catch(() => []),
+      $fetch(fieldUrl, { headers: getAuthHeaders() }).catch(() => [])
     ])
     domainSectors.value = sData
     domainGroups.value = gData
+    fields.value = fData || []
     
     workflowConfigs.value = {
       CREATE: { steps: [], observerIds: [] },
@@ -1201,6 +1204,12 @@ const openNodeModal = () => {
   showNodeModal.value = true
 }
 
+const getTranslatedName = (nameObj) => {
+  if (!nameObj) return ''
+  if (typeof nameObj === 'string') return nameObj
+  return nameObj[currentLocale.value] || nameObj['ko'] || nameObj['en'] || Object.values(nameObj)[0] || ''
+}
+
 const availableConditionFields = computed(() => {
   return (fields.value || [])
     .filter(f => !isEditMode.value || f.id !== editingId.value)
@@ -1220,7 +1229,18 @@ const resetConditionFields = () => {
   newField.value.conditionExpression = ''
 }
 
-const openFieldModal = (rowData = null) => {
+const openFieldModal = async (rowData = null) => {
+  if (selectedNode.value && (!fields.value || fields.value.length === 0)) {
+    try {
+      const fieldUrl = selectedNode.value.isDomain
+        ? `/api/domains/${selectedNode.value.id}/fields`
+        : `/api/nodes/${selectedNode.value.id}/fields/effective`
+      fields.value = await $fetch(fieldUrl, { headers: getAuthHeaders() }).catch(() => [])
+    } catch (e) {
+      console.error('Failed to load fields for modal:', e)
+    }
+  }
+
   if (rowData) {
     isEditMode.value = true
     editingId.value = rowData.id

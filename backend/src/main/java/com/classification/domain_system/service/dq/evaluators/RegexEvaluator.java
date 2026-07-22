@@ -7,14 +7,21 @@ import com.classification.domain_system.service.dq.EvaluationContext;
 import com.classification.domain_system.service.dq.RuleEvaluator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
+import java.util.concurrent.*;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 @Component
+@Slf4j
 public class RegexEvaluator implements RuleEvaluator {
+
+    private static final int MAX_PATTERN_LENGTH = 250;
+    private static final long TIMEOUT_MS = 500;
+    private static final ExecutorService executor = Executors.newCachedThreadPool();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
@@ -31,17 +38,37 @@ public class RegexEvaluator implements RuleEvaluator {
 
         try {
             JsonNode paramsNode = objectMapper.readTree(rule.getParams());
-            String pattern = paramsNode.get("pattern").asText();
+            String patternStr = paramsNode.get("pattern").asText();
             String textValue = value.asText();
 
-            if (!Pattern.compile(pattern).matcher(textValue).matches()) {
-                return Optional.of("Value does not match pattern: " + pattern);
+            if (patternStr.length() > MAX_PATTERN_LENGTH) {
+                log.warn("Regex pattern for field {} exceeds maximum length limit: {} chars", field.getKey(), patternStr.length());
+                return Optional.of("Regex pattern exceeds maximum length limit (" + MAX_PATTERN_LENGTH + " chars).");
+            }
+
+            Pattern pattern = Pattern.compile(patternStr);
+
+            Future<Boolean> future = executor.submit(() -> pattern.matcher(textValue).matches());
+            Boolean matches;
+            try {
+                matches = future.get(TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            } catch (TimeoutException e) {
+                future.cancel(true);
+                log.warn("Regex evaluation timed out for field {} with pattern: {}", field.getKey(), patternStr);
+                return Optional.of("Regex evaluation timed out (ReDoS protection).");
+            }
+
+            if (Boolean.FALSE.equals(matches)) {
+                return Optional.of("Value does not match pattern: " + patternStr);
             }
             return Optional.empty();
         } catch (PatternSyntaxException e) {
-            return Optional.of("Invalid regex pattern: " + e.getMessage());
+            log.warn("Invalid regex pattern syntax for field {}: {}", field.getKey(), e.getMessage());
+            return Optional.of("Invalid regex pattern format.");
         } catch (Exception e) {
-            return Optional.of("Regex evaluation error: " + e.getMessage());
+            log.warn("Regex evaluation error for field {}: {}", field.getKey(), e.getMessage());
+            return Optional.of("Regex evaluation error occurred.");
         }
     }
 }
+

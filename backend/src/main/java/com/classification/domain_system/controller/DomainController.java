@@ -153,53 +153,32 @@ public class DomainController {
     // ─── DQ Domain Endpoints ──────────────────────────────────────────
 
     @GetMapping("/{domainId}/dq-score")
-    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<java.util.Map<String, Object>> getDomainDqScore(@PathVariable UUID domainId) {
-        backfillDomainIds();
-        return ResponseEntity.ok(dqRuleEngine.runDomainDqScan(domainId));
+        return ResponseEntity.ok(dqRuleEngine.getDomainDqScore(domainId));
     }
 
     @PostMapping("/{domainId}/dq-scan")
     @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<java.util.Map<String, Object>> runDomainDqScan(@PathVariable UUID domainId) {
-        backfillDomainIds();
         return ResponseEntity.ok(dqRuleEngine.runDomainDqScan(domainId));
     }
 
     @GetMapping("/{domainId}/dq-rules-count")
-    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<java.util.Map<String, Long>> getDomainDqRulesCount(@PathVariable UUID domainId) {
-        backfillDomainIds();
         long count = dqRuleRepository.countByDomainId(domainId);
         return ResponseEntity.ok(java.util.Map.of("count", count));
     }
 
-    private void backfillDomainIds() {
-        try {
-            List<com.classification.domain_system.entity.DqRule> nullRules = dqRuleRepository.findAll().stream()
-                    .filter(r -> r.getDomainId() == null && r.getFieldDefinition() != null)
-                    .toList();
-            for (com.classification.domain_system.entity.DqRule rule : nullRules) {
-                FieldDefinition field = rule.getFieldDefinition();
-                UUID domainId = null;
-                if (field.getDomain() != null) {
-                    domainId = field.getDomain().getId();
-                } else if (field.getDefinedAtNode() != null && field.getDefinedAtNode().getDomain() != null) {
-                    domainId = field.getDefinedAtNode().getDomain().getId();
-                } else if (field.getFieldGroup() != null) {
-                    if (field.getFieldGroup().getDomain() != null) {
-                        domainId = field.getFieldGroup().getDomain().getId();
-                    } else if (field.getFieldGroup().getSector() != null && field.getFieldGroup().getSector().getDomain() != null) {
-                        domainId = field.getFieldGroup().getSector().getDomain().getId();
-                    }
-                }
-                if (domainId != null) {
-                    rule.setDomainId(domainId);
-                    dqRuleRepository.save(rule);
-                }
-            }
-        } catch (Exception e) {
-            // ignore
-        }
+    @GetMapping("/{domainId}/dq-violations")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public ResponseEntity<PageResponse<com.classification.domain_system.dto.DqViolationResponse>> getDomainDqViolations(
+            @PathVariable UUID domainId,
+            @RequestParam(required = false) String severity,
+            @RequestParam(required = false) String fieldKey,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(dqRuleEngine.getDomainDqViolations(domainId, severity, fieldKey, PageRequest.of(page, size)));
     }
 }

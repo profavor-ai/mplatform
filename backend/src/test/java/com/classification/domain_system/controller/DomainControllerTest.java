@@ -54,6 +54,12 @@ class DomainControllerTest {
     private FieldGroupService fieldGroupService;
 
     @MockitoBean
+    private com.classification.domain_system.service.dq.DqRuleEngine dqRuleEngine;
+
+    @MockitoBean
+    private com.classification.domain_system.repository.DqRuleRepository dqRuleRepository;
+
+    @MockitoBean
     private JwtUtil jwtUtil;
 
     private Domain createTestDomain(UUID id, String koName, String enName) {
