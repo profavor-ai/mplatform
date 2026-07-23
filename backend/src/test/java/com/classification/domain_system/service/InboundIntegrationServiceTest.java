@@ -1,10 +1,19 @@
 package com.classification.domain_system.service;
 
+import com.classification.domain_system.entity.ClassificationNode;
+import com.classification.domain_system.entity.Domain;
 import com.classification.domain_system.entity.IntegrationChannel;
+import com.classification.domain_system.entity.Record;
 import com.classification.domain_system.integration.DataMappingTransformer;
 import com.classification.domain_system.integration.InboundIntegrationService;
 import com.classification.domain_system.integration.IntegrationLogService;
+import com.classification.domain_system.repository.ClassificationNodeRepository;
 import com.classification.domain_system.repository.IntegrationChannelRepository;
+import com.classification.domain_system.repository.RecordFieldSourceRepository;
+import com.classification.domain_system.repository.RecordHistoryRepository;
+import com.classification.domain_system.repository.RecordRepository;
+import com.classification.domain_system.repository.SourcePriorityRepository;
+import com.classification.domain_system.service.dq.DqRuleEngine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -30,28 +40,77 @@ class InboundIntegrationServiceTest {
     private IntegrationChannelRepository channelRepository;
 
     @Mock
+    private ClassificationNodeRepository nodeRepository;
+
+    @Mock
+    private RecordRepository recordRepository;
+
+    @Mock
+    private RecordHistoryRepository recordHistoryRepository;
+
+    @Mock
+    private MatchingService matchingService;
+
+    @Mock
+    private DqRuleEngine dqRuleEngine;
+
+    @Mock
     private DataMappingTransformer mappingTransformer;
 
     @Mock
     private IntegrationLogService logService;
 
+    @Mock
+    private com.classification.domain_system.service.ApprovalService approvalService;
+
+    @Mock
+    private SourcePriorityRepository sourcePriorityRepository;
+
+    @Mock
+    private RecordFieldSourceRepository recordFieldSourceRepository;
+
     @InjectMocks
     private InboundIntegrationService inboundIntegrationService;
 
     private UUID channelId;
+    private UUID nodeId;
     private IntegrationChannel inboundChannel;
+    private ClassificationNode targetNode;
 
     @BeforeEach
     void setUp() {
         channelId = UUID.randomUUID();
+        nodeId = UUID.randomUUID();
+
         inboundChannel = new IntegrationChannel();
         inboundChannel.setId(channelId);
         inboundChannel.setName("Test Inbound Webhook");
         inboundChannel.setType("WEB_SERVICE");
         inboundChannel.setDirection("INBOUND");
         inboundChannel.setActive(true);
+        inboundChannel.setNodeId(nodeId);
         inboundChannel.setConfigJson("{\"authType\":\"BEARER_TOKEN\",\"secretToken\":\"valid-token-123\"}");
         inboundChannel.setMappingConfigJson("{\"mappings\":[{\"targetField\":\"internalName\",\"sourceExpression\":\"payload['externalName']\"}]}");
+
+        targetNode = new ClassificationNode();
+        targetNode.setId(nodeId);
+        targetNode.setDomain(new Domain());
+        targetNode.getDomain().setId(UUID.randomUUID());
+
+        lenient().when(channelRepository.findById(channelId)).thenReturn(Optional.of(inboundChannel));
+        lenient().when(nodeRepository.findById(nodeId)).thenReturn(Optional.of(targetNode));
+
+        MatchingService.DuplicateResult duplicateResult = new MatchingService.DuplicateResult();
+        duplicateResult.hasDuplicates = false;
+        duplicateResult.duplicateRecordIds = java.util.Collections.emptyList();
+        lenient().when(matchingService.checkDuplicates(eq(nodeId), any())).thenReturn(duplicateResult);
+
+        Record savedRecord = new Record();
+        savedRecord.setId(UUID.randomUUID());
+        savedRecord.setNode(targetNode);
+        savedRecord.setStatus("ACTIVE");
+        savedRecord.setData("{\"internalName\":\"Sample Data\"}");
+        lenient().when(recordRepository.save(any(Record.class))).thenReturn(savedRecord);
     }
 
     @Test
