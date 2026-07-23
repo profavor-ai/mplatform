@@ -29,7 +29,7 @@
               <va-list-item-section>
                 <va-list-item-label style="font-weight: bold; font-size: 1rem;">{{ user.username }}</va-list-item-label>
                 <div style="display: flex; gap: 0.35rem; align-items: center; margin-top: 0.2rem; flex-wrap: wrap;">
-                  <va-badge v-for="r in getUserRolesArray(user.role)" :key="r" :text="r" color="primary" size="small" />
+                  <RoleBadge :value="user.role" />
                   <va-badge :text="getOrgName(user.organizationId)" color="info" outline size="small" />
                   <va-badge v-if="getDeptName(user.departmentId)" :text="getDeptName(user.departmentId)" color="success" outline size="small" />
                 </div>
@@ -65,12 +65,11 @@
             </div>
 
             <div style="display: flex; gap: 0.75rem; align-items: flex-end;">
-              <va-select
+              <UserRoleSelect
                 v-model="selectedUserRoles"
                 multiple
-                :options="availableUserRoleOptions"
+                :org-id="selectedUser?.organizationId"
                 :label="getLabel('user_roles', '사용자 시스템 역할 (다중 선택 가능)')"
-                outline
                 style="flex: 1;"
               />
               <va-button color="primary" icon="save" @click="updateUserRoleOnly">

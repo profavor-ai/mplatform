@@ -50,7 +50,7 @@
               </div>
               
               <va-input v-model="selectedMenu.sortOrder" :label="$t('sort_order') || 'Sort Order (정렬 순서)'" type="number" class="mb-4 w-100" />
-              <va-select v-model="selectedMenuRoles" :options="availableRoleOptions" :label="$t('required_roles') || 'Required Roles (Multiple)'" class="mb-4 w-100" multiple clearable />
+              <UserRoleSelect v-model="selectedMenuRoles" :label="$t('required_roles') || 'Required Roles (Multiple)'" class="mb-4 w-100" multiple clearable include-role-prefix />
               
               <div class="d-flex justify-end mt-4">
                 <va-button @click="saveMenu">{{ $t('save_changes') || 'Save Changes' }}</va-button>
@@ -86,7 +86,7 @@
       </div>
       
       <va-input v-model="newMenu.sortOrder" :label="$t('sort_order') || 'Sort Order (정렬 순서)'" type="number" class="mb-4 w-100" />
-      <va-select v-model="newMenuRoles" :options="availableRoleOptions" :label="$t('required_roles') || 'Required Roles (Multiple)'" class="mb-4 w-100" multiple clearable />
+      <UserRoleSelect v-model="newMenuRoles" :label="$t('required_roles') || 'Required Roles (Multiple)'" class="mb-4 w-100" multiple clearable include-role-prefix />
     </va-modal>
 
     <!-- Icon Picker Modal -->

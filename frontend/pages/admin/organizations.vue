@@ -330,10 +330,10 @@
             </va-button>
           </div>
         </div>
-        <va-select
+        <UserRoleSelect
           v-model="newDeptForm.roles"
           multiple
-          :options="availableRoleOptions"
+          :org-id="selectedOrgId"
           :label="getLabel('dept_roles', '부서 역할 (다중 선택 가능)')"
           clearable
         />
@@ -392,10 +392,10 @@
             </va-button>
           </div>
         </div>
-        <va-select
+        <UserRoleSelect
           v-model="editDeptForm.roles"
           multiple
-          :options="availableRoleOptions"
+          :org-id="selectedOrgId"
           :label="getLabel('dept_roles', '부서 역할 (다중 선택 가능)')"
           clearable
         />
@@ -597,12 +597,12 @@
                 <span style="font-weight: 700; font-size: 0.95rem;">{{ user.username }}</span>
               </div>
               <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <va-select
+                <UserRoleSelect
                   :model-value="getUserRolesArray(user.role)"
                   multiple
-                  :options="['ADMIN', 'ORG_ADMIN', 'DATA_STEWARD', 'DOMAIN_EDITOR', 'DQ_MANAGER', 'VIEWER', 'USER']"
+                  :org-id="selectedOrgId"
                   @update:modelValue="changeMemberRolesInDept(user, $event)"
-                  style="min-width: 250px;"
+                  style="min-width: 280px;"
                   size="small"
                   clearable
                 />

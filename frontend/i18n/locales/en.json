@@ -1,4 +1,15 @@
 {
+  "roles": {
+    "ADMIN": "System Administrator",
+    "ROLE_ADMIN": "System Administrator",
+    "ORG_ADMIN": "Organization Administrator",
+    "DATA_STEWARD": "Data Steward",
+    "DOMAIN_EDITOR": "Domain Editor",
+    "DQ_MANAGER": "DQ Manager",
+    "VIEWER": "Viewer",
+    "USER": "General User",
+    "ROLE_USER": "General User"
+  },
   "welcome": "Welcome",
   "delete_dept": "Delete Department",
   "edit_dept": "Edit Department",

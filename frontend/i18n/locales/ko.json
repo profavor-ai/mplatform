@@ -1,4 +1,15 @@
 {
+  "roles": {
+    "ADMIN": "시스템 관리자",
+    "ROLE_ADMIN": "시스템 관리자",
+    "ORG_ADMIN": "조직 관리자",
+    "DATA_STEWARD": "데이터 스튜어드",
+    "DOMAIN_EDITOR": "도메인 편집자",
+    "DQ_MANAGER": "데이터 품질 관리자",
+    "VIEWER": "조회자",
+    "USER": "일반 사용자",
+    "ROLE_USER": "일반 사용자"
+  },
   "welcome": "환영합니다",
   "delete_dept": "부서/조직 삭제",
   "edit_dept": "부서/조직 정보 수정",

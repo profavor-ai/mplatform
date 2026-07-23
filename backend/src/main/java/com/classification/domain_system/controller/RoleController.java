@@ -21,6 +21,11 @@ public class RoleController {
         this.roleInitializer = roleInitializer;
     }
 
+    @GetMapping
+    public ResponseEntity<List<Role>> getAllRoles() {
+        return ResponseEntity.ok(roleRepository.findAll());
+    }
+
     @GetMapping("/org/{orgId}")
     public ResponseEntity<List<Role>> getRolesByOrg(@PathVariable UUID orgId) {
         roleInitializer.createDefaultRolesForOrg(orgId);
