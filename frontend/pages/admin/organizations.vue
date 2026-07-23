@@ -1512,44 +1512,81 @@ const openEditGroupModal = (group) => {
   showAddGroupModalFlag.value = true
 }
 
-const deleteGroup = (group) => {
-  const idx = customPermissionGroups.value.findIndex(g => g.id === group.id)
-  if (idx > -1) {
-    const groupPermValues = group.permissions.map(p => p.value)
-    newRoleForm.value.permissions = newRoleForm.value.permissions.filter(v => !groupPermValues.includes(v))
-    editRoleForm.value.permissions = editRoleForm.value.permissions.filter(v => !groupPermValues.includes(v))
-    customPermissionGroups.value.splice(idx, 1)
+const fetchPermissionMasterGroups = async () => {
+  try {
+    const list = await $fetch('/api/permissions/groups', {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    if (Array.isArray(list) && list.length > 0) {
+      customPermissionGroups.value = list.map(g => ({
+        id: g.id,
+        code: g.code,
+        title: g.titleKo,
+        titleEn: g.titleEn || g.titleKo,
+        icon: g.icon || '⚙️',
+        color: g.color || '#3b82f6',
+        chipClass: g.chipClass || '',
+        permissions: (g.items || []).map(i => ({
+          id: i.id,
+          label: i.labelKo,
+          labelEn: i.labelEn || i.labelKo,
+          value: i.permValue
+        }))
+      }))
+    }
+  } catch (e) {
+    console.error('Failed to fetch DB permission groups:', e)
   }
 }
 
-const saveNewGroup = () => {
+const deleteGroup = async (group) => {
+  try {
+    await $fetch(`/api/permissions/groups/${group.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    await fetchPermissionMasterGroups()
+  } catch (e) {
+    showCustomAlert('Failed to delete group: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
+  }
+}
+
+const saveNewGroup = async () => {
   if (!newGroupForm.value.titleKo || !newGroupForm.value.code) return
   const codeClean = newGroupForm.value.code.toLowerCase().trim()
   const titleKoStr = newGroupForm.value.titleKo
   const titleEnStr = newGroupForm.value.titleEn || titleKoStr
 
-  if (isEditingGroup.value && targetEditingGroup.value) {
-    targetEditingGroup.value.title = titleKoStr
-    targetEditingGroup.value.titleEn = titleEnStr
-    targetEditingGroup.value.icon = newGroupForm.value.icon || '⚙️'
-  } else {
-    const newGroup = {
-      id: codeClean,
-      title: titleKoStr,
-      titleEn: titleEnStr,
-      code: codeClean,
-      icon: newGroupForm.value.icon || '⚙️',
-      color: '#06b6d4',
-      chipClass: 'cyan',
-      permissions: [
-        { label: `${titleKoStr} 전체 (*)`, value: `${codeClean}:*` },
-        { label: '조회 (read)', labelKey: 'perm_read', value: `${codeClean}:read` },
-        { label: '생성/수정 (write)', labelKey: 'perm_write', value: `${codeClean}:write` }
-      ]
+  try {
+    if (isEditingGroup.value && targetEditingGroup.value) {
+      await $fetch(`/api/permissions/groups/${targetEditingGroup.value.id}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token.value}` },
+        body: {
+          titleKo: titleKoStr,
+          titleEn: titleEnStr,
+          icon: newGroupForm.value.icon || '⚙️'
+        }
+      })
+    } else {
+      await $fetch('/api/permissions/groups', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token.value}` },
+        body: {
+          code: codeClean,
+          titleKo: titleKoStr,
+          titleEn: titleEnStr,
+          icon: newGroupForm.value.icon || '⚙️',
+          color: '#06b6d4',
+          chipClass: 'cyan'
+        }
+      })
     }
-    customPermissionGroups.value.push(newGroup)
+    showAddGroupModalFlag.value = false
+    await fetchPermissionMasterGroups()
+  } catch (e) {
+    showCustomAlert('Failed to save group: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
   }
-  showAddGroupModalFlag.value = false
 }
 
 const showAddPermToGroupModalFlag = ref(false)
@@ -1584,48 +1621,48 @@ const openEditPermModal = (group, perm) => {
   showAddPermToGroupModalFlag.value = true
 }
 
-const deletePermFromGroup = (group, perm) => {
-  const grp = customPermissionGroups.value.find(g => g.id === group.id)
-  if (grp) {
-    const idx = grp.permissions.findIndex(p => p.value === perm.value)
-    if (idx > -1) {
-      grp.permissions.splice(idx, 1)
+const deletePermFromGroup = async (group, perm) => {
+  if (!perm || !perm.id) {
+    const grp = customPermissionGroups.value.find(g => g.id === group.id)
+    if (grp) {
+      const idx = grp.permissions.findIndex(p => p.value === perm.value)
+      if (idx > -1) grp.permissions.splice(idx, 1)
     }
+    return
   }
-  newRoleForm.value.permissions = newRoleForm.value.permissions.filter(v => v !== perm.value)
-  editRoleForm.value.permissions = editRoleForm.value.permissions.filter(v => v !== perm.value)
+  try {
+    await $fetch(`/api/permissions/groups/items/${perm.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    await fetchPermissionMasterGroups()
+  } catch (e) {
+    showCustomAlert('Failed to delete permission item: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
+  }
 }
 
-const saveNewPermToGroup = () => {
+const saveNewPermToGroup = async () => {
   if (!targetGroupForPerm.value || !newPermToGroupForm.value.labelKo || !newPermToGroupForm.value.action) return
   const actClean = newPermToGroupForm.value.action.toLowerCase().trim()
   const permValue = `${targetGroupForPerm.value.code}:${actClean}`
   const labelKoStr = newPermToGroupForm.value.labelKo
   const labelEnStr = newPermToGroupForm.value.labelEn || labelKoStr
 
-  const targetGrp = customPermissionGroups.value.find(g => g.id === targetGroupForPerm.value.id)
-  if (targetGrp) {
-    if (isEditingPerm.value && targetEditingPerm.value) {
-      targetEditingPerm.value.label = `${labelKoStr} (${actClean})`
-      targetEditingPerm.value.labelEn = `${labelEnStr} (${actClean})`
-      targetEditingPerm.value.value = permValue
-    } else {
-      if (!targetGrp.permissions.some(p => p.value === permValue)) {
-        targetGrp.permissions.push({
-          label: `${labelKoStr} (${actClean})`,
-          labelEn: `${labelEnStr} (${actClean})`,
-          value: permValue
-        })
+  try {
+    await $fetch(`/api/permissions/groups/${targetGroupForPerm.value.id}/items`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token.value}` },
+      body: {
+        labelKo: `${labelKoStr} (${actClean})`,
+        labelEn: `${labelEnStr} (${actClean})`,
+        permValue: permValue
       }
-    }
+    })
+    showAddPermToGroupModalFlag.value = false
+    await fetchPermissionMasterGroups()
+  } catch (e) {
+    showCustomAlert('Failed to add permission item: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
   }
-
-  const form = modalTargetContext.value === 'new' ? newRoleForm.value : editRoleForm.value
-  if (!form.permissions.includes(permValue)) {
-    form.permissions.push(permValue)
-  }
-
-  showAddPermToGroupModalFlag.value = false
 }
 
 const togglePermission = (target, permValue) => {
@@ -1773,6 +1810,7 @@ const confirmDeleteRole = async () => {
 onMounted(() => {
   isMounted.value = true
   fetchOrganizations()
+  fetchPermissionMasterGroups()
 })
 </script>
 
