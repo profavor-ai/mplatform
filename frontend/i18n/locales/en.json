@@ -2,16 +2,21 @@
   "welcome": "Welcome",
   "delete_dept": "Delete Department",
   "edit_dept": "Edit Department",
+  "add_root_dept": "Add Root Dept",
+  "add_subdept": "Add Sub-department",
+  "manage_members": "Manage Members",
   "vuestic": {
     "noOptions": "No options available",
     "toggleDropdown": "Toggle dropdown",
     "sortColumnBy": "Sort column by",
-    "select": "Select"
+    "select": "Select",
+    "progressState": "Progress State"
   },
   "vuestic.toggleDropdown": "Toggle dropdown",
   "vuestic.sortColumnBy": "Sort column by",
   "vuestic.noOptions": "No options available",
   "vuestic.select": "Select",
+  "vuestic.progressState": "Progress State",
   "update_success": "Update Completed",
   "creation_success": "Creation Completed",
   "delete_success": "Delete Completed",

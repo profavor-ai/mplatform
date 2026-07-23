@@ -136,7 +136,7 @@
                 :defaultColDef="defaultColDef"
                 rowModelType="infinite"
                 :cacheBlockSize="20"
-                rowSelection="single"
+                :rowSelection="{ mode: 'singleRow' }"
                 :pagination="true"
                 :paginationPageSize="20"
                 :paginationPageSizeSelector="[10, 20, 50]"
@@ -543,9 +543,8 @@
         <p style="margin-bottom: 1rem; color: #555;">
           {{ currentLocale === 'en' ? '(Optional) Enter a comment for the approver.' : '(선택사항) 결재권자에게 남길 기안 의견을 작성해 주세요.' }}
         </p>
-        <va-input 
+        <va-textarea 
           v-model="draftCommentText" 
-          type="textarea"
           :placeholder="currentLocale === 'en' ? 'Enter your comment...' : '의견을 입력하세요...'" 
           style="width: 100%;"
         />
@@ -967,7 +966,7 @@
             :columnDefs="domainRefColDefs"
             :rowData="domainRefRowData"
             :defaultColDef="{ sortable: true, filter: true, resizable: true }"
-            rowSelection="single"
+            :rowSelection="{ mode: 'singleRow' }"
             @rowDoubleClicked="onDomainRefRowDoubleClicked"
           />
         </div>
@@ -1594,6 +1593,7 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
     },
     { 
       field: 'status', 
+      colId: 'sys_record_status',
       headerName: 'Status', 
       sortable: true, 
       width: 150,

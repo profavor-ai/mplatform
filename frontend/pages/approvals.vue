@@ -607,7 +607,7 @@ const selectedPendingStep = ref(null)
 const pendingSelectedRows = ref([])
 
 const getPendingColumnDefs = () => [
-  { colId: 'p_checkbox', headerName: '', field: 'checkbox', checkboxSelection: true, headerCheckboxSelection: true, width: 50, suppressSizeToFit: true },
+  { colId: 'p_checkbox', headerName: '', field: 'checkbox', width: 50, suppressSizeToFit: true },
   { colId: 'p_targetType', field: 'approvalRequest.targetType', headerName: t('target_type'), width: 130, minWidth: 120 },
   { colId: 'p_domainName', field: 'approvalRequest.domainName', headerName: t('colDomain'), width: 140 },
   { colId: 'p_classificationName', field: 'approvalRequest.classificationName', headerName: t('colClassification'), width: 150 },
@@ -678,7 +678,7 @@ const pendingGridOptions = ref({
   rowModelType: 'infinite',
   cacheBlockSize: 100,
   columnDefs: getPendingColumnDefs(),
-  rowSelection: 'multiple',
+  rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: false },
   enableCellTextSelection: true,
   ensureDomOrder: true,
   onSelectionChanged: (event) => {
@@ -811,7 +811,7 @@ const myRequestsGridOptions = ref({
   rowModelType: 'infinite',
   cacheBlockSize: 100,
   columnDefs: getMyRequestsColumnDefs(),
-  rowSelection: 'single',
+  rowSelection: { mode: 'singleRow' },
   enableCellTextSelection: true,
   ensureDomOrder: true
 })
@@ -1414,7 +1414,9 @@ const createPendingDatasource = () => {
              }
              // Load field names if necessary for DetailsViewer, even though we enrich rows
              if (['RECORD', 'RECORD_UPDATE', 'RECORD_DELETE'].includes(step.approvalRequest?.targetType) && step.approvalRequest.targetId) {
-                 await loadFieldNamesForRecord(step.approvalRequest.targetId);
+                 const tId = step.approvalRequest.targetId;
+                 const nId = step.approvalRequest.classificationNode?.id || step.approvalRequest.classificationNodeId;
+                 await loadFieldNamesForRecord(tId, nId);
              }
           }
         }
@@ -1444,7 +1446,9 @@ const createMyRequestsDatasource = () => {
           
           for (const req of pageData.content) {
              if (['RECORD', 'RECORD_UPDATE', 'RECORD_DELETE'].includes(req.targetType) && req.targetId) {
-                 await loadFieldNamesForRecord(req.targetId);
+                 const tId = req.targetId;
+                 const nId = req.classificationNode?.id || req.classificationNodeId;
+                 await loadFieldNamesForRecord(tId, nId);
              }
           }
         }
@@ -1489,12 +1493,15 @@ const handleAction = async (stepId, action, isBulk = false) => {
   }
 }
 
-const loadFieldNamesForRecord = async (targetId) => {
+const loadFieldNamesForRecord = async (targetId, nodeId = null) => {
   try {
-    const record = await $fetch(`/api/records/${targetId}`, { headers: { Authorization: `Bearer ${token.value}` } })
-    const nodeId = record?.node?.id || record?.nodeId;
-    if (nodeId) {
-      const fields = await $fetch(`/api/nodes/${nodeId}/fields/effective`, { headers: { Authorization: `Bearer ${token.value}` } })
+    let effectiveNodeId = nodeId;
+    if (!effectiveNodeId && targetId) {
+      const record = await $fetch(`/api/records/${targetId}`, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => null);
+      effectiveNodeId = record?.node?.id || record?.nodeId;
+    }
+    if (effectiveNodeId) {
+      const fields = await $fetch(`/api/nodes/${effectiveNodeId}/fields/effective`, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => []);
       if (fields && fields.length > 0) {
         fields.forEach(f => {
           fieldNameMap.value[f.key] = f
@@ -1502,7 +1509,7 @@ const loadFieldNamesForRecord = async (targetId) => {
       }
     }
   } catch (e) {
-    console.error('Error loading field names for record:', e)
+    // Silent catch for non-existent or deleted records
   }
 }
 

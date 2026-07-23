@@ -245,7 +245,7 @@ const loadFieldNamesForRequest = async (req) => {
     let nodeId = req.nodeId || props.nodeId;
     if (!nodeId && req.targetId) {
       try {
-        const record = await $fetch(`/api/records/${req.targetId}`, { headers: { Authorization: `Bearer ${token.value}` } })
+        const record = await $fetch(`/api/records/${req.targetId}`, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => null)
         nodeId = record?.node?.id || record?.nodeId;
       } catch (e) {}
     }

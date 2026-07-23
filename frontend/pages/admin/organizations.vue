@@ -124,12 +124,12 @@
                 {{ t('org_description') }}
               </div>
               <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-                <va-input v-model="editOrgForm.descriptionKo" type="textarea" style="flex: 1; min-width: 0;" :min-rows="2">
+                <va-textarea v-model="editOrgForm.descriptionKo" style="flex: 1; min-width: 0;" :min-rows="2">
                   <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">Korean</span></template>
-                </va-input>
-                <va-input v-model="editOrgForm.descriptionEn" type="textarea" style="flex: 1; min-width: 0;" :min-rows="2">
+                </va-textarea>
+                <va-textarea v-model="editOrgForm.descriptionEn" style="flex: 1; min-width: 0;" :min-rows="2">
                   <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">English</span></template>
-                </va-input>
+                </va-textarea>
               </div>
             </div>
             <div style="display: flex; justify-content: flex-end;">
@@ -270,12 +270,12 @@
             {{ t('org_description') }}
           </div>
           <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-            <va-input v-model="newOrgForm.descriptionKo" type="textarea" style="flex: 1; min-width: 0;" :min-rows="2">
+            <va-textarea v-model="newOrgForm.descriptionKo" style="flex: 1; min-width: 0;" :min-rows="2">
               <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">Korean</span></template>
-            </va-input>
-            <va-input v-model="newOrgForm.descriptionEn" type="textarea" style="flex: 1; min-width: 0;" :min-rows="2">
+            </va-textarea>
+            <va-textarea v-model="newOrgForm.descriptionEn" style="flex: 1; min-width: 0;" :min-rows="2">
               <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">English</span></template>
-            </va-input>
+            </va-textarea>
           </div>
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
@@ -332,12 +332,12 @@
             {{ getLabel('description', '설명') }}
           </div>
           <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-            <va-input v-model="newDeptForm.descriptionKo" type="textarea" style="flex: 1; min-width: 0;" :min-rows="2">
+            <va-textarea v-model="newDeptForm.descriptionKo" style="flex: 1; min-width: 0;" :min-rows="2">
               <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">Korean</span></template>
-            </va-input>
-            <va-input v-model="newDeptForm.descriptionEn" type="textarea" style="flex: 1; min-width: 0;" :min-rows="2">
+            </va-textarea>
+            <va-textarea v-model="newDeptForm.descriptionEn" style="flex: 1; min-width: 0;" :min-rows="2">
               <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">English</span></template>
-            </va-input>
+            </va-textarea>
           </div>
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
@@ -394,12 +394,12 @@
             {{ getLabel('description', '설명') }}
           </div>
           <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-            <va-input v-model="editDeptForm.descriptionKo" type="textarea" style="flex: 1; min-width: 0;" :min-rows="2">
+            <va-textarea v-model="editDeptForm.descriptionKo" style="flex: 1; min-width: 0;" :min-rows="2">
               <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">Korean</span></template>
-            </va-input>
-            <va-input v-model="editDeptForm.descriptionEn" type="textarea" style="flex: 1; min-width: 0;" :min-rows="2">
+            </va-textarea>
+            <va-textarea v-model="editDeptForm.descriptionEn" style="flex: 1; min-width: 0;" :min-rows="2">
               <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">English</span></template>
-            </va-input>
+            </va-textarea>
           </div>
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
@@ -431,12 +431,12 @@
             {{ getLabel('role_description_label', 'ROLE DESCRIPTION (역할 상세 설명)') }}
           </div>
           <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-            <va-input v-model="newRoleForm.descriptionKo" type="textarea" style="flex: 1; min-width: 0;" :min-rows="2">
+            <va-textarea v-model="newRoleForm.descriptionKo" style="flex: 1; min-width: 0;" :min-rows="2">
               <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">Korean</span></template>
-            </va-input>
-            <va-input v-model="newRoleForm.descriptionEn" type="textarea" style="flex: 1; min-width: 0;" :min-rows="2">
+            </va-textarea>
+            <va-textarea v-model="newRoleForm.descriptionEn" style="flex: 1; min-width: 0;" :min-rows="2">
               <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">English</span></template>
-            </va-input>
+            </va-textarea>
           </div>
         </div>
         <!-- Categorized Permission Matrix UI -->
@@ -474,12 +474,12 @@
             {{ getLabel('role_description_label', 'ROLE DESCRIPTION (역할 상세 설명)') }}
           </div>
           <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-            <va-input v-model="editRoleForm.descriptionKo" type="textarea" style="flex: 1; min-width: 0;" :min-rows="2">
+            <va-textarea v-model="editRoleForm.descriptionKo" style="flex: 1; min-width: 0;" :min-rows="2">
               <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">Korean</span></template>
-            </va-input>
-            <va-input v-model="editRoleForm.descriptionEn" type="textarea" style="flex: 1; min-width: 0;" :min-rows="2">
+            </va-textarea>
+            <va-textarea v-model="editRoleForm.descriptionEn" style="flex: 1; min-width: 0;" :min-rows="2">
               <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">English</span></template>
-            </va-input>
+            </va-textarea>
           </div>
         </div>
         <!-- Categorized Permission Matrix UI -->
@@ -835,6 +835,9 @@ const newDeptForm = ref({ parentDepartmentId: null, nameKo: '', nameEn: '', desc
 
 const showEditDeptModalFlag = ref(false)
 const editDeptForm = ref({ id: null, parentDepartmentId: null, nameKo: '', nameEn: '', descriptionKo: '', descriptionEn: '', roles: [], icon: 'folder' })
+
+const showDeleteDeptModalFlag = ref(false)
+const targetDeletingDept = ref(null)
 
 const availableIconList = ref([
   'folder', 'corporate_fare', 'domain', 'business', 'school', 'apartment',

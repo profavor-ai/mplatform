@@ -24,7 +24,7 @@
       </span>
 
       <!-- Edit Button -->
-      <va-button v-if="showEdit" class="edit-btn" icon="edit" size="small" @click.stop="handleNodeEdit(node)" preset="plain" :color="node.id === selectedNode?.id ? 'white' : 'primary'" />
+      <va-button v-if="showEdit" class="edit-btn" icon="edit" size="small" @click.stop="handleNodeEdit(node)" preset="plain" :color="node.id === selectedNode?.id ? '#ffffff' : 'primary'" />
     </div>
 
     <!-- Children -->

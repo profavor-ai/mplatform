@@ -56,7 +56,7 @@
                   :autoSizeStrategy="autoSizeStrategy"
                   :columnDefs="columnDefs"
                   :rowHeight="42"
-                  rowSelection="single"
+                  :rowSelection="{ mode: 'singleRow' }"
                   rowModelType="infinite"
                   :pagination="true"
                   :paginationPageSize="20"
@@ -247,7 +247,7 @@
           :columnDefs="optionsColumnDefs"
           :rowData="newFieldOptionsList"
           :defaultColDef="optionsDefaultColDef"
-          rowSelection="single"
+          :rowSelection="{ mode: 'singleRow' }"
           @grid-ready="onOptionsGridReady"
         />
       </div>
@@ -473,7 +473,7 @@
               @grid-ready="onSectorGridReady"
               @rowValueChanged="onSectorRowSaved"
               editType="fullRow"
-              rowSelection="single"
+              :rowSelection="{ mode: 'singleRow' }"
             />
           </div>
         </div>
@@ -498,7 +498,7 @@
               @grid-ready="onGroupGridReady"
               @rowValueChanged="onGroupRowSaved"
               editType="fullRow"
-              rowSelection="single"
+              :rowSelection="{ mode: 'singleRow' }"
             />
           </div>
         </div>
@@ -872,7 +872,7 @@ const groupOptions = computed(() => {
   })
 })
 
-const fieldTypes = ['TEXT', 'NUMBER', 'DATE', 'BOOLEAN', 'SELECT', 'DECIMAL', 'FLOAT', 'INTEGER', 'DOMAIN_REFERENCE', 'MULTI_SELECT', 'TIME', 'HTML_TEXT', 'CHECKBOX', 'CALCULATED', 'MULTILINGUAL']
+const fieldTypes = ['TEXT', 'NUMBER', 'DATE', 'BOOLEAN', 'SELECT', 'DECIMAL', 'FLOAT', 'INTEGER', 'DOMAIN_REFERENCE', 'MULTI_SELECT', 'TIME', 'HTML_TEXT', 'CHECKBOX', 'CALCULATED', 'MULTILINGUAL', 'FILE']
 
 const domainOptions = computed(() => {
   return treeNodes.value.filter(n => n.isDomain).map(d => ({
@@ -1266,7 +1266,7 @@ const openDomainModal = () => {
 }
 
 const openNodeModal = () => {
-  if (!selectedNode.value || !selectedNode.value.isDomain) return
+  if (!selectedNode.value) return
   isEditMode.value = false
   newNode.value = { name: {ko:'', en:''}, order: 0, icon: '' }
   showNodeModal.value = true
@@ -1315,6 +1315,7 @@ const openFieldModal = async (rowData = null) => {
     newField.value = { 
       ...rowData, 
       name: { ...rowData.name }, 
+      type: (rowData.type === 'STRING' || !rowData.type) ? 'TEXT' : rowData.type,
       formula: rowData.formula || '', 
       unit: rowData.unit || '',
       fieldGroupId: rowData.fieldGroup?.id || null,
@@ -1358,7 +1359,7 @@ const openFieldModal = async (rowData = null) => {
     isEditMode.value = false
     editingId.value = null
     newField.value = { 
-      name: {ko:'', en:''}, key: '', type: 'STRING', required: false, order: 0, 
+      name: {ko:'', en:''}, key: '', type: 'TEXT', required: false, order: 0, 
       fieldGroupId: null, targetDomainId: null, isMultiValue: false, isSearchable: true, 
       isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, isHighlighted: false, 
       formula: '', unit: '', gridWidth: null, tableColumnWidth: null 
@@ -1394,11 +1395,13 @@ const saveDomain = async () => {
 
 const saveNode = async () => {
   if (!selectedNode.value) return
-  if (!isEditMode.value && !selectedNode.value.isDomain) return
   
   try {
-    const targetId = isEditMode.value ? newNode.value.id : selectedNode.value.id
-    const url = isEditMode.value ? `/api/domains/${newNode.value.domainId}/nodes/${targetId}` : `/api/domains/${targetId}/nodes`
+    const domainId = selectedNode.value.isDomain ? selectedNode.value.id : selectedNode.value.domainId
+    const targetId = isEditMode.value ? newNode.value.id : domainId
+    const url = isEditMode.value ? `/api/domains/${newNode.value.domainId}/nodes/${targetId}` : `/api/domains/${domainId}/nodes`
+    const parentId = isEditMode.value ? undefined : (selectedNode.value.isDomain ? null : selectedNode.value.id)
+
     await $fetch(url, {
       method: isEditMode.value ? 'PUT' : 'POST',
       headers: getAuthHeaders(),
@@ -1406,7 +1409,7 @@ const saveNode = async () => {
         name: newNode.value.name,
         order: newNode.value.order,
         icon: newNode.value.icon,
-        parentId: isEditMode.value ? undefined : null // currently subnodes are not supported in UI
+        parentId: parentId
       }
     })
     showNodeModal.value = false
@@ -1643,8 +1646,9 @@ const deleteGroup = async (id) => {
   min-height: 0;
 }
 .schema-tree-column {
-  width: 30%;
-  max-width: 30%;
+  width: 300px;
+  min-width: 300px;
+  max-width: 300px;
   overflow: hidden;
 }
 .schema-tree-wrapper {
@@ -1654,11 +1658,10 @@ const deleteGroup = async (id) => {
   margin-bottom: 1rem;
 }
 .schema-detail-column {
-  width: calc(70% - 1rem);
-  max-width: calc(70% - 1rem);
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  min-height: 0;
 }
 .schema-grid-wrapper {
   flex: 1;
@@ -1673,6 +1676,7 @@ const deleteGroup = async (id) => {
   .schema-tree-column {
     width: 100%;
     max-width: 100%;
+    min-width: 100%;
   }
   .schema-tree-wrapper {
     max-height: 250px;

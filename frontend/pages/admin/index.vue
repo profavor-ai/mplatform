@@ -20,7 +20,7 @@
             :defaultColDef="defaultColDef"
             rowModelType="infinite"
             :cacheBlockSize="20"
-            rowSelection="single"
+            :rowSelection="{ mode: 'singleRow' }"
             :pagination="true"
             :paginationPageSize="20"
             :paginationPageSizeSelector="[10, 20, 50]"
@@ -39,7 +39,7 @@
             {{ t('requestType') }}: {{ formatTargetType(selectedFlow.targetType) }}
           </div>
           <div>
-            <va-badge :text="t('status_' + selectedFlow.status.toLowerCase()) || selectedFlow.status" :color="selectedFlow.status === 'PENDING' ? 'warning' : (selectedFlow.status === 'APPROVED' ? 'success' : 'danger')" />
+            <va-badge :text="getStatusText(selectedFlow.status)" :color="selectedFlow.status === 'PENDING' ? 'warning' : (selectedFlow.status === 'APPROVED' ? 'success' : 'danger')" />
           </div>
         </div>
 
@@ -62,7 +62,7 @@
                 {{ step.status === 'SUBMITTED' ? t('draft') : (step.stepType === 'CONSENSUS' ? t('consensus') : t('approval')) }}
               </div>
               <div style="font-size: 0.75rem; color: var(--va-text-secondary); margin-top: 0.2rem; min-height: 1.1rem; white-space: nowrap;">
-                {{ t('status_' + step.status.toLowerCase()) || step.status }}
+                {{ getStatusText(step.status) }}
               </div>
               <div style="font-size: 0.75rem; color: var(--va-text-primary); margin-top: 0.2rem; min-height: 1.1rem; font-weight: bold; white-space: nowrap;" :title="step.assigneeId">
                 {{ getUserName(step.assigneeId) }}
@@ -186,7 +186,14 @@ const messages = {
   }
 }
 
-const { t, locale } = useI18n({ messages, useScope: 'local', inheritLocale: true })
+const { t, te, locale } = useI18n({ messages, useScope: 'local', inheritLocale: true })
+
+const getStatusText = (status) => {
+  if (!status) return '';
+  const key = 'status_' + String(status).toLowerCase();
+  if (te(key)) return t(key);
+  return status;
+}
 
 const { confirm } = useModal()
 
@@ -402,12 +409,12 @@ const columnDefs = computed(() => [
     headerName: t('colStatus'), 
     field: 'status', 
     width: 100,
-    valueFormatter: (params) => t('status_' + (params.value || '').toLowerCase()) || params.value,
+    valueFormatter: (params) => getStatusText(params.value),
     filter: 'agSetColumnFilter',
     filterParams: {
       values: ['SUBMITTED', 'PENDING', 'APPROVED', 'REJECTED'],
       valueFormatter: (params) => {
-        return t('status_' + (params.value || '').toLowerCase()) || params.value;
+        return getStatusText(params.value);
       }
     },
     cellStyle: (params) => {
