@@ -48,6 +48,25 @@ class DomainServiceTest extends BaseServiceTest {
             assertThat(result.getName().get("ko")).isEqualTo("인사");
             verify(domainRepository).save(any(Domain.class));
         }
+
+        @Test
+        @DisplayName("성공 - autoDqScanEnabled 설정이 포함된 도메인을 정상 생성한다")
+        void successWithAutoDqScanEnabled() {
+            // given
+            DomainRequest request = createTestDomainRequest("인사", "HR");
+            request.setAutoDqScanEnabled(true);
+            Domain saved = createTestDomain(UUID.randomUUID(), "인사", "HR");
+            saved.setAutoDqScanEnabled(true);
+            given(domainRepository.save(any(Domain.class))).willReturn(saved);
+
+            // when
+            Domain result = domainService.createDomain(request);
+
+            // then
+            assertThat(result).isNotNull();
+            assertThat(result.isAutoDqScanEnabled()).isTrue();
+            verify(domainRepository).save(any(Domain.class));
+        }
     }
 
     @Nested
@@ -77,6 +96,41 @@ class DomainServiceTest extends BaseServiceTest {
             admin.setRole("ADMIN");
             
             given(userRepository.findByUsername("adminUser")).willReturn(Optional.of(admin));
+            given(domainRepository.findAllByOrderBySortOrderAsc()).willReturn(domains);
+
+            // when
+            List<Domain> result = domainService.getAllDomains();
+
+            // then
+            assertThat(result).hasSize(2);
+            verify(domainRepository).findAllByOrderBySortOrderAsc();
+            
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+
+        @Test
+        @DisplayName("성공 - DATA_STEWARD,ADMIN 복수 권한 유저의 경우 전체 도메인을 반환한다")
+        void successMultiRoleUser() {
+            // given
+            List<Domain> domains = List.of(
+                createTestDomain(UUID.randomUUID(), "인사", "HR"),
+                createTestDomain(UUID.randomUUID(), "재무", "Finance")
+            );
+            
+            org.springframework.security.core.Authentication auth = org.mockito.Mockito.mock(org.springframework.security.core.Authentication.class);
+            org.springframework.security.core.context.SecurityContext ctx = org.mockito.Mockito.mock(org.springframework.security.core.context.SecurityContext.class);
+            given(ctx.getAuthentication()).willReturn(auth);
+            org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
+            
+            given(auth.isAuthenticated()).willReturn(true);
+            given(auth.getName()).willReturn("profavor");
+            
+            com.classification.domain_system.entity.User multiRoleUser = new com.classification.domain_system.entity.User();
+            multiRoleUser.setId(UUID.randomUUID().toString());
+            multiRoleUser.setUsername("profavor");
+            multiRoleUser.setRole("DATA_STEWARD,ADMIN");
+            
+            given(userRepository.findByUsername("profavor")).willReturn(Optional.of(multiRoleUser));
             given(domainRepository.findAllByOrderBySortOrderAsc()).willReturn(domains);
 
             // when

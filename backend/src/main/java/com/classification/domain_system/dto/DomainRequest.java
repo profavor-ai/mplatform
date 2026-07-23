@@ -15,4 +15,5 @@ public class DomainRequest {
     private String icon;
     private Integer sortOrder;
     private String numberingPattern;
+    private Boolean autoDqScanEnabled;
 }

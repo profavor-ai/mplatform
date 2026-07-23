@@ -28,6 +28,7 @@ public class DomainService {
         domain.setIcon(request.getIcon());
         domain.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
         domain.setNumberingPattern(request.getNumberingPattern());
+        domain.setAutoDqScanEnabled(request.getAutoDqScanEnabled() != null ? request.getAutoDqScanEnabled() : false);
         return domainRepository.save(domain);
     }
     
@@ -42,7 +43,8 @@ public class DomainService {
         com.classification.domain_system.entity.User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
                 
-        if ("ADMIN".equals(user.getRole())) {
+        String role = user.getRole();
+        if (role != null && (role.contains("ADMIN") || role.contains("ROLE_ADMIN"))) {
             return domainRepository.findAllByOrderBySortOrderAsc();
         }
         
@@ -72,6 +74,9 @@ public class DomainService {
         domain.setIcon(request.getIcon());
         domain.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
         domain.setNumberingPattern(request.getNumberingPattern());
+        if (request.getAutoDqScanEnabled() != null) {
+            domain.setAutoDqScanEnabled(request.getAutoDqScanEnabled());
+        }
         return domainRepository.save(domain);
     }
 }

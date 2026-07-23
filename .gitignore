@@ -8,3 +8,4 @@ target/
 scratch/
 scratch_puppeteer/
 *.local.js
+.vscode/

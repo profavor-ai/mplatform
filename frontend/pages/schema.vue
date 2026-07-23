@@ -151,6 +151,7 @@
       </div>
       <va-input v-model="newDomain.numberingPattern" label="Numbering Pattern" placeholder="e.g. ITEM-{YYYY}-{SEQ:5} (Leave empty for manual)" class="mb-4 w-full" />
       <va-input v-model="newDomain.sortOrder" type="number" label="Sort Order" class="mb-4 w-full" />
+      <va-switch v-model="newDomain.autoDqScanEnabled" label="Auto Data Quality Scan (매일 새벽 2시 자동 정기 검사)" class="mb-4 w-full" color="primary" />
       
       <!-- Field Mappings (Only show in Edit mode because we need fields) -->
       <div v-if="isEditMode" style="margin-top: 1rem; border-top: 1px solid #eee; padding-top: 1rem;">
@@ -719,7 +720,8 @@ const newDomain = ref({
   displayNameFieldId: null, 
   descriptionFieldId: null,
   icon: '',
-  sortOrder: 0
+  sortOrder: 0,
+  autoDqScanEnabled: false
 })
 const domainFieldOptions = ref([])
 const mappingError = ref({ id: false, name: false })
@@ -1244,7 +1246,8 @@ const handleNodeEdit = async (node) => {
       descriptionFieldId: rawDomain.descriptionFieldId,
       icon: rawDomain.icon || '',
       sortOrder: rawDomain.sortOrder || 0,
-      numberingPattern: rawDomain.numberingPattern || ''
+      numberingPattern: rawDomain.numberingPattern || '',
+      autoDqScanEnabled: rawDomain.autoDqScanEnabled || false
     }
     showDomainModal.value = true
   } else {
@@ -1261,7 +1264,7 @@ const handleNodeEdit = async (node) => {
 
 const openDomainModal = () => {
   isEditMode.value = false
-  newDomain.value = { name: {ko:'', en:''}, description: {ko:'', en:''}, identifierFieldId: null, displayNameFieldId: null, descriptionFieldId: null, icon: '', sortOrder: 0, numberingPattern: '' }
+  newDomain.value = { name: {ko:'', en:''}, description: {ko:'', en:''}, identifierFieldId: null, displayNameFieldId: null, descriptionFieldId: null, icon: '', sortOrder: 0, numberingPattern: '', autoDqScanEnabled: false }
   showDomainModal.value = true
 }
 
@@ -1383,7 +1386,8 @@ const saveDomain = async () => {
         descriptionFieldId: newDomain.value.descriptionFieldId,
         icon: newDomain.value.icon,
         sortOrder: newDomain.value.sortOrder,
-        numberingPattern: newDomain.value.numberingPattern
+        numberingPattern: newDomain.value.numberingPattern,
+        autoDqScanEnabled: newDomain.value.autoDqScanEnabled
       }
     })
     showDomainModal.value = false
