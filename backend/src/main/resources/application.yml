@@ -20,6 +20,9 @@ spring:
 jwt:
   secret: ${JWT_SECRET}
 
+file:
+  upload-dir: ${FILE_UPLOAD_DIR:./uploads}
+
 logging:
   level:
     com.classification.domain_system.integration.DataMappingTransformer: DEBUG

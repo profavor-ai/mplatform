@@ -1,5 +1,8 @@
 package com.classification.domain_system.controller;
 
+import com.classification.domain_system.exception.BusinessException;
+import com.classification.domain_system.exception.ErrorCode;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.ContentDisposition;
@@ -29,12 +32,12 @@ public class FileController {
 
     private final Path fileStorageLocation;
 
-    public FileController() {
-        this.fileStorageLocation = Paths.get("C:/temp").toAbsolutePath().normalize();
+    public FileController(@Value("${file.upload-dir:./uploads}") String uploadDir) {
+        this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
         try {
             Files.createDirectories(this.fileStorageLocation);
         } catch (Exception ex) {
-            throw new RuntimeException("Could not create the directory where the uploaded files will be stored.", ex);
+            throw new BusinessException(ErrorCode.UPLOAD_DIR_FAIL, "Could not create the directory where uploaded files will be stored: " + uploadDir);
         }
     }
 
@@ -91,7 +94,7 @@ public class FileController {
 
             return ResponseEntity.ok(response);
         } catch (IOException | NoSuchAlgorithmException ex) {
-            throw new RuntimeException("Could not store file " + originalFileName + ". Please try again!", ex);
+            throw new BusinessException(ErrorCode.UPLOAD_FILE_FAIL, "Could not store file " + originalFileName + ". Please try again!");
         }
     }
 
