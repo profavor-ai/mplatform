@@ -20,8 +20,13 @@ public class JwtUtil {
     @Value("${jwt.secret}")
     private String secret;
 
+    @Value("${jwt.access-token-expiration:1800000}")
+    private long accessTokenExpiration; // default 30 minutes
+
+    @Value("${jwt.refresh-token-expiration:172800000}")
+    private long refreshTokenExpiration; // default 2 days
+
     private Key key;
-    private final long expirationTime = 1800000; // 30 minutes
 
     @PostConstruct
     public void init() {
@@ -40,7 +45,7 @@ public class JwtUtil {
                 .setClaims(claims)
                 .setSubject(username)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
+                .setExpiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -67,12 +72,11 @@ public class JwtUtil {
         if (userId != null) claims.put("userId", userId);
         claims.put("tokenType", "REFRESH");
 
-        long refreshTokenExpirationTime = 604800000L; // 7 days
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(username)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + refreshTokenExpirationTime))
+                .setExpiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
