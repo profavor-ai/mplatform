@@ -118,23 +118,7 @@ const currentUser = computed(() => {
   return null
 })
 
-const availableRoleOptions = ref(['ROLE_USER', 'ROLE_ADMIN', 'ORG_ADMIN', 'DATA_STEWARD'])
 
-const fetchOrgRoles = async () => {
-  const orgId = currentUser.value?.organizationId || '00000000-0000-0000-0000-000000000001'
-  try {
-    const roles = await $fetch(`/api/roles/org/${orgId}`, {
-      headers: token.value ? { Authorization: `Bearer ${token.value}` } : {}
-    })
-    if (roles && Array.isArray(roles) && roles.length > 0) {
-      const names = roles.map(r => r.name).filter(Boolean)
-      const allNames = Array.from(new Set([...names, 'ROLE_USER', 'ROLE_ADMIN', 'ORG_ADMIN', 'DATA_STEWARD']))
-      availableRoleOptions.value = allNames
-    }
-  } catch (e) {
-    console.error('Failed to fetch org roles for menu assignment:', e)
-  }
-}
 
 const selectedMenu = ref(null)
 const showAddModal = ref(false)
@@ -303,7 +287,6 @@ const deleteMenu = async (id) => {
 
 onMounted(async () => {
   await fetchMenus()
-  await fetchOrgRoles()
 })
 </script>
 

@@ -1653,15 +1653,6 @@ const addCustomPermission = (target) => {
   }
 }
 
-const availableRoleOptions = computed(() => {
-  const defaultList = ['ADMIN', 'ORG_ADMIN', 'DATA_STEWARD', 'DOMAIN_EDITOR', 'DQ_MANAGER', 'VIEWER', 'USER']
-  if (roles.value && roles.value.length > 0) {
-    const customNames = roles.value.map(r => r.name)
-    return Array.from(new Set([...defaultList, ...customNames]))
-  }
-  return defaultList
-})
-
 const showCreateRoleModalFlag = ref(false)
 const showEditRoleModalFlag = ref(false)
 const newRoleForm = ref({ name: '', displayNameKo: '', displayNameEn: '', descriptionKo: '', descriptionEn: '', permissions: [] })

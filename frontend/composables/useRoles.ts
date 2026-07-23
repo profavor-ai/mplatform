@@ -10,60 +10,64 @@ export interface RoleInfo {
   isSystemRole?: boolean
 }
 
-// Global cached role map by code (name)
+// Global cached role maps & lists
+const roleList = ref<RoleInfo[]>([])
 const roleMap = ref<Record<string, RoleInfo>>({})
 const isFetched = ref(false)
-
-const defaultFallbackMap: Record<string, string> = {
-  ADMIN: '시스템 관리자 (System Admin)',
-  ROLE_ADMIN: '시스템 관리자 (System Admin)',
-  ORG_ADMIN: '조직 관리자 (Org Admin)',
-  DATA_STEWARD: '데이터 스튜어드 (Data Steward)',
-  DOMAIN_EDITOR: '도메인 편집자 (Domain Editor)',
-  DQ_MANAGER: '데이터 품질 관리자 (DQ Manager)',
-  VIEWER: '조회자 (Viewer)',
-  USER: '일반 사용자 (General User)',
-  ROLE_USER: '일반 사용자 (General User)'
-}
+const currentLoadedOrgId = ref<string | null>(null)
 
 export function useRoles() {
   const token = useCookie('auth_token')
+  const userCookie = useCookie<any>('user_data')
 
-  const fetchRoles = async (orgId?: string) => {
+  const getUserOrgId = (): string | null => {
+    if (!userCookie.value) return null
     try {
-      const endpoint = orgId ? `/api/roles/org/${orgId}` : '/api/roles'
+      const data = typeof userCookie.value === 'string' ? JSON.parse(userCookie.value) : userCookie.value
+      return data?.organizationId || null
+    } catch {
+      return null
+    }
+  }
+
+  const fetchRoles = async (orgId?: string, forceRefresh = false) => {
+    const targetOrgId = orgId || getUserOrgId()
+
+    // Skip if already fetched for the same orgId unless forced
+    if (isFetched.value && !forceRefresh && currentLoadedOrgId.value === (targetOrgId || 'ALL')) {
+      return
+    }
+
+    try {
+      const endpoint = targetOrgId ? `/api/roles/org/${targetOrgId}` : '/api/roles'
       const headers = token.value ? { Authorization: `Bearer ${token.value}` } : {}
       const list = await $fetch<RoleInfo[]>(endpoint, { headers })
-      
+
       if (Array.isArray(list)) {
+        roleList.value = list
+        const map: Record<string, RoleInfo> = {}
         list.forEach(r => {
           if (r && r.name) {
-            roleMap.value[r.name] = r
+            map[r.name] = r
           }
         })
+        roleMap.value = map
         isFetched.value = true
+        currentLoadedOrgId.value = targetOrgId || 'ALL'
       }
     } catch (e) {
-      console.warn('Failed to fetch roles from DB API:', e)
+      console.error('Failed to fetch DB roles:', e)
     }
   }
 
   const getRoleDisplayName = (code: string): string => {
     if (!code) return ''
     const cleanCode = code.startsWith('ROLE_') ? code.replace('ROLE_', '') : code
-    
-    // 1. Check DB cached roleMap
-    if (roleMap.value[code]?.displayName) {
-      return roleMap.value[code].displayName!
-    }
-    if (roleMap.value[cleanCode]?.displayName) {
-      return roleMap.value[cleanCode].displayName!
-    }
 
-    // 2. Fallback to default name if DB map has not loaded this role yet
-    if (defaultFallbackMap[code]) return defaultFallbackMap[code]
-    if (defaultFallbackMap[cleanCode]) return defaultFallbackMap[cleanCode]
-
+    const role = roleMap.value[code] || roleMap.value[cleanCode]
+    if (role && role.displayName) {
+      return role.displayName
+    }
     return code
   }
 
@@ -77,10 +81,12 @@ export function useRoles() {
   }
 
   return {
+    roleList,
     roleMap,
     isFetched,
     fetchRoles,
     getRoleDisplayName,
-    formatRoleText
+    formatRoleText,
+    getUserOrgId
   }
 }

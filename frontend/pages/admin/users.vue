@@ -306,29 +306,6 @@ const selectedUser = ref(null)
 const selectedUserRoles = ref([])
 const selectedUserOrgId = ref(null)
 const selectedUserDeptId = ref(null)
-const customOrgRoles = ref([])
-
-const fetchCustomOrgRoles = async (orgId) => {
-  if (!orgId) return
-  try {
-    const list = await $fetch(`/api/roles/org/${orgId}`, {
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
-    if (list && Array.isArray(list)) {
-      customOrgRoles.value = list.map(r => r.name)
-    }
-  } catch (e) {
-    console.error('Failed to fetch org roles for users view:', e)
-  }
-}
-
-const availableUserRoleOptions = computed(() => {
-  const defaultList = ['ORG_ADMIN', 'DATA_STEWARD', 'DOMAIN_EDITOR', 'DQ_MANAGER', 'VIEWER', 'ADMIN', 'USER']
-  if (customOrgRoles.value && customOrgRoles.value.length > 0) {
-    return Array.from(new Set([...defaultList, ...customOrgRoles.value]))
-  }
-  return defaultList
-})
 const departments = ref([])
 
 const userPermissions = ref([])
@@ -447,7 +424,6 @@ const selectUser = async (user) => {
     selectedUserDeptId.value = user.departmentId
     if (user.organizationId) {
       await fetchDepartments(user.organizationId)
-      await fetchCustomOrgRoles(user.organizationId)
     }
     await loadUserPermissions(user.id)
   }

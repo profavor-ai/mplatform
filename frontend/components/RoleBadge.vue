@@ -1,7 +1,7 @@
 <template>
   <span class="role-badge-wrapper" style="display: inline-flex; gap: 0.35rem; flex-wrap: wrap;">
     <va-badge
-      v-for="role in roleList"
+      v-for="role in roleListInput"
       :key="role"
       :color="getRoleColor(role)"
       class="mr-1 mb-1"
@@ -20,16 +20,20 @@ const props = defineProps({
   value: {
     type: [String, Array],
     default: () => []
+  },
+  orgId: {
+    type: String,
+    default: null
   }
 })
 
 const { fetchRoles, formatRoleText } = useRoles()
 
 onMounted(() => {
-  fetchRoles()
+  fetchRoles(props.orgId || undefined)
 })
 
-const roleList = computed(() => {
+const roleListInput = computed(() => {
   if (!props.value) return []
   if (Array.isArray(props.value)) {
     return props.value.filter(Boolean)

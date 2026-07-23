@@ -15,7 +15,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { computed, watch, onMounted } from 'vue'
 import { useRoles } from '~/composables/useRoles'
 
 const props = defineProps({
@@ -59,10 +59,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'change'])
 
-const { fetchRoles, formatRoleText } = useRoles()
-
-const defaultSystemRoles = ['ADMIN', 'ORG_ADMIN', 'DATA_STEWARD', 'DOMAIN_EDITOR', 'DQ_MANAGER', 'VIEWER', 'USER']
-const dbRoles = ref([])
+const { roleList, fetchRoles, formatRoleText } = useRoles()
 
 const loadRolesFromDb = async () => {
   await fetchRoles(props.orgId || undefined)
@@ -72,23 +69,40 @@ onMounted(() => {
   loadRolesFromDb()
 })
 
-watch(() => props.orgId, () => {
-  loadRolesFromDb()
-})
-
-const allRoleCodes = computed(() => {
-  const list = [...defaultSystemRoles]
-  if (props.includeRolePrefix) {
-    list.push('ROLE_ADMIN', 'ROLE_USER')
-  }
-  return Array.from(new Set(list))
+watch(() => props.orgId, (newOrgId) => {
+  fetchRoles(newOrgId || undefined, true)
 })
 
 const formattedOptions = computed(() => {
-  return allRoleCodes.value.map(code => ({
-    value: code,
-    text: formatRoleText(code)
-  }))
+  if (!roleList.value || roleList.value.length === 0) return []
+
+  const result = []
+  const seenCodes = new Set()
+
+  roleList.value.forEach(role => {
+    if (!role || !role.name) return
+    const code = role.name
+    if (!seenCodes.has(code)) {
+      seenCodes.add(code)
+      result.push({
+        value: code,
+        text: formatRoleText(code)
+      })
+    }
+
+    if (props.includeRolePrefix && !code.startsWith('ROLE_')) {
+      const prefixedCode = `ROLE_${code}`
+      if (!seenCodes.has(prefixedCode)) {
+        seenCodes.add(prefixedCode)
+        result.push({
+          value: prefixedCode,
+          text: formatRoleText(code)
+        })
+      }
+    }
+  })
+
+  return result
 })
 
 const onUpdate = (val) => {
