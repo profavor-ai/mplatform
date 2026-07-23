@@ -21,6 +21,11 @@ public class RoleInitializer {
     public void createDefaultRolesForOrg(UUID orgId) {
         if (orgId == null) return;
 
+        // 해당 조직에 이미 역할이 존재하는 경우(사용자가 수정/삭제한 경우 포함) 더 이상 초기화를 진행하지 않음
+        if (!roleRepository.findByOrganizationId(orgId).isEmpty()) {
+            return;
+        }
+
         createSystemRole(orgId, "ROLE_ADMIN", "{\"ko\":\"시스템 관리자\",\"en\":\"System Admin\"}", "{\"ko\":\"시스템 전체 관리 권한\",\"en\":\"Full system administration access\"}",
                 Set.of("*"));
 
@@ -51,15 +56,7 @@ public class RoleInitializer {
             existingOpt = roleRepository.findByOrganizationIdAndName(orgId, altName);
         }
 
-        if (existingOpt.isPresent()) {
-            Role role = existingOpt.get();
-            if (Boolean.TRUE.equals(role.getIsSystemRole())) {
-                role.setName(name);
-                role.setDisplayName(displayName);
-                role.setDescription(description);
-                roleRepository.save(role);
-            }
-        } else {
+        if (existingOpt.isEmpty()) {
             Role role = new Role();
             role.setOrganizationId(orgId);
             role.setName(name);
