@@ -50,6 +50,11 @@ public class RoleDataMigrationInitializer implements CommandLineRunner {
                 log.info("Migrated {} menu(s) required_role from 'ADMIN' to 'ROLE_ADMIN'.", updatedMenus);
             }
 
+            // 5. 기본 시스템 역할들의 is_system_role = true 보정
+            jdbcTemplate.update(
+                    "UPDATE role SET is_system_role = true WHERE name IN ('ADMIN', 'ROLE_ADMIN', 'ORG_ADMIN', 'DATA_STEWARD', 'DOMAIN_EDITOR', 'DQ_MANAGER', 'VIEWER', 'USER', 'ROLE_USER')"
+            );
+
             log.info("Completed safety DB data migration for ROLE_ADMIN.");
         } catch (Exception e) {
             log.error("Error occurred during DB role data migration", e);
