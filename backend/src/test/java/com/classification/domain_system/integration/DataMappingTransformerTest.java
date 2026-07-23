@@ -45,6 +45,23 @@ class DataMappingTransformerTest {
     }
 
     @Test
+    @DisplayName("Root Path가 단일 객체인 경우에도 정상적으로 한 건 매핑한다")
+    void testSingleObjectMappingWithRootPath() {
+        String payloadJson = "{\"data\": {\"emp_id\":\"T1\", \"kor_name\":\"홍길동\", \"eng_name\":\"Hong\"}}";
+        String mappingConfigStr = "{" +
+                "\"rootPath\": \"payload['data']\"," +
+                "\"mappings\": [" +
+                "  {\"targetField\": \"employee_id\", \"sourceExpression\": \"#this['emp_id']\"}," +
+                "  {\"targetField\": \"emp_name\", \"sourceExpression\": \"{'ko': #this['kor_name'], 'en': #this['eng_name']}\"}" +
+                "]" +
+                "}";
+
+        String result = transformer.transformPayload(payloadJson, mappingConfigStr);
+        assertThat(result).contains("\"employee_id\":\"T1\"");
+        assertThat(result).contains("\"emp_name\":{\"ko\":\"홍길동\",\"en\":\"Hong\"}");
+    }
+
+    @Test
     @DisplayName("SpEL 인라인 맵을 이용한 다국어(Multilingual) 구조 매핑 테스트")
     void testMultilingualMapCreation() {
         String payloadJson = "{\"data\": [{\"emp_id\":\"T1\", \"kor_name\":\"홍길동\", \"eng_name\":\"Hong\"}]}";

@@ -86,7 +86,7 @@ public class DataMappingTransformer {
                             StandardEvaluationContext itemContext = new StandardEvaluationContext(item);
                             itemContext.addPropertyAccessor(new org.springframework.context.expression.MapAccessor());
                             itemContext.setVariable("payload", payload);
-                            
+
                             Map<String, Object> targetPayload = new HashMap<>();
                             for (JsonNode mapping : mappings) {
                                 String targetField = mapping.get("targetField").asText();
@@ -104,9 +104,31 @@ public class DataMappingTransformer {
                             resultList.add(targetPayload);
                         }
                         return mapper.writeValueAsString(resultList);
-                    } else {
-                        log.warn("[Mapping] rootPath result is not Iterable: {}", rootObj);
                     }
+
+                    if (rootObj instanceof Map) {
+                        StandardEvaluationContext itemContext = new StandardEvaluationContext(rootObj);
+                        itemContext.addPropertyAccessor(new org.springframework.context.expression.MapAccessor());
+                        itemContext.setVariable("payload", payload);
+
+                        Map<String, Object> targetPayload = new HashMap<>();
+                        for (JsonNode mapping : mappings) {
+                            String targetField = mapping.get("targetField").asText();
+                            String sourceExpression = mapping.get("sourceExpression").asText();
+                            try {
+                                Expression exp = parser.parseExpression(sourceExpression);
+                                Object value = exp.getValue(itemContext);
+                                log.debug("[Mapping] {} = {} → {}", targetField, sourceExpression, value);
+                                targetPayload.put(targetField, value);
+                            } catch (Exception e) {
+                                log.error("[Mapping] Expression eval failed: {} → {}: {}", targetField, sourceExpression, e.getMessage());
+                                targetPayload.put(targetField, null);
+                            }
+                        }
+                        return mapper.writeValueAsString(targetPayload);
+                    }
+
+                    log.warn("[Mapping] rootPath result is neither Iterable nor Map: {}", rootObj);
                 } catch (Exception e) {
                     log.error("[Mapping] Error evaluating rootPath '{}': {}", rootPath, e.getMessage());
                 }
