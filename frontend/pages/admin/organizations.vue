@@ -224,7 +224,7 @@
                   </div>
                   <div style="display: flex; align-items: center; gap: 0.4rem;">
                     <va-button size="small" preset="secondary" icon="edit" @click="openEditRoleModal(role)" />
-                    <va-button v-if="!role.isSystemRole" size="small" preset="plain" icon="delete" color="danger" @click="openDeleteRoleConfirmModal(role)" />
+                    <va-button size="small" preset="plain" icon="delete" color="danger" @click="openDeleteRoleConfirmModal(role)" />
                   </div>
                 </div>
                 <div style="font-size: 0.82rem; color: var(--va-text-secondary); margin-bottom: 0.6rem;" v-if="role.description">{{ getI18nText(role.description) }}</div>
@@ -1739,10 +1739,6 @@ const saveEditRole = async () => {
 }
 
 const openDeleteRoleConfirmModal = (role) => {
-  if (role.isSystemRole) {
-    showCustomAlert('시스템 기본 역할은 삭제할 수 없습니다.', getLabel('warning', '경고'), getLabel('notification', '알림'), 'warning')
-    return
-  }
   targetDeletingRole.value = role
   showDeleteRoleModalFlag.value = true
 }

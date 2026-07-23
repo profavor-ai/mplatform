@@ -53,9 +53,6 @@ public class RoleController {
     public ResponseEntity<Void> deleteRole(@PathVariable UUID id) {
         return roleRepository.findById(id)
                 .map(role -> {
-                    if (Boolean.TRUE.equals(role.getIsSystemRole())) {
-                        return ResponseEntity.badRequest().<Void>build();
-                    }
                     roleRepository.delete(role);
                     return ResponseEntity.ok().<Void>build();
                 })
