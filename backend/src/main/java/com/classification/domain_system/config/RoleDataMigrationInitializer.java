@@ -34,7 +34,8 @@ public class RoleDataMigrationInitializer implements CommandLineRunner {
                 log.info("Migrated {} user(s) role from 'USER' to 'ROLE_USER'.", updatedUsersRoleUser);
             }
 
-            // 3. role 테이블의 name 'ADMIN' -> 'ROLE_ADMIN' (중복 시 삭제 후 업데이트)
+            // 3. role 테이블의 name 'ADMIN' -> 'ROLE_ADMIN' (중복 시 자식 role_permissions 삭제 후 role 삭제 및 업데이트)
+            jdbcTemplate.update("DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM role WHERE name = 'ADMIN' AND organization_id IN (SELECT organization_id FROM role WHERE name = 'ROLE_ADMIN'))");
             jdbcTemplate.update("DELETE FROM role WHERE name = 'ADMIN' AND organization_id IN (SELECT organization_id FROM role WHERE name = 'ROLE_ADMIN')");
             int updatedRoles = jdbcTemplate.update(
                     "UPDATE role SET name = 'ROLE_ADMIN' WHERE name = 'ADMIN'"
