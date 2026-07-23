@@ -15,7 +15,7 @@
 </template>
 
 <script setup>
-import { computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoles } from '~/composables/useRoles'
 
 const props = defineProps({
@@ -59,27 +59,30 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'change'])
 
-const { roleList, fetchRoles, formatRoleText } = useRoles()
+const { fetchRolesForOrg, formatRoleText, getUserOrgId } = useRoles()
 
-const loadRolesFromDb = async () => {
-  await fetchRoles(props.orgId || undefined)
+const localRoleList = ref([])
+
+const loadRoles = async () => {
+  const targetOrgId = props.orgId || getUserOrgId()
+  localRoleList.value = await fetchRolesForOrg(targetOrgId)
 }
 
 onMounted(() => {
-  loadRolesFromDb()
+  loadRoles()
 })
 
-watch(() => props.orgId, (newOrgId) => {
-  fetchRoles(newOrgId || undefined, true)
+watch(() => props.orgId, async (newOrgId) => {
+  localRoleList.value = await fetchRolesForOrg(newOrgId || getUserOrgId(), true)
 })
 
 const formattedOptions = computed(() => {
-  if (!roleList.value || roleList.value.length === 0) return []
+  if (!localRoleList.value || localRoleList.value.length === 0) return []
 
   const result = []
   const seenCodes = new Set()
 
-  roleList.value.forEach(role => {
+  localRoleList.value.forEach(role => {
     if (!role || !role.name) return
     const code = role.name
     if (!seenCodes.has(code)) {

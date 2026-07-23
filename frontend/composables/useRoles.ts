@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useCookie } from '#app'
 import { getMultilingualText } from '~/utils/multilingual'
 
@@ -11,11 +11,10 @@ export interface RoleInfo {
   isSystemRole?: boolean
 }
 
-// Global cached role maps & lists
-const roleList = ref<RoleInfo[]>([])
-const roleMap = ref<Record<string, RoleInfo>>({})
-const isFetched = ref(false)
-const currentLoadedOrgId = ref<string | null>(null)
+// Cache role lists by organization ID
+const orgRolesMap = ref<Record<string, RoleInfo[]>>({})
+// Global role lookup map for code -> RoleInfo
+const globalRoleLookupMap = ref<Record<string, RoleInfo>>({})
 
 export function useRoles() {
   const token = useCookie('auth_token')
@@ -31,12 +30,12 @@ export function useRoles() {
     }
   }
 
-  const fetchRoles = async (orgId?: string, forceRefresh = false) => {
+  const fetchRolesForOrg = async (orgId?: string | null, forceRefresh = false): Promise<RoleInfo[]> => {
     const targetOrgId = orgId || getUserOrgId()
+    const cacheKey = targetOrgId || 'GLOBAL'
 
-    // Skip if already fetched for the same orgId unless forced
-    if (isFetched.value && !forceRefresh && currentLoadedOrgId.value === (targetOrgId || 'ALL')) {
-      return
+    if (!forceRefresh && orgRolesMap.value[cacheKey]) {
+      return orgRolesMap.value[cacheKey]
     }
 
     try {
@@ -45,27 +44,26 @@ export function useRoles() {
       const list = await $fetch<RoleInfo[]>(endpoint, { headers })
 
       if (Array.isArray(list)) {
-        roleList.value = list
-        const map: Record<string, RoleInfo> = {}
+        orgRolesMap.value[cacheKey] = list
         list.forEach(r => {
           if (r && r.name) {
-            map[r.name] = r
+            globalRoleLookupMap.value[r.name] = r
           }
         })
-        roleMap.value = map
-        isFetched.value = true
-        currentLoadedOrgId.value = targetOrgId || 'ALL'
+        return list
       }
     } catch (e) {
-      console.error('Failed to fetch DB roles:', e)
+      console.error(`Failed to fetch roles for org (${cacheKey}):`, e)
     }
+
+    return orgRolesMap.value[cacheKey] || []
   }
 
   const getRoleDisplayName = (code: string): string => {
     if (!code) return ''
     const cleanCode = code.startsWith('ROLE_') ? code.replace('ROLE_', '') : code
 
-    const role = roleMap.value[code] || roleMap.value[cleanCode]
+    const role = globalRoleLookupMap.value[code] || globalRoleLookupMap.value[cleanCode]
     if (role && role.displayName) {
       return getMultilingualText(role.displayName)
     }
@@ -83,10 +81,9 @@ export function useRoles() {
   }
 
   return {
-    roleList,
-    roleMap,
-    isFetched,
-    fetchRoles,
+    orgRolesMap,
+    globalRoleLookupMap,
+    fetchRolesForOrg,
     getRoleDisplayName,
     formatRoleText,
     getUserOrgId

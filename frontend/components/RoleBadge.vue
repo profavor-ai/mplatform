@@ -27,10 +27,10 @@ const props = defineProps({
   }
 })
 
-const { fetchRoles, formatRoleText } = useRoles()
+const { fetchRolesForOrg, formatRoleText, getUserOrgId } = useRoles()
 
 onMounted(() => {
-  fetchRoles(props.orgId || undefined)
+  fetchRolesForOrg(props.orgId || getUserOrgId())
 })
 
 const roleListInput = computed(() => {
