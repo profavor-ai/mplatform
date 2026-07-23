@@ -4,6 +4,10 @@ let isRefreshing = false
 let refreshPromise: Promise<string | null> | null = null
 
 export default defineNuxtPlugin((nuxtApp) => {
+  const config = useRuntimeConfig()
+  const accessMaxAge = config.public.accessTokenExpirationSec as number
+  const refreshMaxAge = config.public.refreshTokenExpirationSec as number
+
   globalThis.$fetch = $fetch.create({
     async onResponseError({ request, response, options }) {
       if (response.status === 401 && process.client) {
@@ -39,9 +43,7 @@ export default defineNuxtPlugin((nuxtApp) => {
               })
 
               if (res && res.token) {
-                const maxAge = 86400
-                const refreshMaxAge = 604800
-                document.cookie = `auth_token=${res.token}; max-age=${maxAge}; path=/;`
+                document.cookie = `auth_token=${res.token}; max-age=${accessMaxAge}; path=/;`
                 if (res.refreshToken) {
                   document.cookie = `refresh_token=${res.refreshToken}; max-age=${refreshMaxAge}; path=/;`
                 }

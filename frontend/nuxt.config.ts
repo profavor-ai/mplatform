@@ -37,7 +37,9 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:8080',
-      agGridLicense: process.env.AG_GRID_LICENSE
+      agGridLicense: process.env.AG_GRID_LICENSE,
+      accessTokenExpirationSec: Number(process.env.JWT_ACCESS_EXPIRATION_SEC || 1800),
+      refreshTokenExpirationSec: Number(process.env.JWT_REFRESH_EXPIRATION_SEC || 172800)
     }
   },
   routeRules: {

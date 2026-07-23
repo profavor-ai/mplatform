@@ -20,11 +20,11 @@ public class JwtUtil {
     @Value("${jwt.secret}")
     private String secret;
 
-    @Value("${jwt.access-token-expiration:1800000}")
-    private long accessTokenExpiration; // default 30 minutes
+    @Value("${jwt.access-token-expiration-sec:1800}")
+    private long accessTokenExpirationSec; // default 30 minutes
 
-    @Value("${jwt.refresh-token-expiration:172800000}")
-    private long refreshTokenExpiration; // default 2 days
+    @Value("${jwt.refresh-token-expiration-sec:172800}")
+    private long refreshTokenExpirationSec; // default 2 days
 
     private Key key;
 
@@ -45,7 +45,7 @@ public class JwtUtil {
                 .setClaims(claims)
                 .setSubject(username)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
+                .setExpiration(new Date(System.currentTimeMillis() + accessTokenExpirationSec * 1000L))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -76,7 +76,7 @@ public class JwtUtil {
                 .setClaims(claims)
                 .setSubject(username)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
+                .setExpiration(new Date(System.currentTimeMillis() + refreshTokenExpirationSec * 1000L))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }

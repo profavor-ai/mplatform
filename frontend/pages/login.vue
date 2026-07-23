@@ -166,9 +166,13 @@ const errorMessage = ref('')
 const successMessage = ref('')
 const router = useRouter()
 
-const tokenCookie = useCookie('auth_token', { maxAge: 86400 })
-const refreshTokenCookie = useCookie('refresh_token', { maxAge: 604800 })
-const userCookie = useCookie('user_data', { maxAge: 86400 })
+const config = useRuntimeConfig()
+const accessMaxAge = config.public.accessTokenExpirationSec as number
+const refreshMaxAge = config.public.refreshTokenExpirationSec as number
+
+const tokenCookie = useCookie('auth_token', { maxAge: accessMaxAge })
+const refreshTokenCookie = useCookie('refresh_token', { maxAge: refreshMaxAge })
+const userCookie = useCookie('user_data', { maxAge: accessMaxAge })
 
 definePageMeta({
   layout: false
