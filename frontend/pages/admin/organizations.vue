@@ -93,8 +93,22 @@
                 v-model="editOrgForm.name"
                 :label="t('org_sys_code')"
                 readonly
-                style="flex: 1; min-width: 220px; background-color: #f8f9fa;"
+                style="flex: 1; min-width: 220px;"
+                class="readonly-sys-code"
               />
+            </div>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+              <div>
+                <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--va-text-primary); margin-bottom: 0.5rem;">
+                  조직 아이콘
+                </label>
+                <div style="display: flex; align-items: center; gap: 1rem; background: var(--va-background-element); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--va-background-border);">
+                  <va-icon :name="editOrgForm.icon || 'corporate_fare'" color="primary" size="medium" />
+                  <va-button preset="primary" outline icon="palette" size="small" @click="openIconPicker('org')">
+                    Select Icon (아이콘 선택)
+                  </va-button>
+                </div>
+              </div>
             </div>
             <va-input
               v-model="editOrgForm.description"
@@ -114,18 +128,15 @@
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div>
                 <h4 style="margin: 0; font-weight: 700; color: var(--va-text-primary);">
-                  {{ t('dept_structure') || '소속 부서 및 팀 계층 구조 (Tree View)' }}
+                  {{ getLabel('dept_structure', '소속 부서 및 조직 계층 구조 (Tree View)') }}
                 </h4>
                 <p style="margin: 0.25rem 0 0 0; font-size: 0.82rem; color: var(--va-text-secondary);">
-                  조직 - 상위 부서 - 하위 부서 - 팀 N단계 계층 구조
+                  조직 - 상위 부서 - 하위 부서 N단계 계층 구조
                 </p>
               </div>
               <div style="display: flex; gap: 0.5rem;">
                 <va-button size="small" preset="secondary" icon="add" @click="openCreateDeptModal(null)">
-                  + {{ t('add_department') || '부서 추가' }}
-                </va-button>
-                <va-button size="small" preset="secondary" icon="add" @click="openCreateTeamModal(null)">
-                  + {{ t('add_team') || '팀 추가' }}
+                  + {{ getLabel('add_root_dept', '최상위 부서 추가') }}
                 </va-button>
               </div>
             </div>
@@ -151,16 +162,16 @@
                 </va-button>
               </div>
 
-              <!-- N-Level Recursive Sub-Department & Team Tree Branches -->
+              <!-- N-Level Recursive Sub-Department Tree Branches -->
               <div style="margin-top: 0.5rem;">
                 <OrgTreeItem
                   v-for="dept in rootDepartments"
                   :key="dept.id"
                   :node="dept"
                   @add-subdept="openCreateDeptModal"
-                  @add-team="openCreateTeamModal"
                   @edit-dept="openEditDeptModal"
                   @delete-dept="openDeleteDeptConfirmModal"
+                  @manage-members="openManageMembersModal"
                 />
               </div>
             </div>
@@ -180,13 +191,18 @@
             <div style="display: flex; flex-direction: column; gap: 0.85rem;">
               <div v-for="role in roles" :key="role.id" style="border: 1px solid var(--va-background-border); border-radius: 8px; padding: 1rem; background: var(--va-background-secondary);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <div style="display: flex; align-items: center; gap: 0.55rem;">
                     <va-badge :color="role.isSystemRole ? 'primary' : 'warning'" :text="role.name" />
                     <span style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">{{ role.displayName || role.name }}</span>
+                    <span v-if="role.isSystemRole" style="font-size: 0.72rem; color: var(--va-primary); background: rgba(37,99,235,0.1); padding: 2px 6px; border-radius: 4px; font-weight: 700;">SYSTEM</span>
                   </div>
-                  <span style="font-size: 0.8rem; color: var(--va-text-secondary);">{{ role.description }}</span>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <va-button size="small" preset="secondary" icon="edit" @click="openEditRoleModal(role)" />
+                    <va-button v-if="!role.isSystemRole" size="small" preset="plain" icon="delete" color="danger" @click="openDeleteRoleConfirmModal(role)" />
+                  </div>
                 </div>
-                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem;">
+                <div style="font-size: 0.82rem; color: var(--va-text-secondary); margin-bottom: 0.6rem;">{{ role.description }}</div>
+                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
                   <va-chip v-for="perm in (role.permissions || [])" :key="perm" size="small" color="success" outline>
                     {{ perm }}
                   </va-chip>
@@ -225,6 +241,24 @@
           clearable
         />
         <va-input v-model="newDeptForm.name" :label="t('dept_name')" required />
+        <div>
+          <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--va-text-primary); margin-bottom: 0.5rem;">
+            Node Icon (부서 아이콘)
+          </label>
+          <div style="display: flex; align-items: center; gap: 1rem; background: var(--va-background-element); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--va-background-border);">
+            <va-icon :name="newDeptForm.icon || 'folder'" color="primary" size="medium" />
+            <va-button preset="primary" outline icon="palette" size="small" @click="openIconPicker('new')">
+              Select Icon (아이콘 선택)
+            </va-button>
+          </div>
+        </div>
+        <va-select
+          v-model="newDeptForm.roles"
+          multiple
+          :options="availableRoleOptions"
+          :label="getLabel('dept_roles', '부서 역할 (다중 선택 가능)')"
+          clearable
+        />
         <va-input v-model="newDeptForm.description" type="textarea" :label="t('description')" />
         <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
           <va-button preset="secondary" @click="showCreateDeptModalFlag = false">{{ t('cancel') }}</va-button>
@@ -245,10 +279,181 @@
           clearable
         />
         <va-input v-model="editDeptForm.name" :label="getLabel('dept_name', '부서/조직명')" required />
+        <div>
+          <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--va-text-primary); margin-bottom: 0.5rem;">
+            Node Icon (부서 아이콘)
+          </label>
+          <div style="display: flex; align-items: center; gap: 1rem; background: var(--va-background-element); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--va-background-border);">
+            <va-icon :name="editDeptForm.icon || 'folder'" color="primary" size="medium" />
+            <va-button preset="primary" outline icon="palette" size="small" @click="openIconPicker('edit')">
+              Select Icon (아이콘 선택)
+            </va-button>
+          </div>
+        </div>
+        <va-select
+          v-model="editDeptForm.roles"
+          multiple
+          :options="availableRoleOptions"
+          :label="getLabel('dept_roles', '부서 역할 (다중 선택 가능)')"
+          clearable
+        />
         <va-input v-model="editDeptForm.description" type="textarea" :label="getLabel('description', '설명')" />
         <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
           <va-button preset="secondary" @click="showEditDeptModalFlag = false">{{ getLabel('cancel', '취소') }}</va-button>
           <va-button color="primary" @click="saveEditDept">{{ getLabel('save', '저장') }}</va-button>
+        </div>
+      </div>
+    </va-modal>
+
+    <!-- Create Role Modal -->
+    <va-modal v-model="showCreateRoleModalFlag" :title="getLabel('create_role_title', '조직 RBAC 역할 신규 등록')" hide-default-actions size="medium" :prevent-click-outside="true" :no-outside-dismiss="true">
+      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1.1rem;">
+        <va-input v-model="newRoleForm.name" :label="getLabel('role_code_label', '역할 코드명 (예: CUSTOM_MANAGER, DQ_OPERATOR)')" placeholder="영문 대문자" required />
+        <va-input v-model="newRoleForm.displayName" :label="getLabel('role_display_name_label', '역할 표시명 (예: 품질 관리자)')" required />
+        <va-input v-model="newRoleForm.description" type="textarea" :label="getLabel('role_description_label', '역할 상세 설명')" />
+        <!-- Categorized Permission Matrix UI -->
+        <div style="display: flex; flex-direction: column; gap: 1rem; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.88rem; font-weight: 700; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.35rem;">
+              <va-icon name="admin_panel_settings" color="primary" size="small" />
+              {{ getLabel('permissions_matrix_title', '부여할 세부 권한 그룹 목록 (Permissions Matrix)') }}
+            </span>
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <span style="font-size: 0.78rem; color: var(--va-text-secondary); font-weight: 600;">
+                {{ getLabel('selected_count', '선택됨') }}: <b style="color: var(--va-primary);">{{ newRoleForm.permissions.length }}</b>개
+              </span>
+              <va-button preset="primary" outline size="small" icon="add" @click="openAddGroupModal('new')">
+                + {{ getLabel('add_new_group_btn', '신규 그룹 추가') }}
+              </va-button>
+            </div>
+          </div>
+
+          <!-- Dynamic Permission Groups -->
+          <div v-for="group in customPermissionGroups" :key="group.id" class="perm-category-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+              <div class="perm-category-title" :style="{ color: group.color || '#3b82f6' }">
+                {{ group.icon }} {{ locale === 'en' ? (group.titleEn || group.title) : (getLabel(group.titleKey, group.title)) }} ({{ group.code.toUpperCase() }})
+              </div>
+              <va-button preset="plain" size="small" icon="add" style="font-size: 0.75rem; font-weight: 700;" @click="openAddPermToGroupModal('new', group)">
+                + {{ getLabel('add_perm_btn', '권한 추가') }}
+              </va-button>
+            </div>
+
+            <div class="perm-chips-container">
+              <div
+                v-for="p in group.permissions"
+                :key="p.value"
+                class="perm-chip-item"
+                :class="[group.chipClass || '', { active: newRoleForm.permissions.includes(p.value) }]"
+                @click="togglePermission('new', p.value)"
+              >
+                <span class="chip-check" v-if="newRoleForm.permissions.includes(p.value)">✓</span>
+                <span>{{ locale === 'en' ? (p.labelEn || p.label) : (getLabel(p.labelKey, p.label)) }} ({{ p.value }})</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
+          <va-button preset="secondary" @click="showCreateRoleModalFlag = false">{{ getLabel('cancel', '취소') }}</va-button>
+          <va-button color="primary" @click="saveNewRole">{{ getLabel('register_role_btn', '역할 등록') }}</va-button>
+        </div>
+      </div>
+    </va-modal>
+
+    <!-- Edit Role Modal -->
+    <va-modal v-model="showEditRoleModalFlag" :title="getLabel('edit_role_title', '조직 RBAC 역할 정보 수정')" hide-default-actions size="medium" :prevent-click-outside="true" :no-outside-dismiss="true">
+      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1.1rem;">
+        <va-input v-model="editRoleForm.name" :label="getLabel('role_code_label', '역할 코드명')" readonly class="readonly-sys-code" />
+        <va-input v-model="editRoleForm.displayName" :label="getLabel('role_display_name_label', '역할 표시명')" required />
+        <va-input v-model="editRoleForm.description" type="textarea" :label="getLabel('role_description_label', '역할 상세 설명')" />
+        <!-- Categorized Permission Matrix UI -->
+        <div style="display: flex; flex-direction: column; gap: 1rem; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.88rem; font-weight: 700; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.35rem;">
+              <va-icon name="admin_panel_settings" color="primary" size="small" />
+              {{ getLabel('permissions_matrix_title', '부여할 세부 권한 그룹 목록 (Permissions Matrix)') }}
+            </span>
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <span style="font-size: 0.78rem; color: var(--va-text-secondary); font-weight: 600;">
+                {{ getLabel('selected_count', '선택됨') }}: <b style="color: var(--va-primary);">{{ editRoleForm.permissions.length }}</b>개
+              </span>
+              <va-button preset="primary" outline size="small" icon="add" @click="openAddGroupModal('edit')">
+                + {{ getLabel('add_new_group_btn', '신규 그룹 추가') }}
+              </va-button>
+            </div>
+          </div>
+
+          <!-- Dynamic Permission Groups -->
+          <div v-for="group in customPermissionGroups" :key="group.id" class="perm-category-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+              <div class="perm-category-title" :style="{ color: group.color || '#3b82f6' }">
+                {{ group.icon }} {{ locale === 'en' ? (group.titleEn || group.title) : (getLabel(group.titleKey, group.title)) }} ({{ group.code.toUpperCase() }})
+              </div>
+              <va-button preset="plain" size="small" icon="add" style="font-size: 0.75rem; font-weight: 700;" @click="openAddPermToGroupModal('edit', group)">
+                + {{ getLabel('add_perm_btn', '권한 추가') }}
+              </va-button>
+            </div>
+
+            <div class="perm-chips-container">
+              <div
+                v-for="p in group.permissions"
+                :key="p.value"
+                class="perm-chip-item"
+                :class="[group.chipClass || '', { active: editRoleForm.permissions.includes(p.value) }]"
+                @click="togglePermission('edit', p.value)"
+              >
+                <span class="chip-check" v-if="editRoleForm.permissions.includes(p.value)">✓</span>
+                <span>{{ locale === 'en' ? (p.labelEn || p.label) : (getLabel(p.labelKey, p.label)) }} ({{ p.value }})</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
+          <va-button preset="secondary" @click="showEditRoleModalFlag = false">{{ getLabel('cancel', '취소') }}</va-button>
+          <va-button color="primary" @click="saveEditRole">{{ getLabel('save', '저장') }}</va-button>
+        </div>
+      </div>
+    </va-modal>
+
+    <!-- Delete Role Confirm Modal -->
+    <va-modal v-model="showDeleteRoleModalFlag" title="역할 삭제 확인" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
+      <div style="padding: 1.25rem 0; text-align: center;">
+        <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(229, 57, 53, 0.12); color: #b91c1c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
+          <va-icon name="warning" size="large" color="danger" />
+        </div>
+        <h4 style="margin: 0 0 0.5rem 0; font-weight: 700; color: var(--va-text-primary);">
+          '{{ targetDeletingRole?.displayName || targetDeletingRole?.name }}' 역할을 삭제하시겠습니까?
+        </h4>
+        <p style="margin: 0; font-size: 0.88rem; color: var(--va-text-secondary);">
+          이 역할을 할당받은 부서나 사용자의 접근 권한에 영향을 줄 수 있습니다.
+        </p>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+        <va-button preset="secondary" @click="showDeleteRoleModalFlag = false">취소</va-button>
+        <va-button color="danger" @click="confirmDeleteRole">삭제</va-button>
+      </div>
+    </va-modal>
+
+    <!-- Icon Picker Modal -->
+    <va-modal v-model="showIconPickerModalFlag" title="Select Icon (부서 아이콘 선택)" hide-default-actions size="small">
+      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+        <div style="font-size: 0.88rem; color: var(--va-text-secondary); font-weight: 600;">
+          부서 노드 및 헤더에 표시할 커스텀 아이콘을 선택하세요:
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; max-height: 280px; overflow-y: auto; padding: 0.5rem;">
+          <div
+            v-for="iconName in availableIconList"
+            :key="iconName"
+            @click="selectIconFromPicker(iconName)"
+            style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--va-background-border); cursor: pointer; transition: all 0.2s;"
+            class="hoverable-icon-box"
+          >
+            <va-icon :name="iconName" color="primary" size="medium" />
+            <span style="font-size: 0.7rem; margin-top: 0.35rem; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">{{ iconName }}</span>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
+          <va-button preset="secondary" @click="showIconPickerModalFlag = false">닫기</va-button>
         </div>
       </div>
     </va-modal>
@@ -270,18 +475,143 @@
       </div>
     </va-modal>
 
-    <!-- Create Team Modal -->
-    <va-modal v-model="showCreateTeamModalFlag" :title="t('add_new_team')" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
-      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
-        <va-select v-model="newTeamForm.departmentId" :options="departments" value-by="id" text-by="name" :label="t('belongs_to_dept')" required />
-        <va-input v-model="newTeamForm.name" :label="t('team_name')" required />
-        <va-input v-model="newTeamForm.description" type="textarea" :label="t('description')" />
-        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-          <va-button preset="secondary" @click="showCreateTeamModalFlag = false">{{ t('cancel') }}</va-button>
-          <va-button color="primary" @click="saveNewTeam">{{ t('add_team') }}</va-button>
+    <!-- Manage Department Members Modal -->
+    <va-modal v-model="showManageMembersModalFlag" :title="getLabel('dept_members', '부서 구성원 지정 및 관리')" hide-default-actions size="medium" :prevent-click-outside="true" :no-outside-dismiss="true">
+      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1.25rem;">
+        <div style="background: var(--va-background-secondary); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 1rem;">
+          <h4 style="margin: 0 0 0.25rem 0; font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
+            <va-icon name="folder" color="primary" />
+            {{ targetManagingDept?.name }}
+          </h4>
+          <p style="margin: 0; font-size: 0.85rem; color: var(--va-text-secondary);">
+            선택된 부서에 구성원을 신규 추가하거나 할당 해제합니다.
+          </p>
+        </div>
+
+        <!-- Section 1: Assigned Members -->
+        <div>
+          <h5 style="font-weight: 700; margin-bottom: 0.75rem; color: var(--va-text-primary); font-size: 0.95rem; display: flex; align-items: center; justify-content: space-between;">
+            <span>소속 구성원 목록 ({{ currentDeptMembers.length }}명)</span>
+          </h5>
+          <div v-if="currentDeptMembers.length === 0" style="padding: 1.5rem; text-align: center; color: var(--va-text-secondary); background: var(--va-background-element); border-radius: 6px; font-size: 0.9rem;">
+            현재 이 부서에 할당된 구성원이 없습니다. 아래에서 구성원을 선택하여 등록하세요.
+          </div>
+          <div v-else style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 180px; overflow-y: auto;">
+            <div
+              v-for="user in currentDeptMembers"
+              :key="user.id"
+              style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.85rem; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 6px;"
+            >
+              <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <va-icon name="account_circle" color="primary" />
+                <span style="font-weight: 700; font-size: 0.95rem;">{{ user.username }}</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <va-select
+                  :model-value="getUserRolesArray(user.role)"
+                  multiple
+                  :options="['ADMIN', 'ORG_ADMIN', 'DATA_STEWARD', 'DOMAIN_EDITOR', 'DQ_MANAGER', 'VIEWER', 'USER']"
+                  @update:modelValue="changeMemberRolesInDept(user, $event)"
+                  style="min-width: 250px;"
+                  size="small"
+                  clearable
+                />
+                <va-button size="small" color="danger" preset="secondary" icon="person_remove" @click="removeUserFromDept(user)">
+                  할당 해제
+                </va-button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <va-divider />
+
+        <!-- Section 2: Add Unassigned or Other Users to Dept -->
+        <div>
+          <h5 style="font-weight: 700; margin-bottom: 0.75rem; color: var(--va-text-primary); font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center;">
+            <span>신규 구성원 추가</span>
+            <va-button color="primary" icon="person_search" size="small" @click="openUserSearchSelectModal">
+              + 사용자 검색 및 등록 (모달)
+            </va-button>
+          </h5>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+          <va-button preset="primary" @click="showManageMembersModalFlag = false">{{ t('close') || '닫기' }}</va-button>
         </div>
       </div>
     </va-modal>
+
+    <!-- Modal 1: Add New Permission Group -->
+    <va-modal v-model="showAddGroupModalFlag" :title="getLabel('add_new_perm_group_title', '신규 권한 그룹 생성')" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
+      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+        <va-input v-model="newGroupForm.titleKo" :label="getLabel('group_title_label', '그룹 한국어 명칭 (예: 리포트 권한, API 권한)')" placeholder="한국어 명칭" required />
+        <va-input v-model="newGroupForm.titleEn" :label="getLabel('group_title_en_label', '그룹 영문 명칭 (예: Report Permissions, API Permissions)')" placeholder="English Title" required />
+        <va-input v-model="newGroupForm.code" :label="getLabel('group_code_label', '그룹 코드명 (예: report, api)')" placeholder="영문 소문자" required />
+        <va-input v-model="newGroupForm.icon" :label="getLabel('group_icon_label', '이모지 아이콘 (예: 📊, 🔑, ⚙️)')" placeholder="이모지 또는 문구" />
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
+          <va-button preset="secondary" @click="showAddGroupModalFlag = false">{{ getLabel('cancel', '취소') }}</va-button>
+          <va-button color="primary" @click="saveNewGroup">{{ getLabel('create_group_btn', '그룹 생성') }}</va-button>
+        </div>
+      </div>
+    </va-modal>
+
+    <!-- Modal 2: Add New Permission to Specific Group -->
+    <va-modal v-model="showAddPermToGroupModalFlag" :title="`[${targetGroupForPerm?.title}] ${getLabel('add_perm_to_group_title', '그룹 내 신규 권한 추가')}`" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
+      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+        <va-input v-model="newPermToGroupForm.labelKo" :label="getLabel('perm_label_label', '권한 한국어 표시명 (예: 내보내기, 실행)')" placeholder="한국어 표시명" required />
+        <va-input v-model="newPermToGroupForm.labelEn" :label="getLabel('perm_label_en_label', '권한 영문 표시명 (예: Export, Execute)')" placeholder="English Label" required />
+        <va-input v-model="newPermToGroupForm.action" :label="getLabel('perm_action_label', '권한 행위/식별자 (예: export, execute)')" placeholder="영문 소문자" required />
+        <div style="font-size: 0.8rem; color: var(--va-text-secondary); background: var(--va-background-element); padding: 0.5rem; border-radius: 6px;">
+          {{ getLabel('final_perm_value', '최종 권한 값') }}: <b style="color: var(--va-primary);">{{ targetGroupForPerm?.code }}:{{ newPermToGroupForm.action || 'action' }}</b>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
+          <va-button preset="secondary" @click="showAddPermToGroupModalFlag = false">{{ getLabel('cancel', '취소') }}</va-button>
+          <va-button color="primary" @click="saveNewPermToGroup">{{ getLabel('add_perm_btn', '권한 추가') }}</va-button>
+        </div>
+      </div>
+    </va-modal>
+
+    <!-- User Search & Select Modal with AG Grid -->
+    <va-modal v-model="showUserSearchSelectModalFlag" title="부서 구성원 검색 및 선택 (AG Grid)" hide-default-actions size="large" :prevent-click-outside="true" :no-outside-dismiss="true">
+      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem; width: 100%;">
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <va-input
+            v-model="userSearchKeyword"
+            placeholder="사용자명 또는 역할 검색..."
+            clearable
+            style="flex: 1;"
+          >
+            <template #prependInner>
+              <va-icon name="search" color="primary" />
+            </template>
+          </va-input>
+        </div>
+
+        <!-- AG Grid Container -->
+        <div style="width: 100%; height: 380px; border: 1px solid var(--va-background-border); border-radius: 8px; overflow: hidden;">
+          <client-only>
+            <ag-grid-vue
+              v-if="isMounted"
+              style="width: 100%; height: 100%;"
+              :theme="gridTheme"
+              :columnDefs="userGridColumnDefs"
+              :rowData="filteredUsersToSearch"
+              :autoSizeStrategy="{ type: 'fitGridWidth' }"
+              :pagination="true"
+              :paginationPageSize="10"
+              :paginationPageSizeSelector="[5, 10, 20, 50]"
+            />
+          </client-only>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
+          <va-button preset="secondary" @click="showUserSearchSelectModalFlag = false">닫기</va-button>
+        </div>
+      </div>
+    </va-modal>
+
+
 
     <!-- System Notification Modal -->
     <va-modal
@@ -344,6 +674,11 @@
 import OrgTreeItem from '~/components/OrgTreeItem.vue'
 import { ref, onMounted, computed } from 'vue'
 import { useCookie } from '#app'
+import { AgGridVue } from 'ag-grid-vue3'
+import { useAgGridTheme } from '~/composables/useAgGridTheme'
+
+const { gridTheme } = useAgGridTheme()
+const isMounted = ref(false)
 
 const { t } = useI18n()
 
@@ -375,15 +710,42 @@ const departments = ref([])
 const teams = ref([])
 const roles = ref([])
 
-const editOrgForm = ref({ name: '', displayName: '', description: '' })
+const editOrgForm = ref({ name: '', displayName: '', description: '', icon: 'corporate_fare' })
 const showCreateOrgModalFlag = ref(false)
-const newOrgForm = ref({ name: '', displayName: '', description: '' })
+const newOrgForm = ref({ name: '', displayName: '', description: '', icon: 'corporate_fare' })
 
 const showCreateDeptModalFlag = ref(false)
-const newDeptForm = ref({ parentDepartmentId: null, name: '', description: '' })
+const newDeptForm = ref({ parentDepartmentId: null, name: '', description: '', roles: [], icon: 'folder' })
 
 const showEditDeptModalFlag = ref(false)
-const editDeptForm = ref({ id: null, parentDepartmentId: null, name: '', description: '' })
+const editDeptForm = ref({ id: null, parentDepartmentId: null, name: '', description: '', roles: [], icon: 'folder' })
+
+const availableIconList = ref([
+  'folder', 'corporate_fare', 'domain', 'business', 'school', 'apartment',
+  'account_tree', 'groups', 'hub', 'work', 'star', 'widgets',
+  'dashboard', 'settings', 'analytics', 'security', 'shield', 'cloud',
+  'verified', 'workspace_premium', 'device_hub', 'badge', 'store', 'local_offer',
+  'emoji_events', 'science', 'biotech', 'memory', 'speed', 'auto_awesome'
+])
+
+const showIconPickerModalFlag = ref(false)
+const iconPickerTarget = ref('edit')
+
+const openIconPicker = (target) => {
+  iconPickerTarget.value = target
+  showIconPickerModalFlag.value = true
+}
+
+const selectIconFromPicker = (iconName) => {
+  if (iconPickerTarget.value === 'new') {
+    newDeptForm.value.icon = iconName
+  } else if (iconPickerTarget.value === 'org') {
+    editOrgForm.value.icon = iconName
+  } else {
+    editDeptForm.value.icon = iconName
+  }
+  showIconPickerModalFlag.value = false
+}
 
 const showDeleteDeptModalFlag = ref(false)
 const targetDeletingDept = ref(null)
@@ -394,28 +756,35 @@ const availableParentDepts = computed(() => {
 })
 
 const openEditDeptModal = (dept) => {
+  const rolesArr = dept.role ? (Array.isArray(dept.role) ? dept.role : String(dept.role).split(',').map(r => r.trim()).filter(Boolean)) : []
   editDeptForm.value = {
     id: dept.id,
     parentDepartmentId: dept.parentDepartmentId || null,
     name: dept.name,
-    description: dept.description || ''
+    description: dept.description || '',
+    roles: rolesArr,
+    icon: dept.icon || 'folder'
   }
   showEditDeptModalFlag.value = true
 }
 
 const saveEditDept = async () => {
   if (!selectedOrg.value || !editDeptForm.value.name) return
+  const roleStr = Array.isArray(editDeptForm.value.roles) ? editDeptForm.value.roles.join(',') : (editDeptForm.value.roles || '')
   try {
     await $fetch(`/api/organizations/${selectedOrg.value.id}/departments/${editDeptForm.value.id}`, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token.value}` },
-      body: editDeptForm.value
+      body: {
+        ...editDeptForm.value,
+        role: roleStr
+      }
     })
     showEditDeptModalFlag.value = false
     await loadOrgDetails(selectedOrg.value.id)
-    showCustomAlert(t('dept_updated_success') || '부서 정보가 성공적으로 수정되었습니다.', t('update_success') || '수정 완료', t('notification') || '알림', 'success')
+    showCustomAlert(getLabel('dept_updated_success', '부서 정보가 성공적으로 수정되었습니다.'), getLabel('update_success', '수정 완료'), getLabel('notification', '알림'), 'success')
   } catch (e) {
-    showCustomAlert('Failed to update department: ' + (e.message || String(e)), t('error') || 'Error', t('notification') || 'Notification', 'error')
+    showCustomAlert('Failed to update department: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
   }
 }
 
@@ -439,24 +808,216 @@ const confirmDeleteDept = async () => {
   }
 }
 
-const showCreateTeamModalFlag = ref(false)
-const newTeamForm = ref({ departmentId: null, name: '', description: '' })
+const showManageMembersModalFlag = ref(false)
+const targetManagingDept = ref(null)
+const allUsersList = ref([])
+const showUserSearchSelectModalFlag = ref(false)
+const userSearchKeyword = ref('')
+
+const fetchAllUsersList = async () => {
+  try {
+    const res = await $fetch('/api/permissions/users', {
+      headers: { Authorization: `Bearer ${token.value}` },
+      query: { page: 0, size: 100 }
+    })
+    allUsersList.value = res.content || []
+  } catch (e) {
+    console.error('Failed to fetch users:', e)
+  }
+}
+
+const currentDeptMembers = computed(() => {
+  if (!targetManagingDept.value) return []
+  return allUsersList.value.filter(u => u.departmentId === targetManagingDept.value.id)
+})
+
+const filteredUsersToSearch = computed(() => {
+  if (!allUsersList.value) return []
+  const kw = userSearchKeyword.value ? userSearchKeyword.value.toLowerCase().trim() : ''
+  if (!kw) return allUsersList.value
+  return allUsersList.value.filter(u =>
+    (u.username && u.username.toLowerCase().includes(kw)) ||
+    (u.role && u.role.toLowerCase().includes(kw))
+  )
+})
+
+const userGridColumnDefs = ref([
+  {
+    headerName: '사용자명 (Username)',
+    field: 'username',
+    flex: 2,
+    minWidth: 140,
+    cellRenderer: (params) => {
+      if (!params.data) return ''
+      return `<div style="font-weight: 700; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.4rem;">
+        <span>👤</span> <span>${params.value || ''}</span>
+      </div>`
+    }
+  },
+  {
+    headerName: '부서 할당 역할 지정',
+    field: 'role',
+    flex: 1.5,
+    minWidth: 150,
+    cellRenderer: (params) => {
+      if (!params.data) return ''
+      const currentRole = params.value || 'USER'
+      const roles = ['ADMIN', 'ORG_ADMIN', 'DATA_STEWARD', 'DOMAIN_EDITOR', 'DQ_MANAGER', 'VIEWER', 'USER']
+      const optionsHtml = roles.map(r => `<option value="${r}" ${r === currentRole ? 'selected' : ''}>${r}</option>`).join('')
+      return `<select id="role-sel-${params.data.id}" style="padding: 3px 8px; border-radius: 4px; border: 1px solid var(--va-background-border); background: var(--va-background-element); color: var(--va-text-primary); font-weight: 700; font-size: 0.8rem; cursor: pointer;">${optionsHtml}</select>`
+    }
+  },
+  {
+    headerName: '소속 상태',
+    field: 'departmentId',
+    flex: 1,
+    minWidth: 110,
+    cellRenderer: (params) => {
+      if (!params.data) return ''
+      const isCurrent = params.value === targetManagingDept.value?.id
+      if (isCurrent) {
+        return `<span style="color: #16a34a; font-weight: 700; font-size: 0.85rem;">📁 현재 부서</span>`
+      } else if (params.value) {
+        return `<span style="color: #d97706; font-weight: 600; font-size: 0.85rem;">타부서 소속</span>`
+      } else {
+        return `<span style="color: #6b7280; font-style: italic; font-size: 0.85rem;">미할당</span>`
+      }
+    }
+  },
+  {
+    headerName: '부서 지정',
+    field: 'actions',
+    flex: 1,
+    minWidth: 120,
+    cellRenderer: (params) => {
+      if (!params.data) return ''
+      const isCurrent = params.data.departmentId === targetManagingDept.value?.id
+      if (isCurrent) {
+        return `<span style="color: #16a34a; font-weight: 700; font-size: 0.85rem;">✓ 소속됨</span>`
+      }
+      return `<button style="background: #2563eb; color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 0.8rem; cursor: pointer; font-weight: 600;">+ 부서 등록</button>`
+    },
+    onCellClicked: (params) => {
+      if (params.data && params.data.departmentId !== targetManagingDept.value?.id) {
+        assignUserFromSearchModal(params.data)
+      }
+    }
+  }
+])
+
+const openManageMembersModal = async (dept) => {
+  targetManagingDept.value = dept
+  await fetchAllUsersList()
+  showManageMembersModalFlag.value = true
+}
+
+const openUserSearchSelectModal = () => {
+  userSearchKeyword.value = ''
+  showUserSearchSelectModalFlag.value = true
+}
+
+const userCookie = useCookie('user_data')
+
+const updateLoggedUserCookieIfSelf = (userId, orgId, deptId, role = null) => {
+  if (userCookie.value) {
+    const usr = typeof userCookie.value === 'string' ? JSON.parse(userCookie.value) : userCookie.value
+    if (usr && (usr.id === userId || usr.uuid === userId)) {
+      if (orgId !== undefined) usr.organizationId = orgId
+      if (deptId !== undefined) usr.departmentId = deptId
+      if (role) usr.role = role
+      userCookie.value = JSON.stringify(usr)
+    }
+  }
+}
+
+const getUserRolesArray = (role) => {
+  if (!role) return ['USER']
+  if (Array.isArray(role)) return role
+  return String(role).split(',').map(r => r.trim()).filter(Boolean)
+}
+
+const changeMemberRolesInDept = async (user, newRoles) => {
+  if (!user) return
+  const roleStr = Array.isArray(newRoles) ? newRoles.join(',') : (newRoles || 'USER')
+  try {
+    await $fetch(`/api/permissions/users/${user.id}/tenant-info`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token.value}` },
+      body: {
+        organizationId: selectedOrg.value.id,
+        departmentId: user.departmentId,
+        role: roleStr
+      }
+    })
+    user.role = roleStr
+    updateLoggedUserCookieIfSelf(user.id, selectedOrg.value.id, user.departmentId, roleStr)
+    await fetchAllUsersList()
+    showCustomAlert(`'${user.username}' 구성원의 역할이 '${roleStr}'(으)로 변경되었습니다.`, getLabel('update_success', '수정 완료'), getLabel('notification', '알림'), 'success')
+  } catch (e) {
+    showCustomAlert('Failed to update member role: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
+  }
+}
+
+const assignUserFromSearchModal = async (user) => {
+  if (!targetManagingDept.value || !user) return
+  const selectElem = document.getElementById(`role-sel-${user.id}`)
+  const chosenRole = selectElem ? selectElem.value : (user.role || 'USER')
+
+  try {
+    await $fetch(`/api/permissions/users/${user.id}/tenant-info`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token.value}` },
+      body: {
+        organizationId: selectedOrg.value.id,
+        departmentId: targetManagingDept.value.id,
+        role: chosenRole
+      }
+    })
+    updateLoggedUserCookieIfSelf(user.id, selectedOrg.value.id, targetManagingDept.value.id, chosenRole)
+    await fetchAllUsersList()
+    await loadOrgDetails(selectedOrg.value.id)
+    showCustomAlert(`'${user.username}' 구성원이 [${chosenRole}] 역할로 부서에 성공적으로 등록되었습니다.`, getLabel('update_success', '등록 완료'), getLabel('notification', '알림'), 'success')
+  } catch (e) {
+    showCustomAlert('Failed to add user to dept: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
+  }
+}
+
+const removeUserFromDept = async (user) => {
+  if (!targetManagingDept.value || !user) return
+  try {
+    await $fetch(`/api/permissions/users/${user.id}/tenant-info`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token.value}` },
+      body: {
+        organizationId: selectedOrg.value.id,
+        departmentId: null
+      }
+    })
+    updateLoggedUserCookieIfSelf(user.id, selectedOrg.value.id, null)
+    await fetchAllUsersList()
+    await loadOrgDetails(selectedOrg.value.id)
+    showCustomAlert('구성원의 부서 할당이 해제되었습니다.', getLabel('update_success', '해제 완료'), getLabel('notification', '알림'), 'success')
+  } catch (e) {
+    showCustomAlert('Failed to remove user from dept: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
+  }
+}
 
 const rootDepartments = computed(() => {
   if (!departments.value) return []
   
+  const memberCounts = {}
+  allUsersList.value.forEach(u => {
+    if (u.departmentId) {
+      memberCounts[u.departmentId] = (memberCounts[u.departmentId] || 0) + 1
+    }
+  })
+
   const map = {}
   departments.value.forEach(d => {
     map[d.id] = {
       ...d,
-      subDepts: [],
-      teams: []
-    }
-  })
-
-  teams.value.forEach(t => {
-    if (t.departmentId && map[t.departmentId]) {
-      map[t.departmentId].teams.push(t)
+      memberCount: memberCounts[d.id] || 0,
+      subDepts: []
     }
   })
 
@@ -474,13 +1035,8 @@ const rootDepartments = computed(() => {
 })
 
 const openCreateDeptModal = (parentDeptId = null) => {
-  newDeptForm.value = { parentDepartmentId: parentDeptId, name: '', description: '' }
+  newDeptForm.value = { parentDepartmentId: parentDeptId, name: '', description: '', roles: [], icon: 'folder' }
   showCreateDeptModalFlag.value = true
-}
-
-const openCreateTeamModal = (deptId = null) => {
-  newTeamForm.value = { departmentId: deptId || (departments.value[0]?.id || null), name: '', description: '' }
-  showCreateTeamModalFlag.value = true
 }
 
 const fetchOrganizations = async () => {
@@ -493,6 +1049,7 @@ const fetchOrganizations = async () => {
     if (organizations.value.length > 0 && !selectedOrg.value) {
       selectOrganization(organizations.value[0])
     }
+    await fetchAllUsersList()
   } catch (e) {
     console.error('Failed to fetch organizations:', e)
   } finally {
@@ -541,62 +1098,420 @@ const saveNewOrg = async () => {
     showCreateOrgModalFlag.value = false
     await fetchOrganizations()
     if (created) selectOrganization(created)
-    showCustomAlert(t('org_created_success') || 'Organization created successfully.', t('creation_success') || 'Creation Success', t('notification') || 'Notification', 'success')
+    showCustomAlert(
+      getLabel('org_created_success', '조직이 성공적으로 생성되었습니다.'),
+      getLabel('creation_success', '생성 완료'),
+      getLabel('notification', '알림'),
+      'success'
+    )
   } catch (e) {
-    showCustomAlert('Failed to create organization: ' + (e.message || String(e)), t('error') || 'Error', t('notification') || 'Notification', 'error')
+    showCustomAlert('Failed to create organization: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
   }
 }
 
 const saveOrgInfo = async () => {
   if (!selectedOrg.value) return
   try {
-    showCustomAlert(t('org_updated_success') || 'Organization info updated successfully.', t('update_success') || 'Update Success', t('notification') || 'Notification', 'success')
+    const updated = await $fetch(`/api/organizations/${selectedOrg.value.id}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token.value}` },
+      body: editOrgForm.value
+    })
+    await fetchOrganizations()
+    if (updated) {
+      selectedOrg.value = updated
+      editOrgForm.value = { ...updated }
+    }
+    showCustomAlert(
+      getLabel('org_updated_success', '조직 정보가 성공적으로 수정되었습니다.'),
+      getLabel('update_success', '수정 완료'),
+      getLabel('notification', '알림'),
+      'success'
+    )
   } catch (e) {
-    console.error(e)
+    showCustomAlert('Failed to update organization: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
   }
 }
 
-
-
 const saveNewDept = async () => {
   if (!selectedOrg.value || !newDeptForm.value.name) return
+  const roleStr = Array.isArray(newDeptForm.value.roles) ? newDeptForm.value.roles.join(',') : (newDeptForm.value.roles || '')
   try {
     await $fetch(`/api/organizations/${selectedOrg.value.id}/departments`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token.value}` },
-      body: newDeptForm.value
+      body: {
+        ...newDeptForm.value,
+        role: roleStr
+      }
     })
     showCreateDeptModalFlag.value = false
     await loadOrgDetails(selectedOrg.value.id)
-    showCustomAlert(t('dept_created_success') || 'Department created successfully.', t('creation_success') || 'Creation Success', t('notification') || 'Notification', 'success')
+    showCustomAlert(
+      getLabel('dept_created_success', '부서가 성공적으로 생성되었습니다.'),
+      getLabel('creation_success', '생성 완료'),
+      getLabel('notification', '알림'),
+      'success'
+    )
   } catch (e) {
-    showCustomAlert('Failed to create department: ' + (e.message || String(e)), t('error') || 'Error', t('notification') || 'Notification', 'error')
+    showCustomAlert('Failed to create department: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
   }
 }
 
+const customPermissionGroups = ref([
+  {
+    id: 'domain',
+    title: '도메인 권한',
+    titleKey: 'domain_perm_group_title',
+    code: 'domain',
+    icon: '🌐',
+    color: '#3b82f6',
+    chipClass: '',
+    permissions: [
+      { label: '도메인 전체 (*)', labelKey: 'perm_all', value: 'domain:*' },
+      { label: '조회 (read)', labelKey: 'perm_read', value: 'domain:read' },
+      { label: '생성/수정 (write)', labelKey: 'perm_write', value: 'domain:write' }
+    ]
+  },
+  {
+    id: 'node',
+    title: '분류 노드 권한',
+    titleKey: 'node_perm_group_title',
+    code: 'node',
+    icon: '📁',
+    color: '#10b981',
+    chipClass: 'green',
+    permissions: [
+      { label: '노드 전체 (*)', labelKey: 'perm_all', value: 'node:*' },
+      { label: '조회 (read)', labelKey: 'perm_read', value: 'node:read' },
+      { label: '생성/수정 (write)', labelKey: 'perm_write', value: 'node:write' }
+    ]
+  },
+  {
+    id: 'field',
+    title: '속성 필드 권한',
+    titleKey: 'field_perm_group_title',
+    code: 'field',
+    icon: '🏷️',
+    color: '#8b5cf6',
+    chipClass: 'purple',
+    permissions: [
+      { label: '필드 전체 (*)', labelKey: 'perm_all', value: 'field:*' },
+      { label: '조회 (read)', labelKey: 'perm_read', value: 'field:read' },
+      { label: '생성/수정 (write)', labelKey: 'perm_write', value: 'field:write' }
+    ]
+  },
+  {
+    id: 'dq',
+    title: '데이터 품질 권한',
+    titleKey: 'dq_perm_group_title',
+    code: 'dq',
+    icon: '⚡',
+    color: '#f59e0b',
+    chipClass: 'amber',
+    permissions: [
+      { label: 'DQ 전체 (*)', labelKey: 'perm_all', value: 'dq:*' },
+      { label: '조회 (read)', labelKey: 'perm_read', value: 'dq:read' },
+      { label: '실행/수정 (write)', labelKey: 'perm_write', value: 'dq:write' }
+    ]
+  }
+])
 
+const showAddGroupModalFlag = ref(false)
+const modalTargetContext = ref('new')
+const newGroupForm = ref({ titleKo: '', titleEn: '', code: '', icon: '⚙️' })
 
-const saveNewTeam = async () => {
-  if (!selectedOrg.value || !newTeamForm.value.name) return
-  try {
-    await $fetch(`/api/organizations/${selectedOrg.value.id}/teams`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token.value}` },
-      body: newTeamForm.value
-    })
-    showCreateTeamModalFlag.value = false
-    await loadOrgDetails(selectedOrg.value.id)
-    showCustomAlert(t('team_created_success') || 'Team created successfully.', t('creation_success') || 'Creation Success', t('notification') || 'Notification', 'success')
-  } catch (e) {
-    showCustomAlert('Failed to create team: ' + (e.message || String(e)), t('error') || 'Error', t('notification') || 'Notification', 'error')
+const openAddGroupModal = (targetContext) => {
+  modalTargetContext.value = targetContext
+  newGroupForm.value = { titleKo: '', titleEn: '', code: '', icon: '⚙️' }
+  showAddGroupModalFlag.value = true
+}
+
+const saveNewGroup = () => {
+  if (!newGroupForm.value.titleKo || !newGroupForm.value.code) return
+  const codeClean = newGroupForm.value.code.toLowerCase().trim()
+  const titleKoStr = newGroupForm.value.titleKo
+  const titleEnStr = newGroupForm.value.titleEn || titleKoStr
+  const newGroup = {
+    id: codeClean,
+    title: titleKoStr,
+    titleEn: titleEnStr,
+    code: codeClean,
+    icon: newGroupForm.value.icon || '⚙️',
+    color: '#06b6d4',
+    chipClass: 'cyan',
+    permissions: [
+      { label: `${titleKoStr} 전체 (*)`, value: `${codeClean}:*` },
+      { label: '조회 (read)', labelKey: 'perm_read', value: `${codeClean}:read` },
+      { label: '생성/수정 (write)', labelKey: 'perm_write', value: `${codeClean}:write` }
+    ]
+  }
+  customPermissionGroups.value.push(newGroup)
+  showAddGroupModalFlag.value = false
+}
+
+const showAddPermToGroupModalFlag = ref(false)
+const targetGroupForPerm = ref(null)
+const newPermToGroupForm = ref({ labelKo: '', labelEn: '', action: '' })
+
+const openAddPermToGroupModal = (targetContext, group) => {
+  modalTargetContext.value = targetContext
+  targetGroupForPerm.value = group
+  newPermToGroupForm.value = { labelKo: '', labelEn: '', action: '' }
+  showAddPermToGroupModalFlag.value = true
+}
+
+const saveNewPermToGroup = () => {
+  if (!targetGroupForPerm.value || !newPermToGroupForm.value.labelKo || !newPermToGroupForm.value.action) return
+  const actClean = newPermToGroupForm.value.action.toLowerCase().trim()
+  const permValue = `${targetGroupForPerm.value.code}:${actClean}`
+  const labelKoStr = newPermToGroupForm.value.labelKo
+  const labelEnStr = newPermToGroupForm.value.labelEn || labelKoStr
+  
+  const targetGrp = customPermissionGroups.value.find(g => g.id === targetGroupForPerm.value.id)
+  if (targetGrp) {
+    if (!targetGrp.permissions.some(p => p.value === permValue)) {
+      targetGrp.permissions.push({
+        label: `${labelKoStr} (${actClean})`,
+        labelEn: `${labelEnStr} (${actClean})`,
+        value: permValue
+      })
+    }
+  }
+
+  const form = modalTargetContext.value === 'new' ? newRoleForm.value : editRoleForm.value
+  if (!form.permissions.includes(permValue)) {
+    form.permissions.push(permValue)
+  }
+
+  showAddPermToGroupModalFlag.value = false
+}
+
+const togglePermission = (target, permValue) => {
+  const form = target === 'new' ? newRoleForm.value : editRoleForm.value
+  const idx = form.permissions.indexOf(permValue)
+  if (idx > -1) {
+    form.permissions.splice(idx, 1)
+  } else {
+    form.permissions.push(permValue)
   }
 }
+
+const getCustomPermissions = (target) => {
+  const form = target === 'new' ? newRoleForm.value : editRoleForm.value
+  return form.permissions.filter(p => !standardPermSet.has(p))
+}
+
+const customPermInput = ref('')
+const customPermInputEdit = ref('')
+
+const addCustomPermission = (target) => {
+  const inputVal = target === 'new' ? customPermInput.value : customPermInputEdit.value
+  if (!inputVal) return
+  const cleanVal = inputVal.toLowerCase().trim()
+  if (!cleanVal) return
+
+  if (target === 'new') {
+    if (!newRoleForm.value.permissions.includes(cleanVal)) {
+      newRoleForm.value.permissions.push(cleanVal)
+    }
+    customPermInput.value = ''
+  } else {
+    if (!editRoleForm.value.permissions.includes(cleanVal)) {
+      editRoleForm.value.permissions.push(cleanVal)
+    }
+    customPermInputEdit.value = ''
+  }
+}
+
+const availableRoleOptions = computed(() => {
+  const defaultList = ['ADMIN', 'ORG_ADMIN', 'DATA_STEWARD', 'DOMAIN_EDITOR', 'DQ_MANAGER', 'VIEWER', 'USER']
+  if (roles.value && roles.value.length > 0) {
+    const customNames = roles.value.map(r => r.name)
+    return Array.from(new Set([...defaultList, ...customNames]))
+  }
+  return defaultList
+})
+
+const showCreateRoleModalFlag = ref(false)
+const newRoleForm = ref({ name: '', displayName: '', description: '', permissions: [] })
+
+const showEditRoleModalFlag = ref(false)
+const editRoleForm = ref({ id: null, name: '', displayName: '', description: '', permissions: [], isSystemRole: false })
+
+const showDeleteRoleModalFlag = ref(false)
+const targetDeletingRole = ref(null)
 
 const openCreateRoleModal = () => {
-  showCustomAlert(t('role_creation_placeholder') || 'Role creation modal placeholder', t('info') || 'Info', t('notification') || 'Notification', 'warning')
+  newRoleForm.value = { name: '', displayName: '', description: '', permissions: ['domain:read', 'node:read'] }
+  showCreateRoleModalFlag.value = true
+}
+
+const saveNewRole = async () => {
+  if (!selectedOrg.value || !newRoleForm.value.name) return
+  try {
+    const permsSet = Array.isArray(newRoleForm.value.permissions) ? newRoleForm.value.permissions : []
+    await $fetch('/api/roles', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token.value}` },
+      body: {
+        organizationId: selectedOrg.value.id,
+        name: newRoleForm.value.name.toUpperCase().trim(),
+        displayName: newRoleForm.value.displayName || newRoleForm.value.name,
+        description: newRoleForm.value.description,
+        permissions: permsSet,
+        isSystemRole: false
+      }
+    })
+    showCreateRoleModalFlag.value = false
+    await loadOrgDetails(selectedOrg.value.id)
+    showCustomAlert('새 조직 역할이 성공적으로 생성되었습니다.', getLabel('creation_success', '생성 완료'), getLabel('notification', '알림'), 'success')
+  } catch (e) {
+    showCustomAlert('Failed to create role: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
+  }
+}
+
+const openEditRoleModal = (role) => {
+  editRoleForm.value = {
+    id: role.id,
+    name: role.name,
+    displayName: role.displayName || role.name,
+    description: role.description || '',
+    permissions: Array.from(role.permissions || []),
+    isSystemRole: role.isSystemRole || false
+  }
+  showEditRoleModalFlag.value = true
+}
+
+const saveEditRole = async () => {
+  if (!editRoleForm.value.id) return
+  try {
+    await $fetch(`/api/roles/${editRoleForm.value.id}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token.value}` },
+      body: {
+        displayName: editRoleForm.value.displayName,
+        description: editRoleForm.value.description,
+        permissions: editRoleForm.value.permissions
+      }
+    })
+    showEditRoleModalFlag.value = false
+    await loadOrgDetails(selectedOrg.value.id)
+    showCustomAlert('역할 정보가 성공적으로 수정되었습니다.', getLabel('update_success', '수정 완료'), getLabel('notification', '알림'), 'success')
+  } catch (e) {
+    showCustomAlert('Failed to update role: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
+  }
+}
+
+const openDeleteRoleConfirmModal = (role) => {
+  if (role.isSystemRole) {
+    showCustomAlert('시스템 기본 역할은 삭제할 수 없습니다.', getLabel('warning', '경고'), getLabel('notification', '알림'), 'warning')
+    return
+  }
+  targetDeletingRole.value = role
+  showDeleteRoleModalFlag.value = true
+}
+
+const confirmDeleteRole = async () => {
+  if (!targetDeletingRole.value) return
+  try {
+    await $fetch(`/api/roles/${targetDeletingRole.value.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    showDeleteRoleModalFlag.value = false
+    await loadOrgDetails(selectedOrg.value.id)
+    showCustomAlert('역할이 성공적으로 삭제되었습니다.', getLabel('delete_success', '삭제 완료'), getLabel('notification', '알림'), 'success')
+  } catch (e) {
+    showCustomAlert('Failed to delete role: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
+  }
 }
 
 onMounted(() => {
+  isMounted.value = true
   fetchOrganizations()
 })
 </script>
+
+<style scoped>
+.hoverable-icon-box:hover {
+  background: var(--va-primary) !important;
+  color: white !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+.hoverable-icon-box:hover .va-icon {
+  color: white !important;
+}
+
+.readonly-sys-code :deep(.va-input-wrapper),
+.readonly-sys-code :deep(input) {
+  background-color: var(--va-background-element) !important;
+  color: var(--va-text-primary) !important;
+  opacity: 0.85;
+}
+
+/* Permission Matrix Chip Styling */
+.perm-category-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.perm-category-title {
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.perm-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.perm-chip-item {
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--va-background-border);
+  background: var(--va-background-secondary);
+  color: var(--va-text-secondary);
+  transition: all 0.2s ease;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.perm-chip-item:hover {
+  border-color: var(--va-primary);
+  color: var(--va-primary);
+  transform: translateY(-1px);
+}
+.perm-chip-item.active {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+}
+.perm-chip-item.green.active {
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+}
+.perm-chip-item.purple.active {
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
+}
+.perm-chip-item.amber.active {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
+}
+.perm-chip-item.cyan.active {
+  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  box-shadow: 0 2px 6px rgba(6, 182, 212, 0.3);
+}
+.chip-check {
+  font-weight: 900;
+  font-size: 0.75rem;
+}
+</style>

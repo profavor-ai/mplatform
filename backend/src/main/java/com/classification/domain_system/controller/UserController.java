@@ -34,18 +34,20 @@ public class UserController {
         public String username;
         public String role;
         public java.util.UUID organizationId;
+        public java.util.UUID departmentId;
         public java.util.UUID teamId;
         public Boolean isActive;
         
         public UserDto(String id, String username, String role) {
-            this(id, username, role, null, null, true);
+            this(id, username, role, null, null, null, true);
         }
 
-        public UserDto(String id, String username, String role, java.util.UUID organizationId, java.util.UUID teamId, Boolean isActive) {
+        public UserDto(String id, String username, String role, java.util.UUID organizationId, java.util.UUID departmentId, java.util.UUID teamId, Boolean isActive) {
             this.id = id;
             this.username = username;
             this.role = role;
             this.organizationId = organizationId;
+            this.departmentId = departmentId;
             this.teamId = teamId;
             this.isActive = isActive;
         }

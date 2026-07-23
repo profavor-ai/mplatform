@@ -91,14 +91,17 @@ public class DomainPermissionController {
     public ResponseEntity<Void> updateUserTenantInfo(@PathVariable String userId, @RequestBody Map<String, Object> payload) {
         String role = (String) payload.get("role");
         String orgIdStr = (String) payload.get("organizationId");
+        String deptIdStr = (String) payload.get("departmentId");
         String teamIdStr = (String) payload.get("teamId");
 
         UUID orgId = (orgIdStr != null && !orgIdStr.trim().isEmpty()) ? UUID.fromString(orgIdStr) : null;
+        UUID deptId = (deptIdStr != null && !deptIdStr.trim().isEmpty()) ? UUID.fromString(deptIdStr) : null;
         UUID teamId = (teamIdStr != null && !teamIdStr.trim().isEmpty()) ? UUID.fromString(teamIdStr) : null;
 
         User updateReq = new User();
         updateReq.setRole(role);
         updateReq.setOrganizationId(orgId);
+        updateReq.setDepartmentId(deptId);
         updateReq.setTeamId(teamId);
 
         userService.updateUserInfo(userId, updateReq);

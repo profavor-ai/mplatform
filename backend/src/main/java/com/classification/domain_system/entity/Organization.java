@@ -29,6 +29,9 @@ public class Organization {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(length = 100)
+    private String icon;
+
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 

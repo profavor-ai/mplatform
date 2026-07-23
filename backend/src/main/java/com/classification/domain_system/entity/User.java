@@ -28,6 +28,7 @@ public class User {
     private String timezone;
 
     private UUID organizationId;
+    private UUID departmentId;
     private UUID teamId;
     private Boolean isActive = true;
 }

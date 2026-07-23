@@ -18,7 +18,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public List<UserDto> getAllUsers() {
         return userRepository.findAll().stream()
-                .map(u -> new UserDto(u.getId(), u.getUsername(), u.getRole(), u.getOrganizationId(), u.getTeamId(), u.getIsActive()))
+                .map(u -> new UserDto(u.getId(), u.getUsername(), u.getRole(), u.getOrganizationId(), u.getDepartmentId(), u.getTeamId(), u.getIsActive()))
                 .collect(Collectors.toList());
     }
 
@@ -28,6 +28,7 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
         if (updateReq.getRole() != null) user.setRole(updateReq.getRole());
         if (updateReq.getOrganizationId() != null) user.setOrganizationId(updateReq.getOrganizationId());
+        user.setDepartmentId(updateReq.getDepartmentId());
         if (updateReq.getTeamId() != null) user.setTeamId(updateReq.getTeamId());
         if (updateReq.getIsActive() != null) user.setIsActive(updateReq.getIsActive());
         return userRepository.save(user);

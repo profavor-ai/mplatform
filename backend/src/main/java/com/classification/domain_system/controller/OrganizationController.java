@@ -51,6 +51,19 @@ public class OrganizationController {
         return ResponseEntity.ok(saved);
     }
 
+    @PutMapping("/{id}")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<Organization> updateOrganization(@PathVariable UUID id, @RequestBody Organization req) {
+        return organizationRepository.findById(id)
+                .map(existing -> {
+                    existing.setDisplayName(req.getDisplayName());
+                    existing.setDescription(req.getDescription());
+                    existing.setIcon(req.getIcon());
+                    return ResponseEntity.ok(organizationRepository.save(existing));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/{orgId}/departments")
     public ResponseEntity<List<Department>> getDepartments(@PathVariable UUID orgId) {
         return ResponseEntity.ok(departmentRepository.findByOrganizationId(orgId));
@@ -63,21 +76,38 @@ public class OrganizationController {
     }
 
     @PutMapping("/{orgId}/departments/{deptId}")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<Department> updateDepartment(@PathVariable UUID orgId, @PathVariable UUID deptId, @RequestBody Department deptReq) {
         return departmentRepository.findById(deptId)
                 .map(existing -> {
                     existing.setName(deptReq.getName());
                     existing.setDescription(deptReq.getDescription());
                     existing.setParentDepartmentId(deptReq.getParentDepartmentId());
+                    existing.setRole(deptReq.getRole());
+                    existing.setIcon(deptReq.getIcon());
                     return ResponseEntity.ok(departmentRepository.save(existing));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{orgId}/departments/{deptId}")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<Void> deleteDepartment(@PathVariable UUID orgId, @PathVariable UUID deptId) {
         return departmentRepository.findById(deptId)
                 .map(dept -> {
+                    // 하위 부서들의 상위 부서 연결을 삭제되는 부서의 상위 부서로 재연결 (또는 최상위로 이동)
+                    List<Department> allDepts = departmentRepository.findByOrganizationId(orgId);
+                    for (Department d : allDepts) {
+                        if (deptId.equals(d.getParentDepartmentId())) {
+                            d.setParentDepartmentId(dept.getParentDepartmentId());
+                            departmentRepository.save(d);
+                        }
+                    }
+                    // 하위 팀 삭제
+                    List<Team> teams = teamRepository.findByDepartmentId(deptId);
+                    if (teams != null && !teams.isEmpty()) {
+                        teamRepository.deleteAll(teams);
+                    }
                     departmentRepository.delete(dept);
                     return ResponseEntity.noContent().<Void>build();
                 })

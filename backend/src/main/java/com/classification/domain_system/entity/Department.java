@@ -34,6 +34,12 @@ public class Department {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(length = 50)
+    private String role;
+
+    @Column(length = 100)
+    private String icon;
+
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 

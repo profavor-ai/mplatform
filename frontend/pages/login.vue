@@ -22,6 +22,7 @@
           <!-- LOGIN FORM -->
           <form v-if="activeTab === 'login'" @submit.prevent="handleLogin" class="auth-form">
             <va-input 
+              ref="usernameInputRef"
               v-model="loginForm.username" 
               label="Username" 
               placeholder="Enter your username"
@@ -29,6 +30,7 @@
               outline
               tabindex="1"
               :error="!!errorMessage && activeTab === 'login'"
+              @keydown.tab.prevent="focusPassword"
             >
               <template #prependInner>
                 <va-icon name="person" color="secondary" />
@@ -36,6 +38,7 @@
             </va-input>
             
             <va-input 
+              ref="passwordInputRef"
               v-model="loginForm.password" 
               label="Password" 
               type="password" 
@@ -139,6 +142,20 @@ onMounted(() => {
 import { useRouter } from 'vue-router'
 import { useCookie } from '#app'
 
+const usernameInputRef = ref(null)
+const passwordInputRef = ref(null)
+
+const focusPassword = () => {
+  if (passwordInputRef.value) {
+    if (typeof passwordInputRef.value.focus === 'function') {
+      passwordInputRef.value.focus()
+    } else if (passwordInputRef.value.$el) {
+      const inputEl = passwordInputRef.value.$el.querySelector('input')
+      if (inputEl) inputEl.focus()
+    }
+  }
+}
+
 const activeTab = ref('login')
 
 const loginForm = ref({ username: '', password: '' })
@@ -169,9 +186,12 @@ const handleLogin = async () => {
     
     tokenCookie.value = response.token
     userCookie.value = JSON.stringify({
+      id: response.id || response.uuid,
+      uuid: response.uuid || response.id,
       username: response.username,
       role: response.role,
-      uuid: response.uuid,
+      organizationId: response.organizationId,
+      departmentId: response.departmentId,
       timezone: response.timezone,
       serverOffset: response.serverOffset
     })

@@ -9,7 +9,7 @@
       <va-card style="flex: 1; min-width: 320px; display: flex; flex-direction: column;">
         <va-card-title style="display: flex; justify-content: space-between; align-items: center;">
           <span>{{ $t('user_management') }}</span>
-          <va-input v-model="searchQuery" :placeholder="$t('search') || 'Search'" @keyup.enter="fetchUsers" clearable @clear="fetchUsers" style="max-width: 150px;" />
+          <va-input v-model="searchQuery" :placeholder="$t('search') || 'Search'" @keydown="onSearchKeydown" clearable @clear="fetchUsers" style="max-width: 150px;" />
         </va-card-title>
         <va-card-content style="flex: 1; display: flex; flex-direction: column;">
           <va-list style="flex: 1;">
@@ -29,8 +29,9 @@
               <va-list-item-section>
                 <va-list-item-title style="font-weight: bold; font-size: 1rem;">{{ user.username }}</va-list-item-title>
                 <div style="display: flex; gap: 0.35rem; align-items: center; margin-top: 0.2rem; flex-wrap: wrap;">
-                  <va-badge :text="user.role || 'USER'" color="primary" size="small" />
+                  <va-badge v-for="r in getUserRolesArray(user.role)" :key="r" :text="r" color="primary" size="small" />
                   <va-badge :text="getOrgName(user.organizationId)" color="info" outline size="small" />
+                  <va-badge v-if="getDeptName(user.departmentId)" :text="getDeptName(user.departmentId)" color="success" outline size="small" />
                 </div>
               </va-list-item-section>
             </va-list-item>
@@ -49,33 +50,32 @@
         </va-card-title>
         <va-card-content>
           
-          <!-- Organization & Role Setting -->
+          <!-- User System Role Setting -->
           <div style="background: var(--va-background-secondary); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
-            <h3 style="font-weight: 700; margin-bottom: 1rem; color: var(--va-text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
-              <va-icon name="apartment" color="primary" />
-              {{ $t('belongs_to_org') }} & {{ $t('user_role') }}
+            <h3 style="font-weight: 700; margin-bottom: 0.5rem; color: var(--va-text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
+              <va-icon name="manage_accounts" color="primary" />
+              {{ $t('user_role') || '사용자 시스템 권한 역할' }}
             </h3>
+            
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; align-items: center; font-size: 0.88rem; color: var(--va-text-secondary); flex-wrap: wrap;">
+              <span>현재 소속 정보:</span>
+              <va-badge :text="getOrgName(selectedUser.organizationId)" color="info" outline size="small" />
+              <va-badge v-if="getDeptName(selectedUser.departmentId)" :text="getDeptName(selectedUser.departmentId)" color="success" outline size="small" />
+              <span v-else style="font-style: italic; color: #888;">(부서 미할당 - [조직 관리] 메뉴에서 부서 지정 가능)</span>
+            </div>
 
-            <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; gap: 0.75rem; align-items: flex-end;">
               <va-select
-                v-model="selectedUserOrgId"
-                :options="organizations"
-                value-by="id"
-                text-by="displayName"
-                :label="$t('belongs_to_org')"
+                v-model="selectedUserRoles"
+                multiple
+                :options="availableUserRoleOptions"
+                :label="getLabel('user_roles', '사용자 시스템 역할 (다중 선택 가능)')"
                 outline
+                style="flex: 1;"
               />
-              <va-select
-                v-model="selectedUserRole"
-                :options="['ORG_ADMIN', 'DATA_STEWARD', 'DOMAIN_EDITOR', 'DQ_MANAGER', 'VIEWER', 'ADMIN', 'USER']"
-                :label="$t('user_role')"
-                outline
-              />
-              <div style="display: flex; justify-content: flex-end;">
-                <va-button color="primary" icon="save" @click="updateUserTenantInfo">
-                  {{ $t('save_changes') }}
-                </va-button>
-              </div>
+              <va-button color="primary" icon="save" @click="updateUserRoleOnly">
+                {{ $t('save_changes') || '역할 저장' }}
+              </va-button>
             </div>
           </div>
 
@@ -97,9 +97,19 @@
           
           <div>
             <h3 style="font-weight: bold; margin-bottom: 0.5rem; color: var(--va-text-primary);">{{ $t('grant_new_permission') }}</h3>
-            <div style="display: flex; gap: 0.5rem;">
-              <va-select v-model="selectedDomainToGrant" :options="availableDomains" value-by="id" text-by="label" :placeholder="$t('select_a_domain')" style="flex: 1;" />
-              <va-button @click="grantPermission" :disabled="!selectedDomainToGrant">{{ $t('grant') }}</va-button>
+            <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
+              <va-select
+                v-model="selectedDomainsToGrant"
+                multiple
+                :options="availableDomains"
+                value-by="id"
+                text-by="label"
+                :placeholder="$t('select_a_domain') || '도메인을 선택하세요 (다중 선택 가능)'"
+                style="flex: 1;"
+              />
+              <va-button @click="grantPermissions" :disabled="!selectedDomainsToGrant || selectedDomainsToGrant.length === 0">
+                {{ $t('grant') || '권한 부여' }}
+              </va-button>
             </div>
           </div>
         </va-card-content>
@@ -152,6 +162,8 @@
         </div>
       </va-card-content>
     </va-card>
+
+
 
     <!-- System Notification Modal -->
     <va-modal
@@ -211,10 +223,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useCookie } from '#app'
 
 const { t, locale } = useI18n()
+
+const getLabel = (key, fallback) => {
+  const res = t(key)
+  return (!res || res === key) ? fallback : res
+}
 
 const getDomainName = (nameObj) => {
   if (!nameObj) return 'Unknown'
@@ -248,14 +265,61 @@ const users = ref([])
 const currentPage = ref(1)
 const totalPages = ref(1)
 const searchQuery = ref('')
+
+const fetchUsers = async () => {
+  try {
+    const res = await $fetch('/api/permissions/users', {
+      headers: { Authorization: `Bearer ${token.value}` },
+      query: {
+        page: currentPage.value - 1,
+        size: 100,
+        search: searchQuery.value || ''
+      }
+    })
+    users.value = res.content || []
+    totalPages.value = res.totalPages || 1
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+const onSearchKeydown = (e) => {
+  if (e && e.key === 'Enter') {
+    fetchUsers()
+  }
+}
 const selectedUser = ref(null)
-const selectedUserRole = ref('USER')
+const selectedUserRoles = ref([])
 const selectedUserOrgId = ref(null)
-const organizations = ref([])
+const selectedUserDeptId = ref(null)
+const customOrgRoles = ref([])
+
+const fetchCustomOrgRoles = async (orgId) => {
+  if (!orgId) return
+  try {
+    const list = await $fetch(`/api/roles/org/${orgId}`, {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    if (list && Array.isArray(list)) {
+      customOrgRoles.value = list.map(r => r.name)
+    }
+  } catch (e) {
+    console.error('Failed to fetch org roles for users view:', e)
+  }
+}
+
+const availableUserRoleOptions = computed(() => {
+  const defaultList = ['ORG_ADMIN', 'DATA_STEWARD', 'DOMAIN_EDITOR', 'DQ_MANAGER', 'VIEWER', 'ADMIN', 'USER']
+  if (customOrgRoles.value && customOrgRoles.value.length > 0) {
+    return Array.from(new Set([...defaultList, ...customOrgRoles.value]))
+  }
+  return defaultList
+})
+const departments = ref([])
 
 const userPermissions = ref([])
 const allDomains = ref([])
-const selectedDomainToGrant = ref(null)
+const selectedDomainsToGrant = ref([])
 const pendingRequests = ref([])
 
 const parseDate = (dateString) => {
@@ -310,86 +374,92 @@ const groupedPendingRequests = computed(() => {
   }))
 })
 
+const allDepartmentsMap = ref({})
+
+const fetchAllDepartments = async () => {
+  try {
+    const orgs = organizations.value
+    for (const org of orgs) {
+      const depts = await $fetch(`/api/organizations/${org.id}/departments`, {
+        headers: { Authorization: `Bearer ${token.value}` }
+      })
+      if (depts) {
+        depts.forEach(d => {
+          allDepartmentsMap.value[d.id] = d.name
+        })
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch all departments:', e)
+  }
+}
+
 const fetchOrganizations = async () => {
   try {
     const res = await $fetch('/api/organizations', {
       headers: { Authorization: `Bearer ${token.value}` }
     })
     organizations.value = res || []
+    await fetchAllDepartments()
   } catch (e) {
     console.error('Failed to fetch orgs:', e)
   }
 }
 
 const getOrgName = (orgId) => {
-  if (!orgId) return 'Default Org'
+  if (!orgId) return '미지정'
   const found = organizations.value.find(o => o.id === orgId)
-  return found ? (found.displayName || found.name) : 'Default Org'
+  return found ? (found.displayName || found.name) : '미지정'
 }
 
-const fetchUsers = async () => {
-  try {
-    const res = await $fetch('/api/permissions/users', {
-      headers: { Authorization: `Bearer ${token.value}` },
-      query: {
-        page: currentPage.value - 1,
-        size: 10,
-        search: searchQuery.value || ''
-      }
-    })
-    users.value = res.content || []
-    totalPages.value = res.totalPages || 1
-  } catch (e) {
-    console.error(e)
-  }
+const getDeptName = (deptId) => {
+  if (!deptId) return null
+  return allDepartmentsMap.value[deptId] || null
 }
 
-const fetchDomains = async () => {
-  allDomains.value = await $fetch('/api/domains', {
-    headers: { Authorization: `Bearer ${token.value}` }
-  })
-}
-
-const fetchPendingRequests = async () => {
-  pendingRequests.value = await $fetch('/api/permissions/requests/pending', {
-    headers: { Authorization: `Bearer ${token.value}` }
-  })
+const getUserRolesArray = (role) => {
+  if (!role) return ['USER']
+  if (Array.isArray(role)) return role
+  return String(role).split(',').map(r => r.trim()).filter(Boolean)
 }
 
 const selectUser = async (user) => {
-  selectedUser.value = user
-  selectedUserRole.value = user.role || 'USER'
-  selectedUserOrgId.value = user.organizationId || (organizations.value[0]?.id || null)
-  await loadUserPermissions(user.id)
+  if (user) {
+    selectedUser.value = user
+    selectedUserRoles.value = getUserRolesArray(user.role)
+    selectedUserOrgId.value = user.organizationId
+    selectedUserDeptId.value = user.departmentId
+    if (user.organizationId) {
+      await fetchDepartments(user.organizationId)
+      await fetchCustomOrgRoles(user.organizationId)
+    }
+    await loadUserPermissions(user.id)
+  }
 }
 
-const updateUserTenantInfo = async () => {
+const updateUserRoleOnly = async () => {
   if (!selectedUser.value) return
+  const roleStr = Array.isArray(selectedUserRoles.value) ? selectedUserRoles.value.join(',') : (selectedUserRoles.value || 'USER')
   try {
     await $fetch(`/api/permissions/users/${selectedUser.value.id}/tenant-info`, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token.value}` },
       body: {
-        role: selectedUserRole.value,
-        organizationId: selectedUserOrgId.value
+        role: roleStr,
+        organizationId: selectedUser.value.organizationId,
+        departmentId: selectedUser.value.departmentId
       }
     })
-    selectedUser.value.role = selectedUserRole.value
-    selectedUser.value.organizationId = selectedUserOrgId.value
+    selectedUser.value.role = roleStr
     await fetchUsers()
     showCustomAlert(
-      t('user_info_updated_msg') || 'User organization and role updated successfully.',
-      t('update_success') || 'Update Success',
-      t('notification') || 'Notification',
+      getLabel('role_updated_success', '사용자 역할 권한이 성공적으로 변경되었습니다.'),
+      getLabel('update_success', '수정 완료'),
+      getLabel('notification', '알림'),
       'success'
     )
   } catch (e) {
-    showCustomAlert(
-      e.message || String(e),
-      t('update_failed') || 'Update Failed',
-      t('error') || 'Error',
-      'error'
-    )
+    showCustomAlert('Failed to update user role: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
   }
 }
 
@@ -408,14 +478,23 @@ const availableDomains = computed(() => {
     .map(d => ({ id: d.id, label: getDomainName(d.name) }))
 })
 
-const grantPermission = async () => {
-  if (!selectedUser.value || !selectedDomainToGrant.value) return
-  await $fetch(`/api/permissions/users/${selectedUser.value.id}/domains/${selectedDomainToGrant.value}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token.value}` }
-  })
-  selectedDomainToGrant.value = null
-  await loadUserPermissions(selectedUser.value.id)
+const grantPermissions = async () => {
+  if (!selectedUser.value || !selectedDomainsToGrant.value || selectedDomainsToGrant.value.length === 0) return
+  try {
+    await Promise.all(
+      selectedDomainsToGrant.value.map(domainId =>
+        $fetch(`/api/permissions/users/${selectedUser.value.id}/domains/${domainId}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token.value}` }
+        })
+      )
+    )
+    selectedDomainsToGrant.value = []
+    await loadUserPermissions(selectedUser.value.id)
+    showCustomAlert('선택한 도메인 권한이 성공적으로 부여되었습니다.', getLabel('update_success', '부여 완료'), getLabel('notification', '알림'), 'success')
+  } catch (e) {
+    showCustomAlert('Failed to grant permissions: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
+  }
 }
 
 const revokePermission = async (domainId) => {
@@ -455,6 +534,28 @@ const handleBatchReject = async (reqIds) => {
     await fetchPendingRequests()
   } catch (e) {
     console.error(e)
+  }
+}
+
+const fetchDomains = async () => {
+  try {
+    const res = await $fetch('/api/domains', {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    allDomains.value = res || []
+  } catch (e) {
+    console.error('Failed to fetch domains:', e)
+  }
+}
+
+const fetchPendingRequests = async () => {
+  try {
+    const res = await $fetch('/api/permissions/requests/pending', {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    pendingRequests.value = res || []
+  } catch (e) {
+    console.error('Failed to fetch pending requests:', e)
   }
 }
 

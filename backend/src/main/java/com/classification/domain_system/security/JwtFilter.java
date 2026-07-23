@@ -13,6 +13,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
+import org.springframework.security.core.GrantedAuthority;
 
 @Component
 @RequiredArgsConstructor
@@ -55,9 +57,22 @@ public class JwtFilter extends OncePerRequestFilter {
                 if ("0:0:0:0:0:0:0:1".equals(tokenIp) || "::1".equals(tokenIp)) tokenIp = "127.0.0.1";
                 
                 if (tokenIp != null && tokenIp.equals(currentIp)) {
-                    String role = jwtUtil.extractAllClaims(jwt).get("role", String.class);
+                    String roleStr = jwtUtil.extractAllClaims(jwt).get("role", String.class);
+                    List<GrantedAuthority> authorities = new java.util.ArrayList<>();
+                    if (roleStr != null) {
+                        for (String r : roleStr.split(",")) {
+                            String trimmed = r.trim();
+                            if (!trimmed.isEmpty()) {
+                                authorities.add(new SimpleGrantedAuthority("ROLE_" + trimmed));
+                                authorities.add(new SimpleGrantedAuthority(trimmed));
+                            }
+                        }
+                    }
+                    if (authorities.isEmpty()) {
+                        authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+                    }
                     UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                            username, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
+                            username, null, authorities
                     );
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 } else {

@@ -45,7 +45,7 @@
       </div>
 
       <!-- Advanced Search Panel -->
-      <va-card v-if="showAdvancedSearch" class="mb-4" style="background-color: #f8f9fa;">
+      <va-card v-if="showAdvancedSearch" class="mb-4" style="background-color: var(--va-background-element);">
         <va-card-content>
           <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; align-items: start;">
             <div v-for="field in searchableFields" :key="field.id" style="display: flex; flex-direction: column; gap: 0.4rem;">
@@ -75,7 +75,7 @@
                   :placeholder="currentLocale === 'en' ? 'Enter number' : '숫자 입력'"
                   clearable
                   class="w-full"
-                  @keyup.enter="applyFilters"
+                  @keydown="onFilterKeydown"
                 >
                   <template #prependInner>
                     <select 
@@ -100,7 +100,7 @@
                   :placeholder="currentLocale === 'en' ? 'Max value' : '최대값 (Max)'"
                   clearable
                   class="w-full"
-                  @keyup.enter="applyFilters"
+                  @keydown="onFilterKeydown"
                 >
                   <template #prependInner>
                     <span style="font-weight: bold; color: #666; margin-right: 0.5rem; border-right: 1px solid #ccc; padding-right: 0.5rem;">~ {{ currentLocale === 'en' ? 'below' : '이하' }}</span>
@@ -113,7 +113,7 @@
                 :placeholder="currentLocale === 'en' ? 'Enter keyword' : '검색어 입력'"
                 clearable
                 class="w-full"
-                @keyup.enter="applyFilters"
+                @keydown="onFilterKeydown"
               />
             </div>
           </div>
@@ -1786,6 +1786,12 @@ const columnDefs = ref([])
   const showAdvancedSearch = ref(false)
   const searchableFields = computed(() => nodeFields.value.filter(f => f.isSearchable && !f.isRemoved))
   
+  const onFilterKeydown = (e) => {
+    if (e && e.key === 'Enter') {
+      applyFilters()
+    }
+  }
+
   const applyFilters = () => {
     activeFilters.value = { ...draftFilters.value }
     activeFiltersOp.value = { ...draftFiltersOp.value }

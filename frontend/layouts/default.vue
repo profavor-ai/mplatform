@@ -19,70 +19,106 @@
                 <va-button preset="plain" class="mr-2 hide-mobile theme-btn" @click="toggleTheme" style="color: white !important;">
                   <va-icon :name="isDark ? 'light_mode' : 'dark_mode'" size="large" />
                 </va-button>
-                
-                <!-- Organization Badge -->
-                <va-chip size="small" color="info" style="color: white; background: rgba(255, 255, 255, 0.2); border: none;" class="mr-2 hide-mobile">
-                  <va-icon name="corporate_fare" size="small" class="mr-1" />
-                  <span>{{ currentOrgName || 'Default Organization' }}</span>
-                </va-chip>
 
                 <!-- User Profile Dropdown -->
                 <va-dropdown placement="bottom-end" stick-to-edges>
                   <template #anchor>
-                    <va-button preset="plain" class="profile-btn" style="color: white !important; padding: 0.5rem;">
-                      <va-icon name="account_circle" class="mr-2" size="28px" /> 
-                      <span class="username-text font-bold">{{ currentUser?.username || 'Admin' }}</span>
-                      <va-icon name="expand_more" class="ml-1" />
+                    <va-button preset="plain" class="profile-btn" style="color: white !important; padding: 0.35rem 0.85rem; border-radius: 20px; background: rgba(255,255,255,0.15); backdrop-filter: blur(8px); transition: all 0.2s ease;">
+                      <va-avatar size="24px" color="warning" class="mr-2" style="font-weight: 800; font-size: 0.8rem;">
+                        {{ (currentUser?.username || 'A').charAt(0).toUpperCase() }}
+                      </va-avatar>
+                      <span class="username-text font-bold" style="font-size: 0.92rem;">{{ currentUser?.username || 'Admin' }}</span>
+                      <va-icon name="expand_more" class="ml-1" size="small" />
                     </va-button>
                   </template>
-                  <va-dropdown-content class="profile-dropdown-content">
-                    <div class="profile-header text-center pb-2">
-                      <div class="font-bold text-lg">{{ currentUser?.username || 'Admin' }}</div>
-                      <div class="text-sm text-gray" style="color: var(--va-secondary)">{{ currentUser?.role || 'GUEST' }}</div>
+                  <va-dropdown-content :style="{ padding: '0', minWidth: '320px', borderRadius: '16px', overflow: 'hidden', boxShadow: isDark ? '0 16px 45px rgba(0,0,0,0.7), 0 0 25px rgba(99,102,241,0.25)' : '0 12px 36px rgba(0,0,0,0.18)', border: isDark ? '1px solid rgba(139,92,246,0.35)' : '1px solid var(--va-background-border)' }">
+                    <!-- Premium Header Banner -->
+                    <div :style="{ background: isDark ? 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 55%, #312e81 100%)' : 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white', padding: '1.25rem 1.25rem 1.1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', borderBottom: isDark ? '1px solid rgba(139,92,246,0.3)' : 'none' }">
+                      <div style="display: flex; align-items: center; gap: 0.85rem;">
+                        <va-avatar size="large" :color="isDark ? 'warning' : 'warning'" :style="{ fontWeight: '800', fontSize: '1.2rem', border: isDark ? '2px solid #a78bfa' : '2px solid white', boxShadow: isDark ? '0 0 15px rgba(167,139,250,0.5)' : '0 4px 10px rgba(0,0,0,0.25)' }">
+                          {{ (currentUser?.username || 'A').charAt(0).toUpperCase() }}
+                        </va-avatar>
+                        <div style="flex: 1; overflow: hidden;">
+                          <div style="font-weight: 800; font-size: 1.15rem; letter-spacing: -0.01em; display: flex; align-items: center; gap: 0.35rem;">
+                            <span :style="{ color: isDark ? '#f3f4f6' : 'white' }">{{ currentUser?.username || 'Admin' }}</span>
+                            <va-icon v-if="effectiveRoles.includes('ADMIN')" name="verified" size="small" color="warning" title="Admin User" />
+                          </div>
+                          <div style="font-size: 0.8rem; opacity: 0.9; margin-top: 0.15rem; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+                            <span>🏢 {{ currentOrgName || '소속 조직' }}</span>
+                            <span v-if="currentUserDeptName" style="display: inline-flex; align-items: center; gap: 0.2rem;">| <va-icon :name="currentUserDeptIcon" size="small" /> {{ currentUserDeptName }}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Effective Roles Section -->
+                      <div :style="{ background: isDark ? 'rgba(15, 23, 42, 0.65)' : 'rgba(255,255,255,0.15)', backdropFilter: 'blur(12px)', borderRadius: '10px', padding: '0.65rem 0.85rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', border: isDark ? '1px solid rgba(167, 139, 250, 0.3)' : '1px solid rgba(255,255,255,0.2)' }">
+                        <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.9; display: flex; justify-content: space-between; align-items: center;">
+                          <span>유효 통합 권한 (Effective Roles)</span>
+                          <span :style="{ background: isDark ? 'rgba(139,92,246,0.35)' : 'rgba(0,0,0,0.25)', color: isDark ? '#ddd6fe' : 'white' }" style="font-size: 0.65rem; padding: 1px 6px; border-radius: 10px; font-weight: 800;">UNION</span>
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.1rem;">
+                          <span
+                            v-for="r in effectiveRoles"
+                            :key="r"
+                            :style="getRoleBadgeStyle(r)"
+                            style="padding: 3px 9px; border-radius: 12px; font-size: 0.75rem; font-weight: 800;"
+                          >
+                            {{ r }}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <va-divider class="my-2" />
-                    <va-list>
-                      <va-list-item @click="toggleLang" class="cursor-pointer dropdown-item">
-                        <va-list-item-section icon>
-                          <va-icon name="language" />
-                        </va-list-item-section>
-                        <va-list-item-section>
-                          <va-list-item-title>{{ currentLocale === 'ko' ? 'English' : '한국어' }}</va-list-item-title>
-                        </va-list-item-section>
-                      </va-list-item>
-                      <va-list-item @click="toggleTheme" class="cursor-pointer dropdown-item show-mobile">
-                        <va-list-item-section icon>
-                          <va-icon :name="isDark ? 'light_mode' : 'dark_mode'" />
-                        </va-list-item-section>
-                        <va-list-item-section>
-                          <va-list-item-title>{{ isDark ? 'Light Theme' : 'Dark Theme' }}</va-list-item-title>
-                        </va-list-item-section>
-                      </va-list-item>
-                      <va-list-item @click="showRequestAccessModal = true" class="cursor-pointer dropdown-item">
-                        <va-list-item-section icon>
-                          <va-icon name="add_circle_outline" />
-                        </va-list-item-section>
-                        <va-list-item-section>
-                          <va-list-item-title>{{ $t('request_domain_access') || 'Request Domain Access' }}</va-list-item-title>
-                        </va-list-item-section>
-                      </va-list-item>
-                      <va-list-item @click="showSettingsModal = true" class="cursor-pointer dropdown-item">
-                        <va-list-item-section icon>
-                          <va-icon name="settings" />
-                        </va-list-item-section>
-                        <va-list-item-section>
-                          <va-list-item-title>Personal Settings</va-list-item-title>
-                        </va-list-item-section>
-                      </va-list-item>
-                      <va-list-item @click="handleLogout" class="cursor-pointer dropdown-item text-danger">
-                        <va-list-item-section icon>
-                          <va-icon name="logout" color="danger" />
-                        </va-list-item-section>
-                        <va-list-item-section>
-                          <va-list-item-title style="color: var(--va-danger); font-weight: bold;">Logout</va-list-item-title>
-                        </va-list-item-section>
-                      </va-list-item>
-                    </va-list>
+
+                    <!-- Dropdown Actions List -->
+                    <div style="padding: 0.5rem; background: var(--va-background-secondary);">
+                      <va-list style="display: flex; flex-direction: column; gap: 0.25rem;">
+                        <va-list-item @click="toggleLang" class="dropdown-menu-item">
+                          <va-list-item-section icon style="min-width: 32px;">
+                            <div class="menu-icon-box">
+                              <va-icon name="language" size="small" color="primary" />
+                            </div>
+                          </va-list-item-section>
+                          <va-list-item-section style="font-weight: 600; font-size: 0.9rem;">
+                            {{ currentLocale === 'ko' ? 'Switch to English' : '한국어로 변경' }}
+                          </va-list-item-section>
+                        </va-list-item>
+
+                        <va-list-item @click="showRequestAccessModal = true" class="dropdown-menu-item">
+                          <va-list-item-section icon style="min-width: 32px;">
+                            <div class="menu-icon-box">
+                              <va-icon name="vpn_key" size="small" color="success" />
+                            </div>
+                          </va-list-item-section>
+                          <va-list-item-section style="font-weight: 600; font-size: 0.9rem;">
+                            {{ $t('request_domain_access') || '도메인 접근 권한 신청' }}
+                          </va-list-item-section>
+                        </va-list-item>
+
+                        <va-list-item @click="showSettingsModal = true" class="dropdown-menu-item">
+                          <va-list-item-section icon style="min-width: 32px;">
+                            <div class="menu-icon-box">
+                              <va-icon name="settings" size="small" color="warning" />
+                            </div>
+                          </va-list-item-section>
+                          <va-list-item-section style="font-weight: 600; font-size: 0.9rem;">
+                            Personal Settings (타임존 설정)
+                          </va-list-item-section>
+                        </va-list-item>
+
+                        <va-divider style="margin: 0.3rem 0;" />
+
+                        <va-list-item @click="handleLogout" class="dropdown-menu-item text-danger">
+                          <va-list-item-section icon style="min-width: 32px;">
+                            <div class="menu-icon-box bg-red">
+                              <va-icon name="logout" size="small" color="danger" />
+                            </div>
+                          </va-list-item-section>
+                          <va-list-item-section style="font-weight: 700; font-size: 0.9rem; color: var(--va-danger);">
+                            Logout (로그아웃)
+                          </va-list-item-section>
+                        </va-list-item>
+                      </va-list>
+                    </div>
                   </va-dropdown-content>
                 </va-dropdown>
               </div>
@@ -157,24 +193,115 @@ const showRequestAccessModal = ref(false)
 import { useMenu } from '~/composables/useMenu'
 const { menus, fetchMenus } = useMenu()
 
+const userRolesArray = computed(() => {
+  const r = currentUser.value?.role
+  if (!r) return ['USER']
+  if (Array.isArray(r)) return r
+  return String(r).split(',').map(item => item.trim()).filter(Boolean)
+})
+
+const deptRolesMap = ref({})
+
+const deptNameMap = ref({})
+const deptIconMap = ref({})
+
+const fetchDepartmentRoles = async () => {
+  if (!tokenCookie.value || !currentUser.value?.organizationId) return
+  try {
+    const depts = await $fetch(`/api/organizations/${currentUser.value.organizationId}/departments`, {
+      headers: { Authorization: `Bearer ${tokenCookie.value}` }
+    })
+    if (depts && Array.isArray(depts)) {
+      const map = {}
+      const nameMap = {}
+      const iconMap = {}
+      depts.forEach(d => {
+        if (d.role) map[d.id] = d.role
+        nameMap[d.id] = d.name
+        if (d.icon) iconMap[d.id] = d.icon
+      })
+      deptRolesMap.value = map
+      deptNameMap.value = nameMap
+      deptIconMap.value = iconMap
+    }
+  } catch (e) {
+    console.error('Failed to fetch dept roles for header:', e)
+  }
+}
+
+const currentUserDeptName = computed(() => {
+  const deptId = currentUser.value?.departmentId
+  return deptId ? (deptNameMap.value[deptId] || null) : null
+})
+
+const currentUserDeptIcon = computed(() => {
+  const deptId = currentUser.value?.departmentId
+  return deptId ? (deptIconMap.value[deptId] || 'folder') : 'folder'
+})
+
+const effectiveRoles = computed(() => {
+  const directRoles = userRolesArray.value
+  const userDeptId = currentUser.value?.departmentId
+  const deptRoleStr = userDeptId ? deptRolesMap.value[userDeptId] : null
+  const deptRoles = deptRoleStr ? String(deptRoleStr).split(',').map(r => r.trim()).filter(Boolean) : []
+  return Array.from(new Set([...directRoles, ...deptRoles]))
+})
+
+const effectiveRolesDisplay = computed(() => {
+  return effectiveRoles.value.join(', ') || 'GUEST'
+})
+
+const getRoleBadgeStyle = (role) => {
+  if (isDark.value) {
+    switch (role) {
+      case 'ADMIN':
+        return 'background: linear-gradient(135deg, #dc2626, #991b1b); color: #fee2e2; box-shadow: 0 0 10px rgba(239,68,68,0.5); border: 1px solid rgba(252,165,165,0.4);'
+      case 'ORG_ADMIN':
+        return 'background: linear-gradient(135deg, #2563eb, #1e40af); color: #dbeafe; box-shadow: 0 0 10px rgba(59,130,246,0.5); border: 1px solid rgba(147,197,253,0.4);'
+      case 'DATA_STEWARD':
+        return 'background: linear-gradient(135deg, #d97706, #92400e); color: #fef3c7; box-shadow: 0 0 10px rgba(245,158,11,0.5); border: 1px solid rgba(252,211,77,0.4);'
+      case 'DOMAIN_EDITOR':
+        return 'background: linear-gradient(135deg, #059669, #065f46); color: #d1fae5; box-shadow: 0 0 10px rgba(16,185,129,0.5); border: 1px solid rgba(110,231,183,0.4);'
+      case 'DQ_MANAGER':
+        return 'background: linear-gradient(135deg, #7c3aed, #5b21b6); color: #ede9fe; box-shadow: 0 0 10px rgba(139,92,246,0.5); border: 1px solid rgba(196,181,253,0.4);'
+      case 'VIEWER':
+        return 'background: linear-gradient(135deg, #4b5563, #1f2937); color: #f3f4f6; box-shadow: 0 0 8px rgba(107,114,128,0.4); border: 1px solid rgba(209,213,219,0.3);'
+      default:
+        return 'background: linear-gradient(135deg, #0284c7, #075985); color: #e0f2fe; box-shadow: 0 0 10px rgba(14,165,233,0.5); border: 1px solid rgba(186,230,253,0.4);'
+    }
+  }
+  switch (role) {
+    case 'ADMIN':
+      return 'background: linear-gradient(135deg, #ef4444, #dc2626); color: white;'
+    case 'ORG_ADMIN':
+      return 'background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white;'
+    case 'DATA_STEWARD':
+      return 'background: linear-gradient(135deg, #f59e0b, #d97706); color: white;'
+    case 'DOMAIN_EDITOR':
+      return 'background: linear-gradient(135deg, #10b981, #059669); color: white;'
+    case 'DQ_MANAGER':
+      return 'background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white;'
+    case 'VIEWER':
+      return 'background: linear-gradient(135deg, #6b7280, #4b5563); color: white;'
+    default:
+      return 'background: linear-gradient(135deg, #0284c7, #0369a1); color: white;'
+  }
+}
+
 const filteredMenus = computed(() => {
-  const role = currentUser.value?.role
+  const roles = effectiveRoles.value
+  const isAdmin = roles.includes('ADMIN')
   
   const filterTree = (nodes) => {
     return nodes.filter(node => {
       let canAccess = true
       
       if (node.requiredRole) {
-        const requiredRoles = node.requiredRole.split(',').map(r => r.trim()).filter(r => r)
+        const requiredRoles = node.requiredRole.split(',').map(r => r.trim()).filter(Boolean)
         if (requiredRoles.length > 0) {
-          // If the user's role is not explicitly in the required roles list
-          if (!requiredRoles.includes(role)) {
-            // Role hierarchy logic:
-            if (role === 'ADMIN') {
-              // ADMIN can access anything
-            } else if (role === 'MANAGER' && requiredRoles.includes('USER')) {
-              // MANAGER can access USER level menus
-            } else {
+          if (!isAdmin) {
+            const hasMatchingRole = roles.some(myRole => requiredRoles.includes(myRole))
+            if (!hasMatchingRole) {
               canAccess = false
             }
           }
@@ -311,6 +438,9 @@ onMounted(async () => {
   }
   
   await fetchMenus()
+  await fetchUserOrganizationName()
+  await syncCurrentUserInfo()
+  await fetchDepartmentRoles()
 
   if (window.innerWidth < 768) {
     isMobile.value = true
@@ -335,6 +465,59 @@ watch(route, () => {
 const currentUser = computed(() => {
   if (userCookie.value) {
     return typeof userCookie.value === 'string' ? JSON.parse(userCookie.value) : userCookie.value
+  }
+  return null
+})
+
+const userOrgNameMap = ref({})
+
+const fetchUserOrganizationName = async () => {
+  if (!tokenCookie.value) return
+  try {
+    const orgs = await $fetch('/api/organizations', {
+      headers: { Authorization: `Bearer ${tokenCookie.value}` }
+    })
+    if (orgs && Array.isArray(orgs)) {
+      const map = {}
+      orgs.forEach(o => {
+        map[o.id] = o.displayName || o.name
+      })
+      userOrgNameMap.value = map
+    }
+  } catch (e) {
+    console.error('Failed to fetch orgs for header navbar:', e)
+  }
+}
+
+const syncCurrentUserInfo = async () => {
+  if (!tokenCookie.value || !currentUser.value) return
+  try {
+    const res = await $fetch('/api/permissions/users', {
+      headers: { Authorization: `Bearer ${tokenCookie.value}` },
+      query: { page: 0, size: 100 }
+    })
+    const list = res.content || res || []
+    const myUsername = currentUser.value.username
+    const myDbUser = list.find(u => u.username === myUsername)
+    if (myDbUser) {
+      const updated = {
+        ...currentUser.value,
+        id: myDbUser.id,
+        uuid: myDbUser.id,
+        organizationId: myDbUser.organizationId,
+        departmentId: myDbUser.departmentId
+      }
+      userCookie.value = JSON.stringify(updated)
+    }
+  } catch (e) {
+    console.error('Failed to sync current user info:', e)
+  }
+}
+
+const currentOrgName = computed(() => {
+  const orgId = currentUser.value?.organizationId
+  if (orgId && userOrgNameMap.value[orgId]) {
+    return userOrgNameMap.value[orgId]
   }
   return null
 })
@@ -464,6 +647,34 @@ body {
 .dark-theme-sidebar .va-sidebar-item--active .va-icon {
   color: #60A5FA !important;
 }
+
+/* Premium Dropdown Styling */
+.profile-btn:hover {
+  background: rgba(255, 255, 255, 0.25) !important;
+  transform: translateY(-1px);
+}
+
+.dropdown-menu-item {
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 0.55rem 0.75rem !important;
+  transition: all 0.2s ease !important;
+}
+.dropdown-menu-item:hover {
+  background: var(--va-background-element) !important;
+  transform: translateX(4px);
+}
+
+.menu-icon-box {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--va-background-element);
+}
+
 @media (max-width: 768px) {
   body {
     overflow-x: hidden;
