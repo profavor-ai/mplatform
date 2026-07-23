@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { useCookie } from '#app'
+import { getMultilingualText } from '~/utils/multilingual'
 
 export interface RoleInfo {
   id?: string
@@ -66,14 +67,15 @@ export function useRoles() {
 
     const role = roleMap.value[code] || roleMap.value[cleanCode]
     if (role && role.displayName) {
-      return role.displayName
+      return getMultilingualText(role.displayName)
     }
     return code
   }
 
   const formatRoleText = (code: string): string => {
     if (!code) return ''
-    const disp = getRoleDisplayName(code)
+    const rawDisp = getRoleDisplayName(code)
+    const disp = getMultilingualText(rawDisp)
     if (disp && disp !== code && !disp.startsWith(code)) {
       return `${code} (${disp})`
     }
