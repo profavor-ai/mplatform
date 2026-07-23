@@ -167,8 +167,8 @@ const successMessage = ref('')
 const router = useRouter()
 
 const config = useRuntimeConfig()
-const accessMaxAge = config.public.accessTokenExpirationSec as number
-const refreshMaxAge = config.public.refreshTokenExpirationSec as number
+const accessMaxAge = Number(config.public.accessTokenExpirationSec || 1800)
+const refreshMaxAge = Number(config.public.refreshTokenExpirationSec || 172800)
 
 const tokenCookie = useCookie('auth_token', { maxAge: accessMaxAge })
 const refreshTokenCookie = useCookie('refresh_token', { maxAge: refreshMaxAge })

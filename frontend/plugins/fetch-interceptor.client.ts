@@ -5,8 +5,8 @@ let refreshPromise: Promise<string | null> | null = null
 
 export default defineNuxtPlugin((nuxtApp) => {
   const config = useRuntimeConfig()
-  const accessMaxAge = config.public.accessTokenExpirationSec as number
-  const refreshMaxAge = config.public.refreshTokenExpirationSec as number
+  const accessMaxAge = Number(config.public.accessTokenExpirationSec || 1800)
+  const refreshMaxAge = Number(config.public.refreshTokenExpirationSec || 172800)
 
   globalThis.$fetch = $fetch.create({
     async onResponseError({ request, response, options }) {
