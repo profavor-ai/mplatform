@@ -11,9 +11,14 @@
           {{ t('org_management_desc') }}
         </p>
       </div>
-      <va-button color="primary" icon="add" @click="openCreateOrgModal">
-        {{ t('create_organization') }}
-      </va-button>
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <va-button preset="secondary" icon="admin_panel_settings" @click="showPermMasterModal = true">
+          {{ getLabel('perm_master_management', '세부 권한 마스터 관리') }}
+        </va-button>
+        <va-button color="primary" icon="add" @click="openCreateOrgModal">
+          {{ t('create_organization') }}
+        </va-button>
+      </div>
     </div>
 
     <!-- Main Layout -->
@@ -89,7 +94,6 @@
               <va-tab name="info">{{ t('basic_info') }}</va-tab>
               <va-tab name="depts">{{ t('dept_team_management') }}</va-tab>
               <va-tab name="roles">{{ t('rbac_role_management') }}</va-tab>
-              <va-tab name="permMaster">{{ getLabel('perm_master_management', '세부 권한 마스터 관리') }}</va-tab>
             </template>
           </va-tabs>
 
@@ -237,21 +241,7 @@
             </div>
           </div>
 
-          <!-- Tab 4: Permission Matrix Master Management -->
-          <div v-else-if="activeTab === 'permMaster'" style="display: flex; flex-direction: column; gap: 1.25rem;">
-            <div style="background: var(--va-background-secondary); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem;">
-              <PermissionMatrix
-                :groups="customPermissionGroups"
-                :editable="true"
-                @add-group="openAddGroupModal('master')"
-                @edit-group="openEditGroupModal"
-                @delete-group="deleteGroup"
-                @add-perm="($event) => openAddPermToGroupModal('master', $event)"
-                @edit-perm="({ group, perm }) => openEditPermModal(group, perm)"
-                @delete-perm="({ group, perm }) => deletePermFromGroup(group, perm)"
-              />
-            </div>
-          </div>
+
 
         </va-card-content>
       </va-card>
@@ -632,6 +622,27 @@
       </div>
     </va-modal>
 
+    <!-- Permission Master Management Modal -->
+    <va-modal v-model="showPermMasterModal" :title="getLabel('perm_master_management', '세부 권한 마스터 관리')" hide-default-actions size="large" style="--va-modal-max-width: 1000px;" :prevent-click-outside="true">
+      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+        <div style="background: var(--va-background-secondary); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem;">
+          <PermissionMatrix
+            :groups="customPermissionGroups"
+            :editable="true"
+            @add-group="openAddGroupModal('master')"
+            @edit-group="openEditGroupModal"
+            @delete-group="deleteGroup"
+            @add-perm="($event) => openAddPermToGroupModal('master', $event)"
+            @edit-perm="({ group, perm }) => openEditPermModal(group, perm)"
+            @delete-perm="({ group, perm }) => deletePermFromGroup(group, perm)"
+          />
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
+          <va-button preset="secondary" @click="showPermMasterModal = false">{{ getLabel('close', '닫기') }}</va-button>
+        </div>
+      </div>
+    </va-modal>
+
     <!-- Modal 1: Add New Permission Group -->
     <va-modal v-model="showAddGroupModalFlag" :title="isEditingGroup ? getLabel('edit_perm_group_title', '권한 그룹 수정') : getLabel('add_new_perm_group_title', '신규 권한 그룹 생성')" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
       <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
@@ -849,6 +860,7 @@ const organizations = ref([])
 const loadingOrgs = ref(false)
 const selectedOrg = ref(null)
 const activeTab = ref('info')
+const showPermMasterModal = ref(false)
 
 const departments = ref([])
 const teams = ref([])
