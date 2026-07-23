@@ -1,0 +1,66 @@
+package com.classification.domain_system.controller;
+
+import com.classification.domain_system.entity.Role;
+import com.classification.domain_system.repository.RoleRepository;
+import com.classification.domain_system.repository.UserRoleRepository;
+import com.classification.domain_system.security.JwtUtil;
+import com.classification.domain_system.service.PermissionService;
+import com.classification.domain_system.service.RoleInitializer;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@WebMvcTest(controllers = RoleController.class)
+@AutoConfigureMockMvc(addFilters = false)
+class RoleControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockitoBean
+    private RoleRepository roleRepository;
+
+    @MockitoBean
+    private UserRoleRepository userRoleRepository;
+
+    @MockitoBean
+    private RoleInitializer roleInitializer;
+
+    @MockitoBean
+    private JwtUtil jwtUtil;
+
+    @MockitoBean
+    private PermissionService permissionService;
+
+    @Test
+    @DisplayName("deleteRole - 역할 삭제 시 연관된 user_roles 매핑과 함께 성공적으로 삭제 처리")
+    void deleteRole_Success() throws Exception {
+        UUID roleId = UUID.randomUUID();
+        Role role = new Role();
+        role.setId(roleId);
+        role.setName("CUSTOM_ROLE");
+        role.setIsSystemRole(false);
+
+        when(roleRepository.findById(roleId)).thenReturn(Optional.of(role));
+
+        mockMvc.perform(delete("/api/roles/" + roleId)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        verify(userRoleRepository).deleteByRoleId(roleId);
+        verify(roleRepository).delete(role);
+    }
+}

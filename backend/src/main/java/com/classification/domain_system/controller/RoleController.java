@@ -2,8 +2,10 @@ package com.classification.domain_system.controller;
 
 import com.classification.domain_system.entity.Role;
 import com.classification.domain_system.repository.RoleRepository;
+import com.classification.domain_system.repository.UserRoleRepository;
 import com.classification.domain_system.service.RoleInitializer;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -14,10 +16,12 @@ import java.util.UUID;
 public class RoleController {
 
     private final RoleRepository roleRepository;
+    private final UserRoleRepository userRoleRepository;
     private final RoleInitializer roleInitializer;
 
-    public RoleController(RoleRepository roleRepository, RoleInitializer roleInitializer) {
+    public RoleController(RoleRepository roleRepository, UserRoleRepository userRoleRepository, RoleInitializer roleInitializer) {
         this.roleRepository = roleRepository;
+        this.userRoleRepository = userRoleRepository;
         this.roleInitializer = roleInitializer;
     }
 
@@ -50,9 +54,11 @@ public class RoleController {
     }
 
     @DeleteMapping("/{id}")
+    @Transactional
     public ResponseEntity<Void> deleteRole(@PathVariable UUID id) {
         return roleRepository.findById(id)
                 .map(role -> {
+                    userRoleRepository.deleteByRoleId(id);
                     roleRepository.delete(role);
                     return ResponseEntity.ok().<Void>build();
                 })
