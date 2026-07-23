@@ -27,7 +27,7 @@
                 <va-icon name="account_circle" size="large" />
               </va-list-item-section>
               <va-list-item-section>
-                <va-list-item-title style="font-weight: bold; font-size: 1rem;">{{ user.username }}</va-list-item-title>
+                <va-list-item-label style="font-weight: bold; font-size: 1rem;">{{ user.username }}</va-list-item-label>
                 <div style="display: flex; gap: 0.35rem; align-items: center; margin-top: 0.2rem; flex-wrap: wrap;">
                   <va-badge v-for="r in getUserRolesArray(user.role)" :key="r" :text="r" color="primary" size="small" />
                   <va-badge :text="getOrgName(user.organizationId)" color="info" outline size="small" />
@@ -233,6 +233,20 @@ const getLabel = (key, fallback) => {
   return (!res || res === key) ? fallback : res
 }
 
+const getI18nText = (textStr) => {
+  if (!textStr) return ''
+  try {
+    const parsed = typeof textStr === 'object' ? textStr : JSON.parse(textStr)
+    if (parsed && typeof parsed === 'object') {
+      const loc = (locale?.value || 'ko').toLowerCase()
+      return loc.startsWith('en') ? (parsed.en || parsed.ko || '') : (parsed.ko || parsed.en || '')
+    }
+    return String(textStr)
+  } catch (e) {
+    return textStr
+  }
+}
+
 const getDomainName = (nameObj) => {
   if (!nameObj) return 'Unknown'
   const lang = (locale && locale.value) ? locale.value : 'ko'
@@ -262,6 +276,7 @@ const showCustomAlert = (msg, header = '', title = '', type = 'success') => {
   showErrorAlertModal.value = true
 }
 const users = ref([])
+const organizations = ref([])
 const currentPage = ref(1)
 const totalPages = ref(1)
 const searchQuery = ref('')
@@ -407,14 +422,16 @@ const fetchOrganizations = async () => {
 }
 
 const getOrgName = (orgId) => {
-  if (!orgId) return '미지정'
+  if (!orgId) return getLabel('unassigned', '미지정')
+  if (!organizations.value || organizations.value.length === 0) return getLabel('unassigned', '미지정')
   const found = organizations.value.find(o => o.id === orgId)
-  return found ? (found.displayName || found.name) : '미지정'
+  return found ? (getI18nText(found.displayName) || found.name) : getLabel('unassigned', '미지정')
 }
 
 const getDeptName = (deptId) => {
   if (!deptId) return null
-  return allDepartmentsMap.value[deptId] || null
+  const raw = allDepartmentsMap.value[deptId]
+  return raw ? getI18nText(raw) : null
 }
 
 const getUserRolesArray = (role) => {

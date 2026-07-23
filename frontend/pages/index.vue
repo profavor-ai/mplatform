@@ -99,19 +99,19 @@
               <div class="todo-item-main">
                 <div class="todo-badges">
                   <va-badge :text="todo.stepType" :color="todo.stepType === 'CONSENSUS' ? 'warning' : 'danger'" class="badge-bold" />
-                  <va-badge :text="getActionTypeLabel(todo.approvalRequest.changes)" color="info" outline class="badge-bold" />
+                  <va-badge :text="getActionTypeLabel(todo.approvalRequest?.changes)" color="info" outline class="badge-bold" />
                 </div>
 
                 <div class="todo-details">
-                  <div v-if="todo.approvalRequest.classificationNode" class="todo-node-info">
+                  <div v-if="todo.approvalRequest?.classificationNode" class="todo-node-info">
                     <span><strong>{{ t('domain') }}:</strong> {{ todo.approvalRequest.classificationNode.domainName?.[currentLocale] || todo.approvalRequest.classificationNode.domainName?.['en'] || 'Unknown' }}</span>
                     <span><strong>{{ t('classification') }}:</strong> {{ todo.approvalRequest.classificationNode.name?.[currentLocale] || todo.approvalRequest.classificationNode.name?.['en'] || 'Unknown' }}</span>
                   </div>
                   <div class="todo-requester">
-                    <strong>{{ t('requester') }}:</strong> {{ getUserName(todo.approvalRequest.requesterId) }}
+                    <strong>{{ t('requester') }}:</strong> {{ getUserName(todo.approvalRequest?.requesterId) }}
                   </div>
                   <div class="todo-date">
-                    <strong>{{ t('date') }}:</strong> {{ formatDate(todo.approvalRequest.createdAt) }}
+                    <strong>{{ t('date') }}:</strong> {{ formatDate(todo.approvalRequest?.createdAt) }}
                   </div>
                 </div>
               </div>
@@ -227,7 +227,8 @@ onMounted(async () => {
 
     stats.value = await $fetch('/api/dashboard/stats', { headers })
     if (myUuid) {
-      todos.value = await $fetch(`/api/approval-requests/todos?assigneeId=${myUuid}`, { headers })
+      const todoRes = await $fetch(`/api/approval-requests/todos?assigneeId=${myUuid}`, { headers })
+      todos.value = Array.isArray(todoRes) ? todoRes : (todoRes?.content || [])
       
       const nodeFieldCache = {}
       const fetchFieldsForNode = async (nodeId) => {
@@ -241,37 +242,40 @@ onMounted(async () => {
         }
       }
 
-      for (const todo of todos.value) {
-        if (todo.approvalRequest.targetType === 'RECORD') {
-          const domainId = todo.approvalRequest.classificationNode?.domainId
-          const domain = domainList.value.find(d => d.id === domainId)
-          if (domain) {
-            const fields = await fetchFieldsForNode(todo.approvalRequest.classificationNode.id)
-            let idField = fields.find(f => f.id === domain.identifierFieldId)
-            let nameField = fields.find(f => f.id === domain.displayNameFieldId)
-            
-            if (!idField && fields.length > 0) idField = fields[0]
-            if (!nameField && fields.length > 1) nameField = fields[1]
+      if (Array.isArray(todos.value)) {
+        for (const todo of todos.value) {
+          if (todo?.approvalRequest && todo.approvalRequest.targetType === 'RECORD') {
+            const domainId = todo.approvalRequest.classificationNode?.domainId
+            const domain = (domainList.value || []).find(d => d.id === domainId)
+            if (domain && todo.approvalRequest.classificationNode?.id) {
+              const fields = await fetchFieldsForNode(todo.approvalRequest.classificationNode.id)
+              let idField = fields.find(f => f.id === domain.identifierFieldId)
+              let nameField = fields.find(f => f.id === domain.displayNameFieldId)
+              
+              if (!idField && fields.length > 0) idField = fields[0]
+              if (!nameField && fields.length > 1) nameField = fields[1]
 
-            let payload = {}
-            try {
-              let parsed = todo.approvalRequest.changes
-              if (typeof parsed === 'string') parsed = JSON.parse(parsed)
-              if (typeof parsed === 'string') parsed = JSON.parse(parsed)
-              payload = parsed?.after || parsed || {}
-            } catch(e) {}
-            
-            displayInfo.value[todo.id] = {
-              displayId: idField ? payload[idField.key] : null,
-              displayName: nameField ? payload[nameField.key] : null,
-              idField: idField ? { ...idField, name: typeof idField.name === 'string' ? JSON.parse(idField.name || '{}') : idField.name } : null,
-              nameField: nameField ? { ...nameField, name: typeof nameField.name === 'string' ? JSON.parse(nameField.name || '{}') : nameField.name } : null
+              let payload = {}
+              try {
+                let parsed = todo.approvalRequest.changes
+                if (typeof parsed === 'string') parsed = JSON.parse(parsed)
+                if (typeof parsed === 'string') parsed = JSON.parse(parsed)
+                payload = parsed?.after || parsed || {}
+              } catch(e) {}
+              
+              displayInfo.value[todo.id] = {
+                displayId: idField ? payload[idField.key] : null,
+                displayName: nameField ? payload[nameField.key] : null,
+                idField: idField ? { ...idField, name: typeof idField.name === 'string' ? JSON.parse(idField.name || '{}') : idField.name } : null,
+                nameField: nameField ? { ...nameField, name: typeof nameField.name === 'string' ? JSON.parse(nameField.name || '{}') : nameField.name } : null
+              }
             }
           }
         }
       }
 
-      myRequests.value = await $fetch(`/api/approval-requests/my-requests?requesterId=${myUuid}`, { headers })
+      const reqRes = await $fetch(`/api/approval-requests/my-requests?requesterId=${myUuid}`, { headers })
+      myRequests.value = Array.isArray(reqRes) ? reqRes : (reqRes?.content || [])
     }
   } catch (e) {
     console.error('Error fetching dashboard data:', e)

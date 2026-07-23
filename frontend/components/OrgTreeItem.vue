@@ -12,12 +12,12 @@
         <va-icon :name="node.icon || 'folder'" color="primary" size="small" />
 
         <span style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">
-          {{ node.name }}
+          {{ getI18nText(node.name) }}
         </span>
         <va-chip size="small" color="info" outline>{{ getLabel('dept', '부서') }}</va-chip>
         <va-badge v-for="r in nodeRoles" :key="r" :text="r" color="warning" size="small" style="font-weight: bold; margin-left: 0.2rem;" />
         <span v-if="node.description" style="font-size: 0.8rem; color: var(--va-text-secondary); margin-left: 0.5rem;">
-          {{ node.description }}
+          {{ getI18nText(node.description) }}
         </span>
       </div>
 
@@ -58,7 +58,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const props = defineProps({
   node: { type: Object, required: true }
@@ -72,6 +72,22 @@ const getLabel = (key, fallback) => {
   const res = t(key)
   return (!res || res === key) ? fallback : res
 }
+
+const getI18nText = (textStr) => {
+  if (!textStr) return ''
+  try {
+    const parsed = typeof textStr === 'object' ? textStr : JSON.parse(textStr)
+    if (parsed && typeof parsed === 'object') {
+      const loc = (locale?.value || 'ko').toLowerCase()
+      return loc.startsWith('en') ? (parsed.en || parsed.ko || '') : (parsed.ko || parsed.en || '')
+    }
+    return String(textStr)
+  } catch (e) {
+    return textStr
+  }
+}
+
+
 
 const hasChildren = computed(() => {
   return (props.node.subDepts && props.node.subDepts.length > 0)
