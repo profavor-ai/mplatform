@@ -4,6 +4,7 @@ import com.classification.domain_system.dto.FieldDefinitionRequest;
 import com.classification.domain_system.entity.FieldDefinition;
 import com.classification.domain_system.security.JwtUtil;
 import com.classification.domain_system.service.FieldDefinitionService;
+import com.classification.domain_system.service.PermissionService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +39,9 @@ class FieldDefinitionControllerTest {
 
     @MockitoBean
     private JwtUtil jwtUtil;
+
+    @MockitoBean
+    private PermissionService permissionService;
 
     @Test
     @DisplayName("addField - 올바른 파라미터 전달 및 결과 반환")

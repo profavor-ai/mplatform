@@ -22,10 +22,10 @@
               />
             </div>
             <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; padding: 0 0.5rem;">
-              <va-button v-if="currentUser?.role === 'ADMIN'" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" @click="openDomainModal()" color="primary">Domain</va-button>
+              <va-button v-if="isAdmin" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" @click="openDomainModal()" color="primary">Domain</va-button>
               <va-button style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="note_add" @click="openNodeModal()" :disabled="!selectedNode" color="primary" :preset="selectedNode ? 'primary' : 'secondary'">Node</va-button>
             </div>
-            <div v-if="currentUser?.role !== 'ADMIN'" style="margin-top: 0.75rem; padding: 0 0.5rem;">
+            <div v-if="!isAdmin" style="margin-top: 0.75rem; padding: 0 0.5rem;">
               <va-button preset="secondary" style="width: 100%;" @click="showRequestAccessModal = true">Request Domain Access</va-button>
             </div>
             <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
@@ -662,6 +662,13 @@ const currentUser = computed(() => {
     return typeof userCookie.value === 'string' ? JSON.parse(userCookie.value) : userCookie.value
   }
   return null
+})
+
+const isAdmin = computed(() => {
+  const r = currentUser.value?.role
+  if (!r) return false
+  const roles = Array.isArray(r) ? r : String(r).split(',').map(item => item.trim()).filter(Boolean)
+  return roles.some(role => role === 'ROLE_ADMIN' || role === 'ORG_ADMIN')
 })
 
 const fetchFields = () => {

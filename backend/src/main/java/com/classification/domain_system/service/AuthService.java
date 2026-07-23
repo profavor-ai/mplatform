@@ -8,6 +8,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+import java.util.Map;
+import java.util.HashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -56,6 +58,56 @@ public class AuthService {
         loginLogRepository.save(log);
 
         return jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getId());
+    }
+
+    public Map<String, String> loginWithTokens(String username, String password, String ipAddress, String userAgent) {
+        Optional<User> userOpt = userRepository.findByUsername(username);
+        if (userOpt.isEmpty()) {
+            throw new RuntimeException("Invalid credentials");
+        }
+
+        User user = userOpt.get();
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new RuntimeException("Invalid credentials");
+        }
+
+        com.classification.domain_system.entity.LoginLog log = com.classification.domain_system.entity.LoginLog.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .userAgent(userAgent)
+                .clientIp(ipAddress)
+                .build();
+        loginLogRepository.save(log);
+
+        String userIdStr = user.getId() != null ? user.getId().toString() : null;
+        String accessToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), userIdStr);
+        String refreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getRole(), userIdStr);
+
+        Map<String, String> map = new HashMap<>();
+        map.put("token", accessToken);
+        map.put("refreshToken", refreshToken);
+        return map;
+    }
+
+    public Map<String, String> refreshTokens(String refreshToken) {
+        if (refreshToken == null || !jwtUtil.isTokenValid(refreshToken)) {
+            throw new RuntimeException("Invalid refresh token");
+        }
+
+        String username = jwtUtil.extractUsername(refreshToken);
+        User user = findByUsername(username);
+        if (user == null) {
+            throw new RuntimeException("User not found for refresh token");
+        }
+
+        String userIdStr = user.getId() != null ? user.getId().toString() : null;
+        String newAccessToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), userIdStr);
+        String newRefreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getRole(), userIdStr);
+
+        Map<String, String> map = new HashMap<>();
+        map.put("token", newAccessToken);
+        map.put("refreshToken", newRefreshToken);
+        return map;
     }
     
     public User findByUsername(String username) {

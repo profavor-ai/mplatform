@@ -22,7 +22,7 @@ public class AuthController {
     public ResponseEntity<?> getAllUsers() {
         String serverOffset = OffsetDateTime.now().getOffset().getId();
         return ResponseEntity.ok(userRepository.findAll().stream()
-            .map(user -> new LoginResponse(null, user.getUsername(), user.getRole(), user.getId(), user.getId(), user.getOrganizationId(), user.getDepartmentId(), user.getTimezone(), serverOffset))
+            .map(user -> new LoginResponse(null, null, user.getUsername(), user.getRole(), user.getId(), user.getId(), user.getOrganizationId(), user.getDepartmentId(), user.getTimezone(), serverOffset))
             .toList());
     }
 
@@ -33,12 +33,13 @@ public class AuthController {
             if ("0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip)) ip = "127.0.0.1";
             String userAgent = httpRequest.getHeader("User-Agent");
             
-            String token = authService.login(request.getUsername(), request.getPassword(), ip, userAgent);
+            java.util.Map<String, String> tokens = authService.loginWithTokens(request.getUsername(), request.getPassword(), ip, userAgent);
             User user = authService.findByUsername(request.getUsername());
             
             String serverOffset = OffsetDateTime.now().getOffset().getId();
             return ResponseEntity.ok(new LoginResponse(
-                token,
+                tokens.get("token"),
+                tokens.get("refreshToken"),
                 user.getUsername(),
                 user.getRole(),
                 user.getId(),
@@ -48,6 +49,17 @@ public class AuthController {
                 user.getTimezone(),
                 serverOffset
             ));
+        } catch (Exception e) {
+            return ResponseEntity.status(401).body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshToken(@RequestBody java.util.Map<String, String> request) {
+        try {
+            String refreshToken = request != null ? request.get("refreshToken") : null;
+            java.util.Map<String, String> tokens = authService.refreshTokens(refreshToken);
+            return ResponseEntity.ok(tokens);
         } catch (Exception e) {
             return ResponseEntity.status(401).body(e.getMessage());
         }
@@ -94,6 +106,7 @@ public class AuthController {
     @Data
     static class LoginResponse {
         private final String token;
+        private final String refreshToken;
         private final String username;
         private final String role;
         private final String uuid;

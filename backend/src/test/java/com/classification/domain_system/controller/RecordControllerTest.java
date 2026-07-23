@@ -8,6 +8,7 @@ import com.classification.domain_system.repository.ClassificationNodeRepository;
 import com.classification.domain_system.repository.RecordRepository;
 import com.classification.domain_system.security.JwtUtil;
 import com.classification.domain_system.service.ApprovalService;
+import com.classification.domain_system.service.PermissionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -54,6 +55,9 @@ class RecordControllerTest {
 
     @MockitoBean
     private JwtUtil jwtUtil;
+
+    @MockitoBean
+    private PermissionService permissionService;
 
     private UUID nodeId;
 

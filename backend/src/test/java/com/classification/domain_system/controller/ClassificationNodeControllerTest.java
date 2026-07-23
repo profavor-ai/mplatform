@@ -4,6 +4,7 @@ import com.classification.domain_system.dto.ClassificationNodeRequest;
 import com.classification.domain_system.entity.ClassificationNode;
 import com.classification.domain_system.security.JwtUtil;
 import com.classification.domain_system.service.ClassificationNodeService;
+import com.classification.domain_system.service.PermissionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,6 +41,9 @@ class ClassificationNodeControllerTest {
 
     @MockitoBean
     private JwtUtil jwtUtil;
+
+    @MockitoBean
+    private PermissionService permissionService;
 
     private UUID domainId;
 

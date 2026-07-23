@@ -7,6 +7,7 @@ import com.classification.domain_system.service.DomainService;
 import com.classification.domain_system.service.FieldDefinitionService;
 import com.classification.domain_system.service.SectorService;
 import com.classification.domain_system.service.FieldGroupService;
+import com.classification.domain_system.service.PermissionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,6 +62,9 @@ class DomainControllerTest {
 
     @MockitoBean
     private JwtUtil jwtUtil;
+
+    @MockitoBean
+    private PermissionService permissionService;
 
     private Domain createTestDomain(UUID id, String koName, String enName) {
         Domain domain = new Domain();

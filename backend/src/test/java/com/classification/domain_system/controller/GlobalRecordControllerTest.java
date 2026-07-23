@@ -4,6 +4,7 @@ import com.classification.domain_system.entity.Record;
 import com.classification.domain_system.repository.RecordRepository;
 import com.classification.domain_system.security.JwtUtil;
 import com.classification.domain_system.service.ApprovalService;
+import com.classification.domain_system.service.PermissionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,9 @@ class GlobalRecordControllerTest {
 
     @MockitoBean
     private JwtUtil jwtUtil;
+
+    @MockitoBean
+    private PermissionService permissionService;
 
     private UUID domainId;
     private UUID recordId;

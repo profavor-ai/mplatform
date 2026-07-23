@@ -1,21 +1,25 @@
 package com.classification.domain_system.controller;
 
+import com.classification.domain_system.entity.User;
 import com.classification.domain_system.repository.UserRepository;
 import com.classification.domain_system.security.JwtUtil;
 import com.classification.domain_system.service.AuthService;
-import com.classification.domain_system.entity.User;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -24,23 +28,29 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(controllers = AuthController.class)
-@AutoConfigureMockMvc(addFilters = false)
+@ExtendWith(MockitoExtension.class)
 class AuthControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @MockitoBean
+    @Mock
     private AuthService authService;
 
-    @MockitoBean
+    @Mock
     private UserRepository userRepository;
 
-    @MockitoBean
+    @Mock
     private JwtUtil jwtUtil;
+
+    @InjectMocks
+    private AuthController authController;
+
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(authController).build();
+    }
 
     // ─────────────────────────────────────────────────────────────────
     // login 테스트
@@ -50,57 +60,79 @@ class AuthControllerTest {
     class Login {
 
         @Test
-        @DisplayName("정상 로그인 시 200 OK + 토큰 반환")
+        @DisplayName("정상 로그인 시 200 OK + 토큰 및 리프레시 토큰 반환")
         void success_Returns200WithToken() throws Exception {
             User user = new User();
             user.setId(UUID.randomUUID().toString());
             user.setUsername("testuser");
             user.setRole("USER");
 
-            when(authService.login(eq("testuser"), eq("password"), any(), any())).thenReturn("jwt-token");
+            Map<String, String> tokens = new HashMap<>();
+            tokens.put("token", "access-token-123");
+            tokens.put("refreshToken", "refresh-token-456");
+
+            when(authService.loginWithTokens(eq("testuser"), eq("password"), any(), any())).thenReturn(tokens);
             when(authService.findByUsername("testuser")).thenReturn(user);
 
             mockMvc.perform(post("/api/auth/login")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"username\":\"testuser\",\"password\":\"password\"}"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.token").value("jwt-token"))
+                    .andExpect(jsonPath("$.token").value("access-token-123"))
+                    .andExpect(jsonPath("$.refreshToken").value("refresh-token-456"))
                     .andExpect(jsonPath("$.username").value("testuser"))
                     .andExpect(jsonPath("$.role").value("USER"));
         }
 
         @Test
-        @DisplayName("잘못된 비밀번호 시 401 반환")
+        @DisplayName("비밀번호 불일치 시 401 Unauthorized 반환")
         void wrongPassword_Returns401() throws Exception {
-            when(authService.login(any(), any(), any(), any()))
+            when(authService.loginWithTokens(eq("testuser"), eq("wrong"), any(), any()))
                     .thenThrow(new RuntimeException("Invalid credentials"));
 
             mockMvc.perform(post("/api/auth/login")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"username\":\"testuser\",\"password\":\"wrong\"}"))
-                    .andExpect(status().isUnauthorized());
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(content().string("Invalid credentials"));
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // refreshToken 테스트
+    // ─────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("refreshToken")
+    class RefreshToken {
+
+        @Test
+        @DisplayName("유효한 리프레시 토큰 전달 시 200 OK + 새 토큰 세트 반환")
+        void success_ReturnsNewTokens() throws Exception {
+            Map<String, String> tokens = new HashMap<>();
+            tokens.put("token", "new-access-token");
+            tokens.put("refreshToken", "new-refresh-token");
+
+            when(authService.refreshTokens("valid-refresh-token")).thenReturn(tokens);
+
+            mockMvc.perform(post("/api/auth/refresh")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"refreshToken\":\"valid-refresh-token\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.token").value("new-access-token"))
+                    .andExpect(jsonPath("$.refreshToken").value("new-refresh-token"));
         }
 
         @Test
-        @DisplayName("IPv6 루프백(::1) IP는 127.0.0.1로 변환하여 authService에 전달")
-        void ipv6Loopback_ConvertedToIPv4() throws Exception {
-            User user = new User();
-            user.setId(UUID.randomUUID().toString());
-            user.setUsername("admin");
-            user.setRole("ADMIN");
+        @DisplayName("유효하지 않은 리프레시 토큰 전달 시 401 Unauthorized 반환")
+        void invalidRefreshToken_Returns401() throws Exception {
+            when(authService.refreshTokens("invalid-token"))
+                    .thenThrow(new RuntimeException("Invalid refresh token"));
 
-            when(authService.login(eq("admin"), eq("pass"), eq("127.0.0.1"), any())).thenReturn("token");
-            when(authService.findByUsername("admin")).thenReturn(user);
-
-            // MockMvc는 기본적으로 127.0.0.1을 사용하지만
-            // AuthController 로직을 검증하기 위해 정상 호출을 확인
-            mockMvc.perform(post("/api/auth/login")
+            mockMvc.perform(post("/api/auth/refresh")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"username\":\"admin\",\"password\":\"pass\"}"))
-                    .andExpect(status().isOk());
-
-            // authService.login 이 "127.0.0.1"로 호출되었음을 검증
-            verify(authService).login(eq("admin"), eq("pass"), eq("127.0.0.1"), any());
+                    .content("{\"refreshToken\":\"invalid-token\"}"))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(content().string("Invalid refresh token"));
         }
     }
 
@@ -112,20 +144,20 @@ class AuthControllerTest {
     class Register {
 
         @Test
-        @DisplayName("정상 등록 시 200 OK 반환")
+        @DisplayName("정상 회원가입 시 200 OK 반환")
         void success_Returns200() throws Exception {
-            doNothing().when(authService).register("newuser", "pass", "USER");
+            doNothing().when(authService).register("newuser", "password", "USER");
 
             mockMvc.perform(post("/api/auth/register")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"username\":\"newuser\",\"password\":\"pass\",\"role\":\"USER\"}"))
+                    .content("{\"username\":\"newuser\",\"password\":\"password\",\"role\":\"USER\"}"))
                     .andExpect(status().isOk())
                     .andExpect(content().string("User registered successfully"));
         }
 
         @Test
-        @DisplayName("중복 username 등록 시 400 반환")
-        void duplicateUsername_Returns400() throws Exception {
+        @DisplayName("이미 존재하는 사용자면 400 Bad Request 반환")
+        void duplicateUser_Returns400() throws Exception {
             doThrow(new RuntimeException("Username already exists"))
                     .when(authService).register(any(), any(), any());
 

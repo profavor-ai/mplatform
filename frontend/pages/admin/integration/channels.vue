@@ -16,6 +16,11 @@
           :loading="isLoading"
           striped
         >
+          <template #cell(name)="{ rowData }">
+            <span style="font-weight: 700; color: var(--va-text-primary);">
+              {{ parseI18nName(rowData.name) }}
+            </span>
+          </template>
           <template #cell(direction)="{ rowData }">
             <va-badge
               :text="rowData.direction === 'INBOUND' ? $t('integration.channels.inbound') : $t('integration.channels.outbound')"
@@ -45,83 +50,160 @@
       </va-card-content>
     </va-card>
 
-    <!-- Create/Edit Modal -->
-    <va-modal v-model="showModal" :title="isEdit ? $t('integration.channels.edit') : $t('integration.channels.add')" size="large" hide-default-actions>
-      <div class="p-4" style="min-width: 700px; max-height: 80vh; overflow-y: auto;">
-        <va-form ref="form" @submit.prevent="submitForm">
-          <div class="grid grid-cols-3 gap-4 mb-4">
-            <va-input v-model="formData.name" :label="$t('integration.channels.name')" required />
-            <va-select
-              v-model="formData.direction"
-              :options="directionOptions"
-              value-by="value"
-              text-by="text"
-              :label="$t('integration.channels.direction')"
-              @update:modelValue="onDirectionChanged"
-              required
-            />
-            <va-select
-              v-model="formData.type"
-              :options="['WEB_SERVICE', 'JDBC', 'MESSAGE_QUEUE']"
-              :label="$t('integration.channels.type')"
-              :disabled="formData.direction === 'INBOUND'"
-              required
-            />
-          </div>
+    <!-- Create/Edit Modal (Premium Standardized Design) -->
+    <va-modal
+      v-model="showModal"
+      :title="isEdit ? ($t('integration.channels.edit') || '연계 채널 정보 수정') : ($t('integration.channels.add') || '신규 연계 채널 등록')"
+      size="large"
+      hide-default-actions
+    >
+      <div style="min-width: 750px; max-width: 900px; padding: 0.5rem 0.25rem;">
+        <!-- Navigation Tabs -->
+        <va-tabs v-model="activeModalTab" class="mb-4" style="border-bottom: 1px solid var(--va-background-border);">
+          <template #tabs>
+            <va-tab name="basic" style="font-weight: 700;">
+              <va-icon name="tune" class="mr-2" /> {{ $t('integration.channels.basic_config') || '기본 정보 & 연동 설정' }}
+            </va-tab>
+            <va-tab name="mapping" style="font-weight: 700;">
+              <va-icon name="swap_horiz" class="mr-2" /> {{ $t('integration.channels.field_mapping') || '데이터 필드 매핑' }}
+            </va-tab>
+          </template>
+        </va-tabs>
 
-          <!-- Inbound Authentication Config for INBOUND -->
-          <va-card v-if="formData.direction === 'INBOUND'" outlined class="mb-4">
-            <va-card-title>{{ $t('integration.channels.auth_type') }}</va-card-title>
-            <va-card-content>
-              <div class="grid grid-cols-2 gap-4">
-                <va-select
-                  v-model="uiConfig.inboundAuthType"
-                  :options="authTypeOptions"
-                  value-by="value"
-                  text-by="text"
-                  :label="$t('integration.channels.auth_type')"
-                />
-                <div v-if="uiConfig.inboundAuthType !== 'NONE'" class="flex gap-2 items-start">
-                  <va-input v-model="uiConfig.inboundSecretToken" :label="$t('integration.channels.secret_token')" placeholder="sec_token_..." class="flex-1" required />
-                  <va-button preset="secondary" color="info" icon="autorenew" class="mt-4" @click="generateSecretToken">
-                    {{ $t('integration.channels.generate_token') }}
-                  </va-button>
+        <va-form ref="form" @submit.prevent="submitForm">
+          <!-- TAB 1: Basic Config -->
+          <div v-show="activeModalTab === 'basic'" style="display: flex; flex-direction: column; gap: 1.25rem;">
+            <!-- Multilingual Channel Name -->
+            <MultilingualInput
+              v-model:ko="channelNameKo"
+              v-model:en="channelNameEn"
+              :label="$t('integration.channels.name') || '채널명'"
+              required
+            />
+
+            <!-- Direction & Type & Active -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 130px; gap: 1rem; align-items: flex-end;">
+              <va-select
+                v-model="formData.direction"
+                :options="directionOptions"
+                value-by="value"
+                text-by="text"
+                :label="$t('integration.channels.direction')"
+                @update:modelValue="onDirectionChanged"
+                required
+              />
+              <va-select
+                v-model="formData.type"
+                :options="['WEB_SERVICE', 'JDBC', 'MESSAGE_QUEUE']"
+                :label="$t('integration.channels.type')"
+                :disabled="formData.direction === 'INBOUND'"
+                required
+              />
+              <div style="padding-bottom: 0.5rem;">
+                <va-checkbox v-model="formData.isActive" :label="$t('integration.channels.is_active') || '활성화'" />
+              </div>
+            </div>
+
+            <!-- INBOUND Auth & Webhook Info -->
+            <template v-if="formData.direction === 'INBOUND'">
+              <div style="background: var(--va-background-element); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 1rem;">
+                <div style="font-weight: 700; font-size: 0.95rem; color: var(--va-primary); display: flex; align-items: center; gap: 0.4rem;">
+                  <va-icon name="security" size="small" color="primary" />
+                  {{ $t('integration.channels.auth_type') || '수신(INBOUND) 인증 및 보안 설정' }}
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                  <va-select
+                    v-model="uiConfig.inboundAuthType"
+                    :options="authTypeOptions"
+                    value-by="value"
+                    text-by="text"
+                    :label="$t('integration.channels.auth_type')"
+                  />
+                  <div v-if="uiConfig.inboundAuthType !== 'NONE'" style="display: flex; gap: 0.5rem; align-items: flex-end;">
+                    <va-input v-model="uiConfig.inboundSecretToken" :label="$t('integration.channels.secret_token')" placeholder="sec_token_..." style="flex: 1;" required />
+                    <va-button preset="secondary" color="primary" icon="autorenew" @click="generateSecretToken" style="white-space: nowrap;">
+                      {{ $t('integration.channels.generate_token') || '토큰 생성' }}
+                    </va-button>
+                  </div>
+                </div>
+                <div>
+                  <va-checkbox v-model="formData.requiresApproval" :label="`${$t('integration.channels.requires_approval') || 'Requires Approval'}`" />
                 </div>
               </div>
-              <div class="mt-3">
-                <va-checkbox v-model="formData.requiresApproval" label="Requires Approval (승인 절차 필수 적용)" />
-              </div>
-            </va-card-content>
-          </va-card>
 
-          <!-- Webhook URL notice for INBOUND WEB_SERVICE -->
-          <va-card v-if="formData.direction === 'INBOUND' && formData.type === 'WEB_SERVICE'" outlined class="mb-4" style="background-color: #fffbe6; border-color: #ffe58f;">
-            <va-card-title style="color: #d48806; font-weight: bold;">
-              <va-icon name="key" class="mr-2" /> {{ $t('integration.channels.webhook_url') }}
-            </va-card-title>
-            <va-card-content>
-              <div class="text-sm text-gray-700 mb-2">
-                {{ $t('integration.channels.inbound_notice') }}
+              <!-- Webhook Guide Card (Premium Modern Light Theme) -->
+              <div style="background: linear-gradient(135deg, rgba(238,242,255,0.8), rgba(243,244,256,0.5)); border-radius: 12px; padding: 1.25rem; border: 1px solid rgba(199,210,254,0.8); display: flex; flex-direction: column; gap: 0.75rem;">
+                <div style="font-weight: 700; font-size: 0.9rem; color: #4338ca; display: flex; align-items: center; justify-content: space-between;">
+                  <span style="display: flex; align-items: center; gap: 0.4rem;">
+                    <va-icon name="link" size="small" color="#4338ca" /> {{ $t('integration.channels.webhook_url') || '수신 Webhook URL 가이드' }}
+                  </span>
+                  <va-button size="small" color="primary" icon="content_copy" @click="copyWebhookUrl">
+                    {{ $t('integration.channels.webhook_copy') || 'URL 복사' }}
+                  </va-button>
+                </div>
+                <div style="font-size: 0.83rem; color: #374151; line-height: 1.4;">
+                  {{ $t('integration.channels.inbound_notice') || '외부 시스템에서 아래 Webhook URL로 JSON Payload를 POST 요청하면 설정된 매핑 규칙에 따라 데이터가 연동 처리됩니다.' }}
+                </div>
+                <va-input :model-value="getWebhookUrl()" readonly style="font-family: monospace; font-size: 0.85rem;" />
+                <div v-if="uiConfig.inboundAuthType !== 'NONE'" style="font-size: 0.8rem; background: rgba(255,255,255,0.9); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #c7d2fe; color: #1e1b4b;">
+                  <strong>{{ $t('integration.channels.auth_header_example') || '요청 인증 헤더' }}:</strong>
+                  <code v-if="uiConfig.inboundAuthType === 'BEARER_TOKEN'" style="margin-left: 0.5rem; color: #4338ca; font-weight: bold;">Authorization: Bearer {{ uiConfig.inboundSecretToken || 'secretToken' }}</code>
+                  <code v-else-if="uiConfig.inboundAuthType === 'API_KEY'" style="margin-left: 0.5rem; color: #4338ca; font-weight: bold;">X-API-KEY: {{ uiConfig.inboundSecretToken || 'secretToken' }}</code>
+                </div>
               </div>
-              <div class="flex gap-2 items-center mb-3">
-                <va-input :model-value="getWebhookUrl()" readonly class="flex-1 font-mono text-sm" />
-                <va-button size="small" color="warning" icon="content_copy" @click="copyWebhookUrl">
-                  {{ $t('integration.channels.webhook_copy') }}
-                </va-button>
-              </div>
-              <div v-if="uiConfig.inboundAuthType !== 'NONE'" class="text-xs text-gray-600 bg-white p-2 rounded border border-amber-200">
-                <strong>{{ $t('integration.channels.auth_header_example') }}:</strong>
-                <code v-if="uiConfig.inboundAuthType === 'BEARER_TOKEN'" class="ml-2 font-mono text-blue-700">Authorization: Bearer {{ uiConfig.inboundSecretToken || 'secretToken' }}</code>
-                <code v-else-if="uiConfig.inboundAuthType === 'API_KEY'" class="ml-2 font-mono text-blue-700">X-API-KEY: {{ uiConfig.inboundSecretToken || 'secretToken' }}</code>
-              </div>
-            </va-card-content>
-          </va-card>
+            </template>
 
-          <!-- Domain & Node Selection -->
-          <va-card outlined class="mb-4">
-            <va-card-title>{{ $t('integration.channels.select_domain_node') }}</va-card-title>
-            <va-card-content>
-              <div class="grid grid-cols-2 gap-4">
+            <!-- OUTBOUND Detailed Config -->
+            <template v-else-if="formData.direction === 'OUTBOUND'">
+              <div style="background: var(--va-background-element); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="font-weight: 700; font-size: 0.95rem; color: var(--va-primary); display: flex; align-items: center; gap: 0.4rem;">
+                    <va-icon name="settings_remote" size="small" color="primary" />
+                    {{ $t('integration.channels.detail_config') || '송신(OUTBOUND) 연결 정보' }}
+                  </div>
+                  <va-button size="small" preset="secondary" color="info" icon="cloud_done" @click="testConnection" :loading="isTesting">
+                    {{ $t('integration.channels.test_connection') || '연결 테스트' }}
+                  </va-button>
+                </div>
+
+                <template v-if="formData.type === 'WEB_SERVICE'">
+                  <va-input v-model="uiConfig.wsUrl" :label="$t('integration.channels.ws_url')" placeholder="http://api.example.com/webhook" required class="w-full" />
+                  <va-select v-model="uiConfig.wsMethod" :options="['POST', 'PUT', 'GET']" :label="$t('integration.channels.ws_method')" class="w-full" />
+                  <div style="margin-top: 0.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                      <span style="font-size: 0.85rem; font-weight: 700;">HTTP Headers</span>
+                      <va-button size="small" preset="secondary" icon="add" @click="addWsHeader">{{ $t('integration.channels.add_header') }}</va-button>
+                    </div>
+                    <div v-if="uiConfig.wsHeaders.length === 0" style="font-size: 0.8rem; color: #888;">{{ $t('integration.channels.no_headers') }}</div>
+                    <div v-for="(header, index) in uiConfig.wsHeaders" :key="index" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center;">
+                      <va-input v-model="header.key" placeholder="Header Name" style="flex: 1;" required />
+                      <va-input v-model="header.value" placeholder="Header Value" style="flex: 1;" required />
+                      <va-button preset="plain" color="danger" icon="remove_circle" @click="removeWsHeader(index)" />
+                    </div>
+                  </div>
+                </template>
+                <template v-else-if="formData.type === 'JDBC'">
+                  <va-input v-model="uiConfig.jdbcUrl" :label="$t('integration.channels.db_url')" placeholder="jdbc:mysql://localhost:3306/db" required class="w-full" />
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <va-input v-model="uiConfig.jdbcUser" :label="$t('integration.channels.db_user')" />
+                    <va-input v-model="uiConfig.jdbcPassword" type="password" :label="$t('integration.channels.db_password')" />
+                  </div>
+                  <va-input v-model="uiConfig.jdbcTable" :label="$t('integration.channels.db_table')" placeholder="integration_data" required class="w-full" />
+                </template>
+                <template v-else-if="formData.type === 'MESSAGE_QUEUE'">
+                  <va-input v-model="uiConfig.mqBroker" :label="$t('integration.channels.mq_broker')" placeholder="kafka://localhost:9092" required class="w-full" />
+                  <va-input v-model="uiConfig.mqTopic" :label="$t('integration.channels.mq_topic')" placeholder="events.data.changed" required class="w-full" />
+                </template>
+              </div>
+            </template>
+
+            <!-- Domain & Node Target Selection -->
+            <div style="background: var(--va-background-element); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 1rem;">
+              <div style="font-weight: 700; font-size: 0.95rem; color: var(--va-primary); display: flex; align-items: center; gap: 0.4rem;">
+                <va-icon name="account_tree" size="small" color="primary" />
+                {{ $t('integration.channels.select_domain_node') || '연계 대상 도메인 & 노드' }}
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <va-select
                   v-model="selectedDomainId"
                   :options="domains"
@@ -143,91 +225,59 @@
                   clearable
                 />
               </div>
-            </va-card-content>
-          </va-card>
+            </div>
+          </div>
 
-          <!-- Channel Config UI (OUTBOUND 전용) -->
-          <va-card v-if="formData.direction === 'OUTBOUND'" outlined class="mb-4">
-            <va-card-title style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-              <span>{{ $t('integration.channels.detail_config') }}</span>
-              <va-button size="small" preset="secondary" color="info" icon="cloud_done" @click="testConnection" :loading="isTesting" style="flex: 0 0 auto; width: max-content;">{{ $t('integration.channels.test_connection') }}</va-button>
-            </va-card-title>
-            <va-card-content>
-              <template v-if="formData.type === 'WEB_SERVICE'">
-                <va-input v-model="uiConfig.wsUrl" :label="$t('integration.channels.ws_url')" placeholder="http://api.example.com/webhook" required class="mb-3 w-full" />
-                <va-select v-model="uiConfig.wsMethod" :options="['POST', 'PUT', 'GET']" :label="$t('integration.channels.ws_method')" class="mb-3 w-full" />
-                
-                <div class="mt-4">
-                  <div class="flex justify-between items-center mb-2">
-                    <span class="font-bold">HTTP Headers</span>
-                    <va-button size="small" preset="secondary" icon="add" @click="addWsHeader">{{ $t('integration.channels.add_header') }}</va-button>
-                  </div>
-                  <div v-if="uiConfig.wsHeaders.length === 0" class="text-sm text-gray-500 mb-2">{{ $t('integration.channels.no_headers') }}</div>
-                  <div v-for="(header, index) in uiConfig.wsHeaders" :key="index" class="flex gap-2 mb-2 items-start">
-                    <va-input v-model="header.key" placeholder="Header Name (ex: Authorization)" class="flex-1" required />
-                    <va-input v-model="header.value" placeholder="Header Value (ex: Bearer token...)" class="flex-1" required />
-                    <va-button preset="plain" color="danger" icon="remove_circle" @click="removeWsHeader(index)" class="mt-1" />
-                  </div>
-                </div>
-              </template>
-              <template v-else-if="formData.type === 'JDBC'">
-                <va-input v-model="uiConfig.jdbcUrl" :label="$t('integration.channels.db_url')" placeholder="jdbc:mysql://localhost:3306/db" required class="mb-3 w-full" />
-                <div class="grid grid-cols-2 gap-4">
-                  <va-input v-model="uiConfig.jdbcUser" :label="$t('integration.channels.db_user')" class="mb-3" />
-                  <va-input v-model="uiConfig.jdbcPassword" type="password" :label="$t('integration.channels.db_password')" class="mb-3" />
-                </div>
-                <va-input v-model="uiConfig.jdbcTable" :label="$t('integration.channels.db_table')" placeholder="integration_data" required class="mb-3 w-full" />
-              </template>
-              <template v-else-if="formData.type === 'MESSAGE_QUEUE'">
-                <va-input v-model="uiConfig.mqBroker" :label="$t('integration.channels.mq_broker')" placeholder="kafka://localhost:9092" required class="mb-3 w-full" />
-                <va-input v-model="uiConfig.mqTopic" :label="$t('integration.channels.mq_topic')" placeholder="events.data.changed" required class="mb-3 w-full" />
-              </template>
-            </va-card-content>
-          </va-card>
-
-          <!-- Field Mapping UI -->
-          <va-card outlined class="mb-4">
-            <va-card-title style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-              <span>{{ $t('integration.channels.field_mapping') }}</span>
-              <va-button size="small" preset="secondary" icon="add" @click="addMapping" style="flex: 0 0 auto; width: max-content;">{{ $t('integration.channels.add_field') }}</va-button>
-            </va-card-title>
-            <va-card-content>
-              <div class="text-xs text-gray-500 mb-2">
-                * {{ formData.direction === 'INBOUND' ? $t('integration.channels.mapping_desc_inbound') : $t('integration.channels.mapping_desc') }}
+          <!-- TAB 2: Field Mapping -->
+          <div v-show="activeModalTab === 'mapping'" style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <h4 style="margin: 0; font-weight: 700; color: var(--va-text-primary);">
+                  {{ $t('integration.channels.field_mapping') || '데이터 필드 매핑' }}
+                </h4>
+                <p style="margin: 0.25rem 0 0 0; font-size: 0.82rem; color: var(--va-text-secondary);">
+                  * {{ formData.direction === 'INBOUND' ? $t('integration.channels.mapping_desc_inbound') : $t('integration.channels.mapping_desc') }}
+                </p>
               </div>
-              <va-input 
-                v-if="formData.direction === 'INBOUND'" 
-                v-model="uiMappingRootPath" 
-                :label="$t('integration.channels.mapping_root_path')" 
-                :placeholder="$t('integration.channels.mapping_root_path_placeholder')" 
-                class="mb-3 w-full" 
-                clearable 
-              />
-              <div style="height: 300px; width: 100%;">
-                <client-only>
-                  <ag-grid-vue
-                    v-if="showModal"
-                    style="width: 100%; height: 100%;"
-                    :theme="gridTheme"
-                    :columnDefs="mappingColumnDefs"
-                    :rowData="uiMappings"
-                    @grid-ready="onMappingGridReady"
-                    @cell-value-changed="onMappingCellValueChanged"
-                  >
-                  </ag-grid-vue>
-                </client-only>
-              </div>
-            </va-card-content>
-          </va-card>
+              <va-button size="small" color="primary" icon="add" @click="addMapping">
+                + {{ $t('integration.channels.add_field') || '필드 추가' }}
+              </va-button>
+            </div>
 
-          <va-checkbox v-model="formData.isActive" :label="$t('integration.channels.is_active')" class="mb-4" />
+            <va-input 
+              v-if="formData.direction === 'INBOUND'" 
+              v-model="uiMappingRootPath" 
+              :label="$t('integration.channels.mapping_root_path')" 
+              :placeholder="$t('integration.channels.mapping_root_path_placeholder')" 
+              clearable 
+            />
 
+            <div style="height: 360px; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--va-background-border);">
+              <client-only>
+                <ag-grid-vue
+                  v-if="showModal"
+                  style="width: 100%; height: 100%;"
+                  :theme="gridTheme"
+                  :columnDefs="mappingColumnDefs"
+                  :rowData="uiMappings"
+                  @grid-ready="onMappingGridReady"
+                  @cell-value-changed="onMappingCellValueChanged"
+                >
+                </ag-grid-vue>
+              </client-only>
+            </div>
+          </div>
         </va-form>
       </div>
+
       <template #footer>
-        <div class="flex justify-end gap-3 w-full mt-2 pt-2">
-          <va-button preset="secondary" color="secondary" @click="showModal = false">{{ $t('cancel') }}</va-button>
-          <va-button color="primary" @click="submitForm">{{ $t('save') }}</va-button>
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; width: 100%; padding-top: 1rem; border-top: 1px solid var(--va-background-border);">
+          <va-button preset="secondary" color="secondary" @click="showModal = false">
+            {{ $t('close') || '취소' }}
+          </va-button>
+          <va-button color="primary" icon="save" @click="submitForm">
+            {{ $t('save') || '저장' }}
+          </va-button>
         </div>
       </template>
     </va-modal>
@@ -242,19 +292,63 @@ import { AgGridVue } from 'ag-grid-vue3'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useI18n } from 'vue-i18n'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { gridTheme } = useAgGridTheme()
 const { init } = useToast()
 const token = useCookie('auth_token')
+
+const channelNameKo = ref('')
+const channelNameEn = ref('')
+
+const extractNameParts = (rawName) => {
+  if (!rawName) return { ko: '', en: '' }
+  try {
+    const parsed = typeof rawName === 'object' ? rawName : (String(rawName).trim().startsWith('{') ? JSON.parse(rawName) : null)
+    if (parsed && typeof parsed === 'object') {
+      return { ko: parsed.ko || '', en: parsed.en || '' }
+    }
+  } catch (e) {}
+  const str = String(rawName).trim()
+  return { ko: str, en: str }
+}
 const channels = ref([])
-const domains = ref([])
-const nodes = ref([])
-const domainFields = ref([])
+const rawDomains = ref([])
+const rawNodes = ref([])
+const rawFields = ref([])
 const selectedDomainId = ref(null)
+
+const domains = computed(() => {
+  return rawDomains.value.map(d => ({
+    ...d,
+    name: parseI18nName(d.name)
+  }))
+})
+
+const nodes = computed(() => {
+  const flatNodes = []
+  const flatten = (items, prefix = '') => {
+    items.forEach(item => {
+      flatNodes.push({ id: item.id, name: prefix + parseI18nName(item.name) })
+      if (item.children && item.children.length > 0) {
+        flatten(item.children, prefix + '-- ')
+      }
+    })
+  }
+  flatten(rawNodes.value)
+  return flatNodes
+})
+
+const domainFields = computed(() => {
+  return rawFields.value.map(f => ({
+    code: f.key,
+    name: `${parseI18nName(f.name)} (${f.key})`
+  }))
+})
 
 const isLoading = ref(false)
 const isTesting = ref(false)
 const showModal = ref(false)
+const activeModalTab = ref('basic')
 const isEdit = ref(false)
 const form = ref(null)
 
@@ -410,18 +504,15 @@ const testConnection = async () => {
 
 const parseI18nName = (nameObj) => {
   if (!nameObj) return ''
-  if (typeof nameObj === 'object') {
-    return nameObj.ko || nameObj.en || JSON.stringify(nameObj)
-  }
-  if (typeof nameObj === 'string' && nameObj.startsWith('{')) {
-    try {
-      const parsed = JSON.parse(nameObj)
-      return parsed.ko || parsed.en || nameObj
-    } catch (e) {
-      return nameObj
+  const currentLang = (locale?.value || 'ko').toLowerCase().startsWith('en') ? 'en' : 'ko'
+  try {
+    const parsed = typeof nameObj === 'object' ? nameObj : (String(nameObj).trim().startsWith('{') ? JSON.parse(nameObj) : null)
+    if (parsed && typeof parsed === 'object') {
+      const val = currentLang === 'en' ? (parsed.en || parsed.ko) : (parsed.ko || parsed.en)
+      if (val) return String(val)
     }
-  }
-  return nameObj
+  } catch (e) {}
+  return String(nameObj).trim()
 }
 
 const fetchDomains = async () => {
@@ -429,16 +520,14 @@ const fetchDomains = async () => {
     const data = await $fetch('/api/domains', {
       headers: { Authorization: `Bearer ${token.value}` }
     })
-    domains.value = data.map(d => {
-      return { ...d, name: parseI18nName(d.name) }
-    })
+    rawDomains.value = data || []
   } catch (e) { console.error('Failed to load domains', e) }
 }
 
 const fetchNodesAndFields = async (domainId) => {
   if (!domainId) {
-    nodes.value = []
-    domainFields.value = []
+    rawNodes.value = []
+    rawFields.value = []
     return
   }
   try {
@@ -446,22 +535,8 @@ const fetchNodesAndFields = async (domainId) => {
       $fetch(`/api/domains/${domainId}/nodes/tree`, { headers: { Authorization: `Bearer ${token.value}` } }),
       $fetch(`/api/domains/${domainId}/fields`, { headers: { Authorization: `Bearer ${token.value}` } })
     ])
-    
-    // Flatten node tree for select dropdown
-    const flatNodes = []
-    const flatten = (items, prefix = '') => {
-      items.forEach(item => {
-        flatNodes.push({ id: item.id, name: prefix + parseI18nName(item.name) })
-        if (item.children && item.children.length > 0) {
-          flatten(item.children, prefix + '-- ')
-        }
-      })
-    }
-    flatten(nodesRes)
-    nodes.value = flatNodes
-    
-    // Fields
-    domainFields.value = fieldsRes.map(f => ({ code: f.key, name: `${parseI18nName(f.name)} (${f.key})` }))
+    rawNodes.value = nodesRes || []
+    rawFields.value = fieldsRes || []
   } catch (e) {
     console.error('Failed to load nodes/fields', e)
   }
@@ -716,6 +791,9 @@ const openCreateModal = () => {
   isEdit.value = false
   editingId = null
   formData.value = { ...initialForm }
+  channelNameKo.value = ''
+  channelNameEn.value = ''
+  activeModalTab.value = 'basic'
   deserializeUiData(formData.value)
   showModal.value = true
 }
@@ -724,16 +802,29 @@ const openEditModal = (row) => {
   isEdit.value = true
   editingId = row.id
   formData.value = { ...row }
+  const parts = extractNameParts(row.name)
+  channelNameKo.value = parts.ko
+  channelNameEn.value = parts.en
+  activeModalTab.value = 'basic'
+
   if (!formData.value.direction) {
     formData.value.direction = 'OUTBOUND'
   }
   deserializeUiData(row)
-  // NOTE: In a full implementation we would fetch the domainId by nodeId here 
-  // so the domain dropdown and fields are pre-populated.
   showModal.value = true
 }
 
 const submitForm = async () => {
+  if (!channelNameKo.value && !channelNameEn.value) {
+    init({ message: '채널명을 입력해 주세요.', color: 'warning' })
+    return
+  }
+
+  formData.value.name = JSON.stringify({
+    ko: channelNameKo.value || channelNameEn.value,
+    en: channelNameEn.value || channelNameKo.value
+  })
+
   if (!form.value.validate()) return
 
   if (formData.value.direction === 'INBOUND') {

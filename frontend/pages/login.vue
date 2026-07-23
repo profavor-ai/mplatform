@@ -167,6 +167,7 @@ const successMessage = ref('')
 const router = useRouter()
 
 const tokenCookie = useCookie('auth_token', { maxAge: 86400 })
+const refreshTokenCookie = useCookie('refresh_token', { maxAge: 604800 })
 const userCookie = useCookie('user_data', { maxAge: 86400 })
 
 definePageMeta({
@@ -185,6 +186,9 @@ const handleLogin = async () => {
     })
     
     tokenCookie.value = response.token
+    if (response.refreshToken) {
+      refreshTokenCookie.value = response.refreshToken
+    }
     userCookie.value = JSON.stringify({
       id: response.id || response.uuid,
       uuid: response.uuid || response.id,

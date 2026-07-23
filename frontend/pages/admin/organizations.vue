@@ -47,7 +47,18 @@
                 <span style="font-weight: 700; font-size: 1.05rem; color: var(--va-text-primary);">
                   {{ getI18nText(org.displayName) || org.name }}
                 </span>
-                <va-badge :color="org.isActive ? 'success' : 'danger'" :text="org.isActive ? t('active_status') : t('inactive_status')" size="small" />
+                <div style="display: flex; align-items: center; gap: 0.35rem;">
+                  <va-badge :color="org.isActive ? 'success' : 'danger'" :text="org.isActive ? t('active_status') : t('inactive_status')" size="small" />
+                  <va-button
+                    v-if="org.id !== '00000000-0000-0000-0000-000000000001'"
+                    preset="plain"
+                    icon="delete"
+                    color="danger"
+                    size="small"
+                    title="조직 삭제"
+                    @click.stop="openDeleteOrgModal(org)"
+                  />
+                </div>
               </div>
               <div style="font-size: 0.8rem; color: var(--va-text-secondary); font-family: monospace;">
                 ID: {{ org.id }}
@@ -86,17 +97,11 @@
           <div v-if="activeTab === 'info'" style="display: flex; flex-direction: column; gap: 1.25rem;">
             <div class="row" style="display: flex; flex-wrap: wrap; gap: 1rem;">
               <div style="flex: 1; min-width: 220px;">
-                <div style="font-size: 0.6rem; font-weight: 700; color: var(--va-primary); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.4px;">
-                  {{ t('org_display_name') }}
-                </div>
-                <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-                  <va-input v-model="editOrgForm.displayNameKo" style="flex: 1; min-width: 0;">
-                    <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">Korean</span></template>
-                  </va-input>
-                  <va-input v-model="editOrgForm.displayNameEn" style="flex: 1; min-width: 0;">
-                    <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">English</span></template>
-                  </va-input>
-                </div>
+                <MultilingualInput
+                  v-model:ko="editOrgForm.displayNameKo"
+                  v-model:en="editOrgForm.displayNameEn"
+                  :label="t('org_display_name')"
+                />
               </div>
               <va-input
                 v-model="editOrgForm.name"
@@ -120,19 +125,24 @@
               </div>
             </div>
             <div>
-              <div style="font-size: 0.6rem; font-weight: 700; color: var(--va-primary); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.4px;">
-                {{ t('org_description') }}
-              </div>
-              <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-                <va-textarea v-model="editOrgForm.descriptionKo" style="flex: 1; min-width: 0;" :min-rows="2">
-                  <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">Korean</span></template>
-                </va-textarea>
-                <va-textarea v-model="editOrgForm.descriptionEn" style="flex: 1; min-width: 0;" :min-rows="2">
-                  <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">English</span></template>
-                </va-textarea>
-              </div>
+              <MultilingualInput
+                v-model:ko="editOrgForm.descriptionKo"
+                v-model:en="editOrgForm.descriptionEn"
+                :label="t('org_description')"
+                is-textarea
+                :min-rows="2"
+              />
             </div>
-            <div style="display: flex; justify-content: flex-end;">
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+              <va-button
+                v-if="selectedOrg && selectedOrg.id !== '00000000-0000-0000-0000-000000000001'"
+                color="danger"
+                preset="secondary"
+                icon="delete"
+                @click="openDeleteOrgModal(selectedOrg)"
+              >
+                {{ getLabel('delete_organization', '조직 삭제') }}
+              </va-button>
               <va-button color="success" icon="save" @click="saveOrgInfo">
                 {{ t('save_changes') }}
               </va-button>
@@ -769,6 +779,24 @@
         </div>
       </div>
     </va-modal>
+
+    <!-- Organization Delete Confirm Modal -->
+    <va-modal
+      v-model="showDeleteOrgModalFlag"
+      :title="getLabel('delete_organization', '조직 삭제')"
+      :ok-text="getLabel('delete', '삭제')"
+      ok-color="danger"
+      @ok="confirmDeleteOrganization"
+    >
+      <div style="padding: 0.5rem 0;">
+        <p style="margin-bottom: 0.5rem; font-weight: 700; color: var(--va-text-primary); font-size: 1rem;">
+          정말로 [{{ getI18nText(targetDeletingOrg?.displayName) || targetDeletingOrg?.name }}] 조직을 삭제하시겠습니까?
+        </p>
+        <p style="font-size: 0.85rem; color: var(--va-danger); margin: 0; line-height: 1.4;">
+          ⚠️ 조직 삭제 시 해당 조직에 속한 하위 부서, 팀 및 RBAC 역할/권한 정보가 함께 삭제됩니다.
+        </p>
+      </div>
+    </va-modal>
   </div>
 </template>
 
@@ -1248,6 +1276,50 @@ const loadOrgDetails = async (orgId) => {
 
 const getTeamsForDept = (deptId) => {
   return teams.value.filter(t => t.departmentId === deptId)
+}
+
+const showDeleteOrgModalFlag = ref(false)
+const targetDeletingOrg = ref(null)
+
+const openDeleteOrgModal = (org) => {
+  if (!org) return
+  if (org.id === '00000000-0000-0000-0000-000000000001') {
+    showCustomAlert(
+      '기본 시스템 조직은 삭제할 수 없습니다.',
+      getLabel('warning', '경고'),
+      getLabel('notification', '알림'),
+      'warning'
+    )
+    return
+  }
+  targetDeletingOrg.value = org
+  showDeleteOrgModalFlag.value = true
+}
+
+const confirmDeleteOrganization = async () => {
+  if (!targetDeletingOrg.value) return
+  try {
+    await $fetch(`/api/organizations/${targetDeletingOrg.value.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    showDeleteOrgModalFlag.value = false
+    const deletedId = targetDeletingOrg.value.id
+    targetDeletingOrg.value = null
+    if (selectedOrg.value?.id === deletedId) {
+      selectedOrg.value = null
+    }
+    await fetchOrganizations()
+    showCustomAlert(
+      getLabel('org_delete_success', '조직이 성공적으로 삭제되었습니다.'),
+      getLabel('delete_success', '삭제 완료'),
+      getLabel('notification', '알림'),
+      'success'
+    )
+  } catch (e) {
+    console.error('Failed to delete organization:', e)
+    showCustomAlert('Failed to delete org: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
+  }
 }
 
 const openCreateOrgModal = () => {

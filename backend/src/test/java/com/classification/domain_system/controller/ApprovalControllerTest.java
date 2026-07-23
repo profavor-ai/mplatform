@@ -6,6 +6,7 @@ import com.classification.domain_system.entity.ApprovalStep;
 import com.classification.domain_system.entity.WorkflowConfig;
 import com.classification.domain_system.security.JwtUtil;
 import com.classification.domain_system.service.ApprovalService;
+import com.classification.domain_system.service.PermissionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.DisplayName;
@@ -43,6 +44,9 @@ class ApprovalControllerTest {
 
     @MockitoBean
     private JwtUtil jwtUtil;
+
+    @MockitoBean
+    private PermissionService permissionService;
 
     private UUID nodeId;
     private UUID stepId;

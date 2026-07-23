@@ -3,8 +3,8 @@
     <va-card>
       <va-card-title>
         <div class="d-flex justify-space-between align-center w-100">
-          <h2>{{ $t('menu_management') || 'Menu Management' }}</h2>
-          <va-button icon="add" @click="openAddModal(null)">Add Root Menu</va-button>
+          <h2>{{ $t('menu_management') || '메뉴 관리' }}</h2>
+          <va-button icon="add" @click="openAddModal(null)">{{ $t('add_root_menu') || '+ Add Root Menu' }}</va-button>
         </div>
       </va-card-title>
       <va-card-content>
@@ -14,8 +14,8 @@
             <va-tree-view :nodes="treeNodes" @selected="onNodeSelected" expandable>
               <template #content="node">
                 <div class="d-flex justify-space-between align-center w-100" style="padding: 0.25rem 0; cursor: pointer;" @click="onNodeSelected(node)">
-                  <div>
-                    <span>{{ node.label }}</span>
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-weight: 600;">{{ node.label }}</span>
                   </div>
                   <div>
                     <va-button preset="plain" icon="add" size="small" @click.stop="openAddModal(node.id)" />
@@ -29,27 +29,36 @@
           <!-- Edit Form -->
           <div style="flex: 2;">
             <div v-if="selectedMenu" class="edit-form">
-              <h3>Edit Menu</h3>
-              <va-input v-model="selectedMenu.name" label="Name" class="mb-4 w-100" />
-              <va-input v-model="selectedMenu.path" label="Path" class="mb-4 w-100" />
+              <h3 class="mb-4">{{ $t('edit_menu') || '메뉴 정보 수정' }}</h3>
+              
+              <!-- Multilingual Name Input Component -->
+              <MultilingualInput
+                v-model:ko="selectedMenuNameKo"
+                v-model:en="selectedMenuNameEn"
+                :label="`${$t('name') || '메뉴 표시명'}`"
+                required
+              />
+
+              <va-input v-model="selectedMenu.path" :label="$t('path') || 'Path (경로)'" class="mb-4 w-100" />
               
               <div class="mb-4">
-                <label style="font-size: 0.8rem; color: var(--va-text-primary); margin-bottom: 0.5rem; display: block;">Menu Icon</label>
+                <label style="font-size: 0.8rem; color: var(--va-text-primary); margin-bottom: 0.5rem; display: block;">{{ $t('menu_icon') || 'Menu Icon (아이콘)' }}</label>
                 <div class="d-flex align-center" style="gap: 1rem;">
                   <va-icon :name="selectedMenu.icon || 'help_outline'" size="large" color="primary" />
-                  <va-button preset="secondary" border-color="primary" @click="openIconPicker('edit')">Select Icon</va-button>
+                  <va-button preset="secondary" border-color="primary" @click="openIconPicker('edit')">{{ $t('select_icon') || 'Select Icon' }}</va-button>
                 </div>
               </div>
               
-              <va-input v-model="selectedMenu.sortOrder" label="Sort Order" type="number" class="mb-4 w-100" />
-              <va-select v-model="selectedMenuRoles" :options="['USER', 'MANAGER', 'ADMIN']" label="Required Roles (Multiple)" class="mb-4 w-100" multiple clearable />
+              <va-input v-model="selectedMenu.sortOrder" :label="$t('sort_order') || 'Sort Order (정렬 순서)'" type="number" class="mb-4 w-100" />
+              <va-select v-model="selectedMenuRoles" :options="availableRoleOptions" :label="$t('required_roles') || 'Required Roles (Multiple)'" class="mb-4 w-100" multiple clearable />
               
               <div class="d-flex justify-end mt-4">
-                <va-button @click="saveMenu">Save Changes</va-button>
+                <va-button @click="saveMenu">{{ $t('save_changes') || 'Save Changes' }}</va-button>
               </div>
             </div>
-            <div v-else class="text-center mt-5" style="color: var(--va-secondary);">
-              Select a menu from the tree to edit.
+            <div v-else class="text-center mt-5" style="color: var(--va-secondary); padding: 3rem 0;">
+              <va-icon name="info" size="large" color="secondary" class="mb-2" />
+              <div>{{ $t('select_menu_prompt') || '좌측 트리에서 수정할 메뉴를 선택하세요.' }}</div>
             </div>
           </div>
         </div>
@@ -57,24 +66,31 @@
     </va-card>
 
     <!-- Add Modal -->
-    <va-modal v-model="showAddModal" title="Add Menu" ok-text="Add" @ok="addMenu">
-      <va-input v-model="newMenu.name" label="Name" class="mb-4 w-100" />
-      <va-input v-model="newMenu.path" label="Path" class="mb-4 w-100" />
+    <va-modal v-model="showAddModal" :title="$t('add_menu') || '신규 메뉴 등록'" :ok-text="$t('save') || '등록'" @ok="addMenu">
+      <!-- Multilingual Name Input Component -->
+      <MultilingualInput
+        v-model:ko="newMenuNameKo"
+        v-model:en="newMenuNameEn"
+        :label="`${$t('name') || '메뉴 표시명'}`"
+        required
+      />
+
+      <va-input v-model="newMenu.path" :label="$t('path') || 'Path (경로)'" class="mb-4 w-100" />
       
       <div class="mb-4">
-        <label style="font-size: 0.8rem; color: var(--va-text-primary); margin-bottom: 0.5rem; display: block;">Menu Icon</label>
+        <label style="font-size: 0.8rem; color: var(--va-text-primary); margin-bottom: 0.5rem; display: block;">{{ $t('menu_icon') || 'Menu Icon (아이콘)' }}</label>
         <div class="d-flex align-center" style="gap: 1rem;">
           <va-icon :name="newMenu.icon || 'help_outline'" size="large" color="primary" />
-          <va-button preset="secondary" border-color="primary" @click="openIconPicker('add')">Select Icon</va-button>
+          <va-button preset="secondary" border-color="primary" @click="openIconPicker('add')">{{ $t('select_icon') || 'Select Icon' }}</va-button>
         </div>
       </div>
       
-      <va-input v-model="newMenu.sortOrder" label="Sort Order" type="number" class="mb-4 w-100" />
-      <va-select v-model="newMenuRoles" :options="['USER', 'MANAGER', 'ADMIN']" label="Required Roles (Multiple)" class="mb-4 w-100" multiple clearable />
+      <va-input v-model="newMenu.sortOrder" :label="$t('sort_order') || 'Sort Order (정렬 순서)'" type="number" class="mb-4 w-100" />
+      <va-select v-model="newMenuRoles" :options="availableRoleOptions" :label="$t('required_roles') || 'Required Roles (Multiple)'" class="mb-4 w-100" multiple clearable />
     </va-modal>
 
     <!-- Icon Picker Modal -->
-    <va-modal v-model="showIconPickerModal" title="Select Icon" hide-default-actions>
+    <va-modal v-model="showIconPickerModal" :title="$t('select_icon') || '아이콘 선택'" hide-default-actions>
       <IconPicker v-model="tempIcon" />
       <div class="d-flex justify-end mt-4" style="gap: 1rem;">
         <va-button preset="plain" color="secondary" @click="showIconPickerModal = false">Cancel</va-button>
@@ -89,28 +105,90 @@ import { ref, computed, onMounted } from 'vue'
 import { useMenu } from '~/composables/useMenu'
 import { useToast } from 'vuestic-ui'
 
+const { t, te, locale } = useI18n()
 const { menus, fetchMenus } = useMenu()
 const { init } = useToast()
 
 const token = useCookie('auth_token')
+const userCookie = useCookie('user_data')
+const currentUser = computed(() => {
+  if (userCookie.value) {
+    return typeof userCookie.value === 'string' ? JSON.parse(userCookie.value) : userCookie.value
+  }
+  return null
+})
+
+const availableRoleOptions = ref(['ROLE_USER', 'ROLE_ADMIN', 'ORG_ADMIN', 'DATA_STEWARD'])
+
+const fetchOrgRoles = async () => {
+  const orgId = currentUser.value?.organizationId || '00000000-0000-0000-0000-000000000001'
+  try {
+    const roles = await $fetch(`/api/roles/org/${orgId}`, {
+      headers: token.value ? { Authorization: `Bearer ${token.value}` } : {}
+    })
+    if (roles && Array.isArray(roles) && roles.length > 0) {
+      const names = roles.map(r => r.name).filter(Boolean)
+      const allNames = Array.from(new Set([...names, 'ROLE_USER', 'ROLE_ADMIN', 'ORG_ADMIN', 'DATA_STEWARD']))
+      availableRoleOptions.value = allNames
+    }
+  } catch (e) {
+    console.error('Failed to fetch org roles for menu assignment:', e)
+  }
+}
+
 const selectedMenu = ref(null)
 const showAddModal = ref(false)
 const showIconPickerModal = ref(false)
 const iconPickerTarget = ref('')
 const tempIcon = ref('')
+
+const selectedMenuNameKo = ref('')
+const selectedMenuNameEn = ref('')
+
+const newMenuNameKo = ref('')
+const newMenuNameEn = ref('')
+
 const newMenu = ref({ name: '', path: '', icon: '', sortOrder: 0, requiredRole: '', parentId: null })
+
+const extractNameParts = (rawName) => {
+  if (!rawName) return { ko: '', en: '' }
+  try {
+    const parsed = typeof rawName === 'object' ? rawName : (String(rawName).trim().startsWith('{') ? JSON.parse(rawName) : null)
+    if (parsed && typeof parsed === 'object') {
+      return { ko: parsed.ko || '', en: parsed.en || '' }
+    }
+  } catch (e) {}
+  const str = String(rawName).trim()
+  return { ko: str, en: str }
+}
+
+const parseMenuName = (name) => {
+  if (!name) return ''
+  const currentLang = (locale?.value || 'ko').toLowerCase().startsWith('en') ? 'en' : 'ko'
+
+  // 무조건 DB에 저장된 값 기반 (JSON 형태면 ko/en 추출, 평문이면 그대로)
+  try {
+    const parsed = typeof name === 'object' ? name : (String(name).trim().startsWith('{') ? JSON.parse(name) : null)
+    if (parsed && typeof parsed === 'object') {
+      const val = currentLang === 'en' ? (parsed.en || parsed.ko) : (parsed.ko || parsed.en)
+      if (val) return String(val)
+    }
+  } catch (e) {}
+
+  return String(name).trim()
+}
 
 const selectedMenuRoles = computed({
   get: () => selectedMenu.value && selectedMenu.value.requiredRole ? selectedMenu.value.requiredRole.split(',') : [],
   set: (val) => {
-    if (selectedMenu.value) selectedMenu.value.requiredRole = val.join(',')
+    if (selectedMenu.value) selectedMenu.value.requiredRole = (val || []).join(',')
   }
 })
 
 const newMenuRoles = computed({
   get: () => newMenu.value.requiredRole ? newMenu.value.requiredRole.split(',') : [],
   set: (val) => {
-    newMenu.value.requiredRole = val.join(',')
+    newMenu.value.requiredRole = (val || []).join(',')
   }
 })
 
@@ -129,11 +207,11 @@ const confirmIconSelection = () => {
   showIconPickerModal.value = false
 }
 
-// Convert to va-tree-view format
+// Convert to va-tree-view format with multilingual parsing
 const formatToTreeNodes = (items) => {
   return items.map(item => ({
     id: item.id,
-    label: item.name,
+    label: parseMenuName(item.name),
     icon: item.icon,
     children: item.children ? formatToTreeNodes(item.children) : [],
     raw: item
@@ -148,22 +226,34 @@ const treeNodes = computed(() => {
 const onNodeSelected = (node) => {
   if (node && node.raw) {
     selectedMenu.value = JSON.parse(JSON.stringify(node.raw))
+    const parts = extractNameParts(selectedMenu.value.name)
+    selectedMenuNameKo.value = parts.ko
+    selectedMenuNameEn.value = parts.en
   }
 }
 
 const openAddModal = (parentId) => {
   newMenu.value = { name: '', path: '', icon: '', sortOrder: 0, requiredRole: '', parentId }
+  newMenuNameKo.value = ''
+  newMenuNameEn.value = ''
   showAddModal.value = true
 }
 
 const addMenu = async () => {
   try {
+    const payload = {
+      ...newMenu.value,
+      name: JSON.stringify({
+        ko: newMenuNameKo.value || newMenuNameEn.value,
+        en: newMenuNameEn.value || newMenuNameKo.value
+      })
+    }
     await $fetch('/api/menus', {
       method: 'POST',
       headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
-      body: newMenu.value
+      body: payload
     })
-    init({ message: 'Menu added successfully', color: 'success' })
+    init({ message: t('creation_success') || 'Menu added successfully', color: 'success' })
     await fetchMenus()
   } catch (error) {
     init({ message: 'Failed to add menu', color: 'danger' })
@@ -173,13 +263,23 @@ const addMenu = async () => {
 const saveMenu = async () => {
   if (!selectedMenu.value) return
   try {
+    const payload = {
+      ...selectedMenu.value,
+      name: JSON.stringify({
+        ko: selectedMenuNameKo.value || selectedMenuNameEn.value,
+        en: selectedMenuNameEn.value || selectedMenuNameKo.value
+      })
+    }
     await $fetch(`/api/menus/${selectedMenu.value.id}`, {
       method: 'PUT',
       headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
-      body: selectedMenu.value
+      body: payload
     })
-    init({ message: 'Menu updated successfully', color: 'success' })
+    init({ message: t('update_success') || 'Menu updated successfully', color: 'success' })
     await fetchMenus()
+    
+    // Update selectedMenu.value.name for UI consistency
+    selectedMenu.value.name = payload.name
   } catch (error) {
     init({ message: 'Failed to update menu', color: 'danger' })
   }
@@ -191,7 +291,7 @@ const deleteMenu = async (id) => {
       method: 'DELETE',
       headers: token.value ? { Authorization: `Bearer ${token.value}` } : {}
     })
-    init({ message: 'Menu deleted successfully', color: 'success' })
+    init({ message: t('delete_success') || 'Menu deleted successfully', color: 'success' })
     if (selectedMenu.value && selectedMenu.value.id === id) {
       selectedMenu.value = null
     }
@@ -203,11 +303,18 @@ const deleteMenu = async (id) => {
 
 onMounted(async () => {
   await fetchMenus()
+  await fetchOrgRoles()
 })
 </script>
 
 <style scoped>
 .menus-admin-container {
   padding: 20px;
+}
+.edit-form {
+  background: var(--va-background-secondary);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--va-background-border);
 }
 </style>

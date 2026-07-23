@@ -60,4 +60,20 @@ public class JwtUtil {
             return false;
         }
     }
+
+    public String generateRefreshToken(String username, String role, String userId) {
+        Map<String, Object> claims = new HashMap<>();
+        if (role != null) claims.put("role", role);
+        if (userId != null) claims.put("userId", userId);
+        claims.put("tokenType", "REFRESH");
+
+        long refreshTokenExpirationTime = 604800000L; // 7 days
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(username)
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + refreshTokenExpirationTime))
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
+    }
 }

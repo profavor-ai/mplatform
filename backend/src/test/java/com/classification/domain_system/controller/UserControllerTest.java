@@ -2,6 +2,7 @@ package com.classification.domain_system.controller;
 
 import com.classification.domain_system.controller.UserController.UserDto;
 import com.classification.domain_system.service.UserService;
+import com.classification.domain_system.service.PermissionService;
 import com.classification.domain_system.security.JwtUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,6 +31,9 @@ class UserControllerTest {
 
     @MockitoBean
     private JwtUtil jwtUtil;
+
+    @MockitoBean
+    private PermissionService permissionService;
 
     @Test
     @DisplayName("getAllUsers - 전체 유저를 UserDto로 반환하는 서비스 호출")

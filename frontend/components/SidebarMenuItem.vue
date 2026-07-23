@@ -60,17 +60,18 @@ const isExpanded = ref(false)
 
 const getMenuTitle = (menu) => {
   if (!menu || !menu.name) return ''
-  // 1. If DB menu.name is a JSON object or JSON stringified multilingual object (e.g. {"ko":"...", "en":"..."})
+  const currentLang = (locale?.value || 'ko').toLowerCase().startsWith('en') ? 'en' : 'ko'
+
+  // 무조건 DB에 저장된 값 기반 (JSON 형태면 ko/en 추출, 평문이면 그대로)
   try {
-    const parsed = typeof menu.name === 'object' ? menu.name : JSON.parse(menu.name)
+    const parsed = typeof menu.name === 'object' ? menu.name : (String(menu.name).trim().startsWith('{') ? JSON.parse(menu.name) : null)
     if (parsed && typeof parsed === 'object') {
-      const loc = (locale?.value || 'ko').toLowerCase()
-      return loc.startsWith('en') ? (parsed.en || parsed.ko || '') : (parsed.ko || parsed.en || '')
+      const title = currentLang === 'en' ? (parsed.en || parsed.ko) : (parsed.ko || parsed.en)
+      if (title) return String(title)
     }
   } catch (e) {}
 
-  // 2. Return DB menu name directly without i18n override
-  return String(menu.name)
+  return String(menu.name).trim()
 }
 
 const checkActiveChild = () => {

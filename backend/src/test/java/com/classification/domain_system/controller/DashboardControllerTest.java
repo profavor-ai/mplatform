@@ -2,6 +2,7 @@ package com.classification.domain_system.controller;
 
 import com.classification.domain_system.security.JwtUtil;
 import com.classification.domain_system.service.DashboardService;
+import com.classification.domain_system.service.PermissionService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,9 @@ class DashboardControllerTest {
 
     @MockitoBean
     private JwtUtil jwtUtil;
+
+    @MockitoBean
+    private PermissionService permissionService;
 
     @Test
     @DisplayName("getStats - DashboardService에서 반환된 통계 데이터 응답")

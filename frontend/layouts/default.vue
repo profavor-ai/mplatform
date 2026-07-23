@@ -41,10 +41,10 @@
                         <div style="flex: 1; overflow: hidden;">
                           <div style="font-weight: 800; font-size: 1.15rem; letter-spacing: -0.01em; display: flex; align-items: center; gap: 0.35rem;">
                             <span :style="{ color: isDark ? '#f3f4f6' : 'white' }">{{ currentUser?.username || 'Admin' }}</span>
-                            <va-icon v-if="effectiveRoles.includes('ADMIN')" name="verified" size="small" color="warning" title="Admin User" />
+                            <va-icon v-if="effectiveRoles.includes('ROLE_ADMIN')" name="verified" size="small" color="warning" title="Admin User" />
                           </div>
                           <div style="font-size: 0.8rem; opacity: 0.9; margin-top: 0.15rem; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
-                            <span>🏢 {{ currentOrgName || '소속 조직' }}</span>
+                            <span>🏢 {{ currentOrgName || $t('belongs_to_org') || '소속 조직' }}</span>
                             <span v-if="currentUserDeptName" style="display: inline-flex; align-items: center; gap: 0.2rem;">| <va-icon :name="currentUserDeptIcon" size="small" /> {{ currentUserDeptName }}</span>
                           </div>
                         </div>
@@ -53,12 +53,12 @@
                       <!-- Effective Roles Section -->
                       <div :style="{ background: isDark ? 'rgba(15, 23, 42, 0.65)' : 'rgba(255,255,255,0.15)', backdropFilter: 'blur(12px)', borderRadius: '10px', padding: '0.65rem 0.85rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', border: isDark ? '1px solid rgba(167, 139, 250, 0.3)' : '1px solid rgba(255,255,255,0.2)' }">
                         <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.9; display: flex; justify-content: space-between; align-items: center;">
-                          <span>유효 통합 권한 (Effective Roles)</span>
+                          <span>{{ $t('effective_roles') || '유효 통합 권한 (Effective Roles)' }}</span>
                           <span :style="{ background: isDark ? 'rgba(139,92,246,0.35)' : 'rgba(0,0,0,0.25)', color: isDark ? '#ddd6fe' : 'white' }" style="font-size: 0.65rem; padding: 1px 6px; border-radius: 10px; font-weight: 800;">UNION</span>
                         </div>
                         <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.1rem;">
                           <span
-                            v-for="r in effectiveRoles"
+                            v-for="r in displayRoles"
                             :key="r"
                             :style="getRoleBadgeStyle(r)"
                             style="padding: 3px 9px; border-radius: 12px; font-size: 0.75rem; font-weight: 800;"
@@ -101,7 +101,7 @@
                             </div>
                           </va-list-item-section>
                           <va-list-item-section style="font-weight: 600; font-size: 0.9rem;">
-                            Personal Settings (타임존 설정)
+                            {{ $t('personal_settings') || 'Personal Settings (타임존 설정)' }}
                           </va-list-item-section>
                         </va-list-item>
 
@@ -114,7 +114,7 @@
                             </div>
                           </va-list-item-section>
                           <va-list-item-section style="font-weight: 700; font-size: 0.9rem; color: var(--va-danger);">
-                            Logout (로그아웃)
+                            {{ $t('logout') || '로그아웃' }}
                           </va-list-item-section>
                         </va-list-item>
                       </va-list>
@@ -195,7 +195,7 @@ const { menus, fetchMenus } = useMenu()
 
 const userRolesArray = computed(() => {
   const r = currentUser.value?.role
-  if (!r) return ['USER']
+  if (!r) return ['ROLE_USER']
   if (Array.isArray(r)) return r
   return String(r).split(',').map(item => item.trim()).filter(Boolean)
 })
@@ -229,9 +229,32 @@ const fetchDepartmentRoles = async () => {
   }
 }
 
+const parseMultilingualText = (text) => {
+  if (!text) return ''
+  const currentLang = (locale?.value || 'ko').toLowerCase().startsWith('en') ? 'en' : 'ko'
+
+  if (typeof text === 'object' && text !== null) {
+    return text[currentLang] || text.ko || text.en || ''
+  }
+
+  const str = String(text).trim()
+  if (str.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(str)
+      if (parsed && typeof parsed === 'object') {
+        const val = currentLang === 'en' ? (parsed.en || parsed.ko) : (parsed.ko || parsed.en)
+        if (val) return String(val)
+      }
+    } catch (e) {}
+  }
+
+  return str
+}
+
 const currentUserDeptName = computed(() => {
   const deptId = currentUser.value?.departmentId
-  return deptId ? (deptNameMap.value[deptId] || null) : null
+  const rawName = deptId ? (deptNameMap.value[deptId] || null) : null
+  return parseMultilingualText(rawName)
 })
 
 const currentUserDeptIcon = computed(() => {
@@ -239,21 +262,41 @@ const currentUserDeptIcon = computed(() => {
   return deptId ? (deptIconMap.value[deptId] || 'folder') : 'folder'
 })
 
+const expandRoleNames = (roles) => {
+  const set = new Set()
+  roles.forEach(r => {
+    if (!r) return
+    const str = String(r).trim()
+    if (!str) return
+    const clean = str.replace(/^ROLE_/, '')
+    set.add(clean)
+    set.add('ROLE_' + clean)
+  })
+  return Array.from(set)
+}
+
 const effectiveRoles = computed(() => {
   const directRoles = userRolesArray.value
   const userDeptId = currentUser.value?.departmentId
   const deptRoleStr = userDeptId ? deptRolesMap.value[userDeptId] : null
   const deptRoles = deptRoleStr ? String(deptRoleStr).split(',').map(r => r.trim()).filter(Boolean) : []
-  return Array.from(new Set([...directRoles, ...deptRoles]))
+  return expandRoleNames([...directRoles, ...deptRoles])
+})
+
+const displayRoles = computed(() => {
+  const roles = effectiveRoles.value
+  const set = new Set(roles.map(r => String(r).replace(/^ROLE_/, '')))
+  return Array.from(set)
 })
 
 const effectiveRolesDisplay = computed(() => {
-  return effectiveRoles.value.join(', ') || 'GUEST'
+  return displayRoles.value.join(', ') || 'GUEST'
 })
 
 const getRoleBadgeStyle = (role) => {
+  const norm = String(role).replace(/^ROLE_/, '')
   if (isDark.value) {
-    switch (role) {
+    switch (norm) {
       case 'ADMIN':
         return 'background: linear-gradient(135deg, #dc2626, #991b1b); color: #fee2e2; box-shadow: 0 0 10px rgba(239,68,68,0.5); border: 1px solid rgba(252,165,165,0.4);'
       case 'ORG_ADMIN':
@@ -270,7 +313,7 @@ const getRoleBadgeStyle = (role) => {
         return 'background: linear-gradient(135deg, #0284c7, #075985); color: #e0f2fe; box-shadow: 0 0 10px rgba(14,165,233,0.5); border: 1px solid rgba(186,230,253,0.4);'
     }
   }
-  switch (role) {
+  switch (norm) {
     case 'ADMIN':
       return 'background: linear-gradient(135deg, #ef4444, #dc2626); color: white;'
     case 'ORG_ADMIN':
@@ -290,17 +333,21 @@ const getRoleBadgeStyle = (role) => {
 
 const filteredMenus = computed(() => {
   const roles = effectiveRoles.value
-  const isAdmin = roles.includes('ADMIN')
+  const isAdmin = roles.some(r => {
+    const norm = String(r).replace(/^ROLE_/, '')
+    return norm === 'ADMIN' || norm === 'ORG_ADMIN'
+  })
   
   const filterTree = (nodes) => {
     return nodes.filter(node => {
       let canAccess = true
       
       if (node.requiredRole) {
-        const requiredRoles = node.requiredRole.split(',').map(r => r.trim()).filter(Boolean)
+        const requiredRoles = node.requiredRole.split(',').map(r => r.trim().replace(/^ROLE_/, '')).filter(Boolean)
         if (requiredRoles.length > 0) {
           if (!isAdmin) {
-            const hasMatchingRole = roles.some(myRole => requiredRoles.includes(myRole))
+            const myRolesNormalized = roles.map(r => String(r).trim().replace(/^ROLE_/, ''))
+            const hasMatchingRole = myRolesNormalized.some(myRole => requiredRoles.includes(myRole))
             if (!hasMatchingRole) {
               canAccess = false
             }
@@ -516,10 +563,8 @@ const syncCurrentUserInfo = async () => {
 
 const currentOrgName = computed(() => {
   const orgId = currentUser.value?.organizationId
-  if (orgId && userOrgNameMap.value[orgId]) {
-    return userOrgNameMap.value[orgId]
-  }
-  return null
+  const raw = (orgId && userOrgNameMap.value[orgId]) ? userOrgNameMap.value[orgId] : null
+  return parseMultilingualText(raw)
 })
 
 const handleLogout = () => {
