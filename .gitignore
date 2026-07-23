@@ -4,4 +4,7 @@ target/
 .output/
 .nuxt/
 .DS_Store
+.env
+scratch/
 scratch_puppeteer/
+*.local.js

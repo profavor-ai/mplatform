@@ -25,6 +25,8 @@ import com.classification.domain_system.dto.FieldGroupRequest;
 import com.classification.domain_system.entity.Sector;
 import com.classification.domain_system.entity.FieldGroup;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/domains")
 @RequiredArgsConstructor
@@ -36,27 +38,32 @@ public class DomainController {
     private final FieldGroupService fieldGroupService;
     
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('domain:write', 'domain:*', 'ROLE_ADMIN')")
     public ResponseEntity<Domain> createDomain(@RequestBody DomainRequest request) {
         return ResponseEntity.ok(domainService.createDomain(request));
     }
     
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('domain:read', 'domain:*', 'ROLE_ADMIN')")
     public ResponseEntity<List<Domain>> getAllDomains() {
         return ResponseEntity.ok(domainService.getAllDomains());
     }
     
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('domain:write', 'domain:*', 'ROLE_ADMIN')")
     public ResponseEntity<Domain> updateDomain(@PathVariable UUID id, @RequestBody DomainRequest request) {
         return ResponseEntity.ok(domainService.updateDomain(id, request));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('domain:read', 'domain:*', 'ROLE_ADMIN')")
     public ResponseEntity<Domain> getDomain(@PathVariable UUID id) {
         return ResponseEntity.ok(domainService.getDomain(id));
     }
     
     
     @GetMapping("/{domainId}/fields/page")
+    @PreAuthorize("hasAnyAuthority('domain:read', 'domain:*', 'ROLE_ADMIN')")
     public ResponseEntity<PageResponse<FieldDefinition>> getDomainFieldsPage(
             @PathVariable UUID domainId,
             @RequestParam(defaultValue = "0") int page,

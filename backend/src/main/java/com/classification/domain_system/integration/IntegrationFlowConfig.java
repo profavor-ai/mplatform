@@ -180,10 +180,11 @@ public class IntegrationFlowConfig {
                             }
                             String errorMessage = rootCause.toString();
 
-                            java.io.StringWriter sw = new java.io.StringWriter();
-                            java.io.PrintWriter pw = new java.io.PrintWriter(sw);
-                            exception.printStackTrace(pw);
-                            String stackTrace = sw.toString();
+                            StringBuilder sbTrace = new StringBuilder();
+                            for (StackTraceElement element : exception.getStackTrace()) {
+                                sbTrace.append(element.toString()).append("\n");
+                            }
+                            String stackTrace = sbTrace.toString();
 
                             // Retry count is harder to extract here, let's just use 3
                             logService.logError(channelId, recordId, eventType, origPayload, mappedPayload, errorMessage, stackTrace, 3);

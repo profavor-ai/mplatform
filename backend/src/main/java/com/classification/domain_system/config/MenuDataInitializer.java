@@ -23,7 +23,7 @@ public class MenuDataInitializer implements CommandLineRunner {
             Menu dqDashboard = Menu.builder().name("DQ Dashboard").path("/dq-dashboard").icon("analytics").sortOrder(5).isActive(true).build();
             
             // Parent: Admin
-            Menu admin = Menu.builder().name("Admin").path("/admin").icon("admin_panel_settings").sortOrder(6).requiredRole("ADMIN").isActive(true).build();
+            Menu admin = Menu.builder().name("Admin").path("/admin").icon("admin_panel_settings").sortOrder(6).requiredRole("ROLE_ADMIN").isActive(true).build();
             
             menuRepository.save(dashboard);
             menuRepository.save(schema);
@@ -33,11 +33,11 @@ public class MenuDataInitializer implements CommandLineRunner {
             Menu savedAdmin = menuRepository.save(admin);
             
             // Children of Admin
-            Menu adminMonitor = Menu.builder().name("Admin Monitor").path("/admin").icon("monitor").parentId(savedAdmin.getId()).sortOrder(1).requiredRole("ADMIN").isActive(true).build();
-            Menu userManagement = Menu.builder().name("User Management").path("/admin/users").icon("manage_accounts").parentId(savedAdmin.getId()).sortOrder(2).requiredRole("ADMIN").isActive(true).build();
-            Menu menuManagement = Menu.builder().name("Menu Management").path("/admin/menus").icon("menu_open").parentId(savedAdmin.getId()).sortOrder(3).requiredRole("ADMIN").isActive(true).build();
-            Menu menuLogs = Menu.builder().name("System Logs").path("/admin/system-logs").icon("history").parentId(savedAdmin.getId()).sortOrder(4).requiredRole("ADMIN").isActive(true).build();
-            Menu channels = Menu.builder().name("Integration Channels").path("/admin/integration/channels").icon("hub").parentId(savedAdmin.getId()).sortOrder(5).requiredRole("ADMIN").isActive(true).build();
+            Menu adminMonitor = Menu.builder().name("Admin Monitor").path("/admin").icon("monitor").parentId(savedAdmin.getId()).sortOrder(1).requiredRole("ROLE_ADMIN").isActive(true).build();
+            Menu userManagement = Menu.builder().name("User Management").path("/admin/users").icon("manage_accounts").parentId(savedAdmin.getId()).sortOrder(2).requiredRole("ROLE_ADMIN").isActive(true).build();
+            Menu menuManagement = Menu.builder().name("Menu Management").path("/admin/menus").icon("menu_open").parentId(savedAdmin.getId()).sortOrder(3).requiredRole("ROLE_ADMIN").isActive(true).build();
+            Menu menuLogs = Menu.builder().name("System Logs").path("/admin/system-logs").icon("history").parentId(savedAdmin.getId()).sortOrder(4).requiredRole("ROLE_ADMIN").isActive(true).build();
+            Menu channels = Menu.builder().name("Integration Channels").path("/admin/integration/channels").icon("hub").parentId(savedAdmin.getId()).sortOrder(5).requiredRole("ROLE_ADMIN").isActive(true).build();
 
             menuRepository.save(adminMonitor);
             menuRepository.save(userManagement);
@@ -70,7 +70,7 @@ public class MenuDataInitializer implements CommandLineRunner {
                         .icon("corporate_fare")
                         .parentId(adminMenu.getId())
                         .sortOrder(1)
-                        .requiredRole("ADMIN")
+                        .requiredRole("ROLE_ADMIN")
                         .isActive(true)
                         .build());
             }
@@ -83,7 +83,7 @@ public class MenuDataInitializer implements CommandLineRunner {
                         .icon("hub")
                         .parentId(adminMenu.getId())
                         .sortOrder(6)
-                        .requiredRole("ADMIN")
+                        .requiredRole("ROLE_ADMIN")
                         .isActive(true)
                         .build());
             }

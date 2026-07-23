@@ -2,10 +2,11 @@ package com.classification.domain_system.exception;
 
 import com.classification.domain_system.service.ErrorLogService;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -18,15 +19,47 @@ import java.io.StringWriter;
 @Slf4j
 public class GlobalExceptionHandler {
 
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @Autowired(required = false)
     private ErrorLogService errorLogService;
 
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex, HttpServletRequest request) {
+        log.warn("Business exception occurred at URI: {}. Code: {}, Message: {}", 
+                request.getRequestURI(), ex.getErrorCode().getCode(), ex.getMessage());
+        return ResponseEntity
+                .status(ex.getErrorCode().getStatus())
+                .body(ErrorResponse.of(ex.getErrorCode(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex, HttpServletRequest request) {
+        log.warn("Resource not found exception at URI: {}. Message: {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ErrorResponse.of(ex.getErrorCode(), ex.getMessage()));
+    }
+
+    @ExceptionHandler({ValidationException.class, IllegalArgumentException.class})
+    public ResponseEntity<ErrorResponse> handleValidationException(Exception ex, HttpServletRequest request) {
+        log.warn("Validation/IllegalArgument exception at URI: {}. Message: {}", request.getRequestURI(), ex.getMessage());
+        ErrorCode code = (ex instanceof BusinessException be) ? be.getErrorCode() : ErrorCode.INVALID_INPUT;
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(code, ex.getMessage()));
+    }
+
+    @ExceptionHandler({AccessDeniedException.class, CustomAccessDeniedException.class})
+    public ResponseEntity<ErrorResponse> handleAccessDeniedException(Exception ex, HttpServletRequest request) {
+        log.warn("Access denied exception at URI: {}. Message: {}", request.getRequestURI(), ex.getMessage());
+        ErrorCode code = (ex instanceof BusinessException be) ? be.getErrorCode() : ErrorCode.ACCESS_DENIED;
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ErrorResponse.of(code, ex.getMessage()));
+    }
+
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<?> handleAllExceptions(Exception ex, HttpServletRequest request) {
-        StringWriter sw = new StringWriter();
-        PrintWriter pw = new PrintWriter(sw);
-        ex.printStackTrace(pw);
-        String stackTrace = sw.toString();
+    public ResponseEntity<ErrorResponse> handleAllExceptions(Exception ex, HttpServletRequest request) {
+        String stackTrace = getStackTraceAsString(ex);
 
         String userId = "anonymous";
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -45,10 +78,18 @@ public class GlobalExceptionHandler {
             log.error("Failed to save error log to DB", e);
         }
 
-        log.error("Exception occurred at URI: {} for User: {}. Message: {}", requestUri, userId, errorMessage, ex);
+        log.error("Unhandled Exception occurred at URI: {} for User: {}. Message: {}", requestUri, userId, errorMessage, ex);
 
-        // Return generic 500 error response
+        // Do not expose internal system details in HTTP 500 response
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(errorMessage);
+                .body(ErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR, "내부 오류가 발생했습니다."));
+    }
+
+    private String getStackTraceAsString(Throwable throwable) {
+        StringBuilder sb = new StringBuilder();
+        for (StackTraceElement element : throwable.getStackTrace()) {
+            sb.append(element.toString()).append("\n");
+        }
+        return sb.toString();
     }
 }

@@ -1,26 +1,28 @@
 package com.classification.domain_system.security;
 
+import com.classification.domain_system.service.PermissionService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import org.springframework.security.core.GrantedAuthority;
+import java.util.Collection;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final PermissionService permissionService;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -43,42 +45,19 @@ public class JwtFilter extends OncePerRequestFilter {
             try {
                 username = jwtUtil.extractUsername(jwt);
             } catch (Exception e) {
-                // Invalid token
+                log.debug("Failed to extract username from token", e);
             }
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             if (jwtUtil.isTokenValid(jwt)) {
-                String tokenIp = jwtUtil.extractIpAddress(jwt);
-                String currentIp = request.getRemoteAddr();
-                
-                // Normalize localhost IPs
-                if ("0:0:0:0:0:0:0:1".equals(currentIp) || "::1".equals(currentIp)) currentIp = "127.0.0.1";
-                if ("0:0:0:0:0:0:0:1".equals(tokenIp) || "::1".equals(tokenIp)) tokenIp = "127.0.0.1";
-                
-                if (tokenIp != null && tokenIp.equals(currentIp)) {
-                    String roleStr = jwtUtil.extractAllClaims(jwt).get("role", String.class);
-                    List<GrantedAuthority> authorities = new java.util.ArrayList<>();
-                    if (roleStr != null) {
-                        for (String r : roleStr.split(",")) {
-                            String trimmed = r.trim();
-                            if (!trimmed.isEmpty()) {
-                                authorities.add(new SimpleGrantedAuthority("ROLE_" + trimmed));
-                                authorities.add(new SimpleGrantedAuthority(trimmed));
-                            }
-                        }
-                    }
-                    if (authorities.isEmpty()) {
-                        authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
-                    }
-                    UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                            username, null, authorities
-                    );
-                    SecurityContextHolder.getContext().setAuthentication(auth);
-                } else {
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "IP Address mismatch");
-                    return;
-                }
+                String roleStr = jwtUtil.extractAllClaims(jwt).get("role", String.class);
+                Collection<GrantedAuthority> authorities = permissionService.getAuthoritiesForUser(username, roleStr);
+
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                        username, null, authorities
+                );
+                SecurityContextHolder.getContext().setAuthentication(auth);
             }
         }
         chain.doFilter(request, response);

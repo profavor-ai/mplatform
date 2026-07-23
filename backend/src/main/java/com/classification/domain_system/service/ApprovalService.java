@@ -33,9 +33,12 @@ import com.classification.domain_system.entity.FieldDefinition;
 import org.springframework.context.ApplicationEventPublisher;
 import com.classification.domain_system.event.ApprovalRequestCreatedEvent;
 import com.classification.domain_system.event.ApprovalStepApprovedEvent;
+import com.classification.domain_system.exception.*;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ApprovalService {
     
     private final ApprovalRequestRepository approvalRepository;
@@ -284,7 +287,7 @@ public class ApprovalService {
             }
         } catch (Exception e) {
             approval.setObserverIds("[]");
-            e.printStackTrace();
+            log.error("Failed to parse observerIds", e);
         }
         if (approval.getSteps() == null) {
             approval.setSteps(new java.util.ArrayList<>());
@@ -297,18 +300,18 @@ public class ApprovalService {
     @Transactional
     public ApprovalRequest requestRecordCreation(UUID nodeId, RecordRequest request) {
         ClassificationNode node = nodeRepository.findById(nodeId)
-                .orElseThrow(() -> new RuntimeException("Node not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Node not found"));
                 
         // Check if Domain has the required mapping fields
         Domain domain = node.getDomain();
         if (domain.getIdentifierFieldId() == null || domain.getDisplayNameFieldId() == null) {
-            throw new RuntimeException("Domain is missing required field mappings (ID or Name). Please configure the domain settings first.");
+            throw new BusinessException(ErrorCode.DOMAIN_MISSING_FIELD_MAPPING, "Domain is missing required field mappings (ID or Name). Please configure the domain settings first.");
         }
         
         // 1. Data Quality Check
         DataQualityService.DQResult dq = dqService.validateData(nodeId, request.getData());
         if (!dq.isValid) {
-            throw new RuntimeException("Data Quality Check Failed: " + String.join(", ", dq.errors));
+            throw new BusinessException(ErrorCode.DATA_QUALITY_CHECK_FAILED, "Data Quality Check Failed: " + String.join(", ", dq.errors));
         }
 
         // 1.5. Duplicate Check (Golden Record) -> UPSERT Behavior
@@ -318,7 +321,7 @@ public class ApprovalService {
                 // Exactly one duplicate found -> Convert to UPDATE request
                 return requestRecordUpdate(dup.duplicateRecordIds.get(0), request);
             } else {
-                throw new RuntimeException("Deduplication Failed: " + dup.message);
+                throw new BusinessException(ErrorCode.DEDUPLICATION_FAILED, "Deduplication Failed: " + dup.message);
             }
         }
 
@@ -362,16 +365,16 @@ public class ApprovalService {
     @Transactional
     public ApprovalRequest requestRecordUpdate(UUID recordId, RecordRequest request) {
         Record record = recordRepository.findById(recordId)
-                .orElseThrow(() -> new RuntimeException("Record not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Record not found"));
         
         if ("PENDING_APPROVAL".equals(record.getStatus())) {
-            throw new RuntimeException("Cannot update a record that is pending creation approval.");
+            throw new BusinessException(ErrorCode.UPDATE_PENDING_CREATION, "Cannot update a record that is pending creation approval.");
         }
         
         List<ApprovalRequest> pendingUpdates = approvalRepository.findByTargetIdAndStatus(recordId, "PENDING");
         boolean hasPendingUpdate = pendingUpdates.stream().anyMatch(a -> "RECORD_UPDATE".equals(a.getTargetType()));
         if (hasPendingUpdate) {
-            throw new RuntimeException("This record is already under a pending update approval.");
+            throw new BusinessException(ErrorCode.UPDATE_PENDING_UPDATE, "This record is already under a pending update approval.");
         }
         
         UUID nodeId = record.getNode().getId();
@@ -379,7 +382,7 @@ public class ApprovalService {
         // 1. Data Quality Check
         DataQualityService.DQResult dq = dqService.validateData(nodeId, request.getData(), recordId);
         if (!dq.isValid) {
-            throw new RuntimeException("Data Quality Check Failed: " + String.join(", ", dq.errors));
+            throw new BusinessException(ErrorCode.DATA_QUALITY_CHECK_FAILED, "Data Quality Check Failed: " + String.join(", ", dq.errors));
         }
 
         // 1.5. Duplicate Check
@@ -388,7 +391,7 @@ public class ApprovalService {
             // Exclude self from duplicates
             dup.duplicateRecordIds.remove(recordId);
             if (!dup.duplicateRecordIds.isEmpty()) {
-                throw new RuntimeException("Deduplication Failed: " + dup.message);
+                throw new BusinessException(ErrorCode.DEDUPLICATION_FAILED, "Deduplication Failed: " + dup.message);
             }
         }
         
@@ -433,10 +436,10 @@ public class ApprovalService {
     @Transactional
     public ApprovalRequest requestRecordDeletion(UUID recordId, RecordRequest request) {
         Record record = recordRepository.findById(recordId)
-                .orElseThrow(() -> new RuntimeException("Record not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Record not found"));
         
         if ("PENDING_APPROVAL".equals(record.getStatus())) {
-            throw new RuntimeException("Cannot delete a record that is pending creation approval.");
+            throw new BusinessException(ErrorCode.DELETE_PENDING_CREATION, "Cannot delete a record that is pending creation approval.");
         }
         
         UUID nodeId = record.getNode().getId();
@@ -476,13 +479,13 @@ public class ApprovalService {
         @Transactional
     public ApprovalRequest approveStep(UUID stepId, UUID approverId, String comment) {
         ApprovalStep step = stepRepository.findById(stepId)
-                .orElseThrow(() -> new RuntimeException("Step not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Step not found"));
                 
         if (!step.getAssigneeId().equals(approverId)) {
-            throw new RuntimeException("You are not the assignee for this step");
+            throw new CustomAccessDeniedException(ErrorCode.NOT_STEP_ASSIGNEE, "You are not the assignee for this step");
         }
         if (!"PENDING".equals(step.getStatus())) {
-            throw new RuntimeException("Step is not pending");
+            throw new BusinessException(ErrorCode.STEP_NOT_PENDING, "Step is not pending");
         }
         
         step.setStatus("APPROVED");
@@ -498,13 +501,13 @@ public class ApprovalService {
     @Transactional
     public ApprovalRequest rejectStep(UUID stepId, UUID approverId, String comment) {
         ApprovalStep step = stepRepository.findById(stepId)
-                .orElseThrow(() -> new RuntimeException("Step not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Step not found"));
                 
         if (!step.getAssigneeId().equals(approverId)) {
-            throw new RuntimeException("You are not the assignee for this step");
+            throw new CustomAccessDeniedException(ErrorCode.NOT_STEP_ASSIGNEE, "You are not the assignee for this step");
         }
         if (!"PENDING".equals(step.getStatus())) {
-            throw new RuntimeException("Step is not pending");
+            throw new BusinessException(ErrorCode.STEP_NOT_PENDING, "Step is not pending");
         }
         
         step.setStatus("REJECTED");
@@ -517,12 +520,12 @@ public class ApprovalService {
         
         if ("RECORD".equals(approval.getTargetType())) {
             Record record = recordRepository.findById(approval.getTargetId())
-                    .orElseThrow(() -> new RuntimeException("Record not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Record not found"));
             record.setStatus("REJECTED");
             recordRepository.saveAndFlush(record);
         } else if ("RECORD_UPDATE".equals(approval.getTargetType()) || "RECORD_DELETE".equals(approval.getTargetType())) {
             Record record = recordRepository.findById(approval.getTargetId())
-                    .orElseThrow(() -> new RuntimeException("Record not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Record not found"));
             record.setStatus("ACTIVE");
             recordRepository.saveAndFlush(record);
         }
@@ -533,17 +536,17 @@ public class ApprovalService {
     @Transactional
     public ApprovalRequest adminApproveStep(UUID stepId, UUID adminId, String comment) {
         User admin = userRepository.findById(adminId.toString())
-                .orElseThrow(() -> new RuntimeException("Admin user not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Admin user not found"));
                 
-        if (!"ADMIN".equals(admin.getRole())) {
-            throw new RuntimeException("User is not an admin");
+        if (!"ROLE_ADMIN".equalsIgnoreCase(admin.getRole()) && !"ADMIN".equalsIgnoreCase(admin.getRole())) {
+            throw new CustomAccessDeniedException("User is not an admin");
         }
         
         ApprovalStep step = stepRepository.findById(stepId)
-                .orElseThrow(() -> new RuntimeException("Step not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Step not found"));
                 
         if (!"PENDING".equals(step.getStatus())) {
-            throw new RuntimeException("Step is not pending");
+            throw new BusinessException(ErrorCode.STEP_NOT_PENDING, "Step is not pending");
         }
         
         step.setStatus("APPROVED");
@@ -559,17 +562,17 @@ public class ApprovalService {
     @Transactional
     public ApprovalRequest adminRejectStep(UUID stepId, UUID adminId, String comment) {
         User admin = userRepository.findById(adminId.toString())
-                .orElseThrow(() -> new RuntimeException("Admin user not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Admin user not found"));
                 
-        if (!"ADMIN".equals(admin.getRole())) {
-            throw new RuntimeException("User is not an admin");
+        if (!"ROLE_ADMIN".equalsIgnoreCase(admin.getRole()) && !"ADMIN".equalsIgnoreCase(admin.getRole())) {
+            throw new CustomAccessDeniedException("User is not an admin");
         }
         
         ApprovalStep step = stepRepository.findById(stepId)
-                .orElseThrow(() -> new RuntimeException("Step not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Step not found"));
                 
         if (!"PENDING".equals(step.getStatus())) {
-            throw new RuntimeException("Step is not pending");
+            throw new BusinessException(ErrorCode.STEP_NOT_PENDING, "Step is not pending");
         }
         
         step.setStatus("REJECTED");
@@ -719,7 +722,7 @@ public class ApprovalService {
                         }
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    log.error("Failed to process dynamic search predicate", e);
                 }
             }
             
@@ -794,7 +797,7 @@ public class ApprovalService {
                             
                             expression = caseExpr.otherwise(cb.literal(""));
                         } catch (Exception ex) {
-                            ex.printStackTrace();
+                            log.error("Failed to build sort expression for displayName", ex);
                             expression = root.get("changes").as(String.class);
                         }
                     } else if ("summary".equals(prop)) {

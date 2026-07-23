@@ -4,7 +4,10 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.security.Key;
 import java.util.Date;
@@ -14,15 +17,24 @@ import java.util.Map;
 @Component
 public class JwtUtil {
 
-    private final String secret = "my_super_secret_key_for_jwt_which_must_be_long_enough_for_hs256";
-    private final Key key = Keys.hmacShaKeyFor(secret.getBytes());
-    private final long expirationTime = 86400000; // 24 hours
+    @Value("${jwt.secret}")
+    private String secret;
 
-    public String generateToken(String username, String role, String uuid, String ipAddress) {
+    private Key key;
+    private final long expirationTime = 1800000; // 30 minutes
+
+    @PostConstruct
+    public void init() {
+        if (!StringUtils.hasText(secret)) {
+            throw new IllegalArgumentException("JWT secret key must be provided via 'jwt.secret' configuration or JWT_SECRET environment variable.");
+        }
+        this.key = Keys.hmacShaKeyFor(secret.getBytes());
+    }
+
+    public String generateToken(String username, String role, String uuid) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", role);
         claims.put("uuid", uuid);
-        claims.put("ipAddress", ipAddress);
         
         return Jwts.builder()
                 .setClaims(claims)
@@ -31,6 +43,10 @@ public class JwtUtil {
                 .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
+    }
+
+    public String generateToken(String username, String role, String uuid, String ipAddress) {
+        return generateToken(username, role, uuid);
     }
 
     public Claims extractAllClaims(String token) {
@@ -42,7 +58,8 @@ public class JwtUtil {
     }
     
     public String extractIpAddress(String token) {
-        return (String) extractAllClaims(token).get("ipAddress");
+        Object ipObj = extractAllClaims(token).get("ipAddress");
+        return ipObj != null ? ipObj.toString() : null;
     }
     
     public boolean isTokenValid(String token) {

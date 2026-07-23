@@ -10,11 +10,13 @@ import com.classification.domain_system.repository.FieldDefinitionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import java.util.*;
 import org.springframework.data.domain.Pageable;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MatchingService {
     
     private final MatchingRuleRepository matchingRuleRepository;
@@ -126,7 +128,7 @@ public class MatchingService {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to check duplicate matching rules", e);
         }
 
         return result;

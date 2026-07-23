@@ -90,18 +90,24 @@ public class InboundIntegrationService {
             return transformedPayload;
         } catch (IllegalArgumentException e) {
             // payload 파싱 오류 등 클라이언트 측 문제 → 400으로 전파 (로그만 남기고 re-throw)
-            StringWriter sw = new StringWriter();
-            e.printStackTrace(new PrintWriter(sw));
-            logService.logError(channelId, null, "INBOUND_RECEIVE", rawPayload, null, e.getMessage(), sw.toString(), 1);
+            String stackTrace = getStackTraceAsString(e);
+            logService.logError(channelId, null, "INBOUND_RECEIVE", rawPayload, null, e.getMessage(), stackTrace, 1);
             log.warn("Inbound data rejected for channel [{}]: {}", channelId, e.getMessage());
             throw e; // Controller에서 400 BadRequest로 처리됨
         } catch (Exception e) {
-            StringWriter sw = new StringWriter();
-            e.printStackTrace(new PrintWriter(sw));
-            logService.logError(channelId, null, "INBOUND_RECEIVE", rawPayload, null, e.getMessage(), sw.toString(), 1);
+            String stackTrace = getStackTraceAsString(e);
+            logService.logError(channelId, null, "INBOUND_RECEIVE", rawPayload, null, e.getMessage(), stackTrace, 1);
             log.error("Failed to process inbound data for channel [{}]: {}", channelId, e.getMessage(), e);
             throw new RuntimeException("Inbound 데이터 처리 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
+    }
+
+    private String getStackTraceAsString(Throwable throwable) {
+        StringBuilder sb = new StringBuilder();
+        for (StackTraceElement element : throwable.getStackTrace()) {
+            sb.append(element.toString()).append("\n");
+        }
+        return sb.toString();
     }
 
     /**

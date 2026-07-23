@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -21,6 +22,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -44,12 +46,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/dev/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/files/download/**").permitAll()
-                // Inbound Webhook: 외부 시스템이 자체 채널 시크릿 토큰으로 호출하므로 JWT 인증 제외 (채널 자체 인증 로직에서 검증)
+                // Inbound Webhook: 외부 시스템이 자체 채널 시크릿 토큰으로 호출하므로 JWT 인증 제외
                 .requestMatchers(HttpMethod.POST, "/api/integration/inbound/**").permitAll()
-                // DQ Rules management requires ADMIN role
-                .requestMatchers(HttpMethod.POST, "/api/fields/*/dq-rules").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/dq-rules/*").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/dq-rules/*").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll()
             )
@@ -62,7 +60,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 
-        // Inbound Webhook: 외부 시스템에서 호출하므로 모든 Origin 허용 (인증은 채널 시크릿 토큰으로 처리)
+        // Inbound Webhook: 외부 시스템에서 호출하므로 모든 Origin 허용
         CorsConfiguration inboundConfig = new CorsConfiguration();
         inboundConfig.addAllowedOriginPattern("*");
         inboundConfig.setAllowedMethods(Arrays.asList("POST", "OPTIONS"));
@@ -82,4 +80,3 @@ public class SecurityConfig {
         return source;
     }
 }
-

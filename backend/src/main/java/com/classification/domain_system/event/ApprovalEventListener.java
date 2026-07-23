@@ -11,6 +11,7 @@ import com.classification.domain_system.service.FieldDefinitionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ import java.util.regex.Pattern;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class ApprovalEventListener {
 
     private final ApprovalRequestRepository approvalRepository;
@@ -37,7 +39,7 @@ public class ApprovalEventListener {
     @Transactional
     public void onApprovalRequestCreated(ApprovalRequestCreatedEvent event) {
         ApprovalRequest approval = event.getApprovalRequest();
-        System.out.println("[EVENT_DRIVEN] Received ApprovalRequestCreatedEvent for Request ID: " + approval.getId());
+        log.info("[EVENT_DRIVEN] Received ApprovalRequestCreatedEvent for Request ID: {}", approval.getId());
         
         long realStepCount = approval.getSteps().stream().filter(s -> s.getStepOrder() > 0).count();
         if (realStepCount == 0) {
@@ -60,8 +62,8 @@ public class ApprovalEventListener {
     public void onApprovalStepApproved(ApprovalStepApprovedEvent event) {
         ApprovalRequest approval = event.getApprovalRequest();
         ApprovalStep approvedStep = event.getApprovedStep();
-        System.out.println("[EVENT_DRIVEN] Received ApprovalStepApprovedEvent for Request ID: " + approval.getId() 
-                + ", Approved Step Order: " + approvedStep.getStepOrder());
+        log.info("[EVENT_DRIVEN] Received ApprovalStepApprovedEvent for Request ID: {}, Approved Step Order: {}", 
+                approval.getId(), approvedStep.getStepOrder());
         
         boolean allApproved = approval.getSteps().stream()
                 .filter(s -> s.getStepOrder().equals(approval.getCurrentStepOrder()))
@@ -187,7 +189,7 @@ public class ApprovalEventListener {
                 logHistory(record, "UPDATE", approval.getRequesterId(), prevData, record.getData(), approval.getId());
                 applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, record.getId(), record.getNode().getId(), "UPDATE", record.getData()));
             } catch (Exception e) {
-                e.printStackTrace();
+                log.error("Error applying final approval for RECORD_UPDATE", e);
             }
         } else if ("RECORD_DELETE".equals(approval.getTargetType())) {
             Record record = recordRepository.findById(approval.getTargetId())
@@ -230,6 +232,7 @@ public class ApprovalEventListener {
                             }
                         }
                     } catch (Exception e) {
+                        log.debug("Failed to calculate formula for field: {}", field.getKey(), e);
                     }
                 }
             }
@@ -358,7 +361,7 @@ public class ApprovalEventListener {
             data.put(fieldKey, value);
             return mapper.writeValueAsString(data);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to inject identifier value into data JSON", e);
             return dataJson;
         }
     }

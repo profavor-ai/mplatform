@@ -4,6 +4,7 @@ import com.classification.domain_system.entity.ClassificationNode;
 import com.classification.domain_system.service.ClassificationNodeService;
 import com.classification.domain_system.dto.ClassificationNodeRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
 
@@ -18,6 +19,7 @@ public class ClassificationNodeController {
     private final ClassificationNodeService nodeService;
     
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('node:write', 'node:*', 'ROLE_ADMIN')")
     public ResponseEntity<ClassificationNode> createNode(
             @PathVariable UUID domainId, 
             @RequestBody ClassificationNodeRequest request) {
@@ -25,11 +27,13 @@ public class ClassificationNodeController {
     }
     
     @GetMapping("/tree")
+    @PreAuthorize("hasAnyAuthority('node:read', 'node:*', 'ROLE_ADMIN')")
     public ResponseEntity<List<ClassificationNode>> getTree(@PathVariable UUID domainId) {
         return ResponseEntity.ok(nodeService.getTree(domainId));
     }
     
     @PutMapping("/{nodeId}")
+    @PreAuthorize("hasAnyAuthority('node:write', 'node:*', 'ROLE_ADMIN')")
     public ResponseEntity<ClassificationNode> updateNode(
             @PathVariable UUID domainId,
             @PathVariable UUID nodeId,
