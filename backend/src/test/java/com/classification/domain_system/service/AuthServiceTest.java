@@ -92,7 +92,7 @@ class AuthServiceTest {
             User user = createTestUser("user-id-1", "admin", "encoded_pw", "ADMIN");
             given(userRepository.findByUsername("admin")).willReturn(Optional.of(user));
             given(passwordEncoder.matches("rawpassword", "encoded_pw")).willReturn(true);
-            given(jwtUtil.generateToken("admin", "ADMIN", "user-id-1", "127.0.0.1")).willReturn("jwt.token.here");
+            given(jwtUtil.generateToken("admin", "ADMIN", "user-id-1")).willReturn("jwt.token.here");
 
             // when
             String token = authService.login("admin", "rawpassword", "127.0.0.1");
