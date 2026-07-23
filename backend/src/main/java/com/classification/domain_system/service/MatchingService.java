@@ -29,6 +29,9 @@ public class MatchingService {
         public boolean hasDuplicates;
         public List<UUID> duplicateRecordIds;
         public String message;
+        public Double score = 1.0; // Default 1.0 (EXACT)
+        public UUID matchedRuleId;
+        public String matchType = "EXACT";
     }
 
     public DuplicateResult checkDuplicates(UUID nodeId, String dataJson) {
@@ -93,6 +96,8 @@ public class MatchingService {
             // 2. Additional Custom Rules
             if (rules.isEmpty()) return result;
             
+            org.apache.commons.text.similarity.JaroWinklerSimilarity similarityAlgo = new org.apache.commons.text.similarity.JaroWinklerSimilarity();
+
             for (MatchingRule rule : rules) {
                 // Check if rule applies to this node
                 if (rule.getNodeId() != null && !rule.getNodeId().equals(nodeId)) {
@@ -102,28 +107,68 @@ public class MatchingService {
                 String[] fields = mapper.readValue(rule.getTargetFieldKeys(), String[].class);
                 if (fields.length == 0) continue;
 
-                // Build search params
-                Map<String, String> searchParams = new HashMap<>();
-                boolean hasAllFields = true;
-                for (String field : fields) {
-                    Object val = data.get(field);
-                    if (val == null || val.toString().isBlank()) {
-                        hasAllFields = false;
-                        break;
-                    }
-                    searchParams.put(field, val.toString());
-                    searchParams.put("op_" + field, "EQ");
-                }
+                boolean isFuzzy = "FUZZY".equalsIgnoreCase(rule.getMatchType());
+                double threshold = rule.getSimilarityThreshold() != null ? rule.getSimilarityThreshold() : 0.85;
 
-                if (hasAllFields) {
-                    // Search for existing records matching these fields EXACTLY
-                    // Using findDynamicRecords which utilizes GIN index
-                    List<Record> duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
-                    if (!duplicates.isEmpty()) {
-                        result.hasDuplicates = true;
-                        duplicates.forEach(d -> result.duplicateRecordIds.add(d.getId()));
-                        result.message = "Potential duplicate found based on rule: " + rule.getRuleName() + " (fields: " + Arrays.toString(fields) + ")";
-                        return result;
+                if (!isFuzzy) {
+                    // EXACT matching
+                    Map<String, String> searchParams = new HashMap<>();
+                    boolean hasAllFields = true;
+                    for (String field : fields) {
+                        Object val = data.get(field);
+                        if (val == null || val.toString().isBlank()) {
+                            hasAllFields = false;
+                            break;
+                        }
+                        searchParams.put(field, val.toString());
+                        searchParams.put("op_" + field, "EQ");
+                    }
+
+                    if (hasAllFields) {
+                        List<Record> duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
+                        if (!duplicates.isEmpty()) {
+                            result.hasDuplicates = true;
+                            duplicates.forEach(d -> result.duplicateRecordIds.add(d.getId()));
+                            result.message = "Potential duplicate found based on rule: " + rule.getRuleName() + " (fields: " + Arrays.toString(fields) + ")";
+                            result.score = 1.0;
+                            result.matchedRuleId = rule.getId();
+                            result.matchType = "EXACT";
+                            return result;
+                        }
+                    }
+                } else {
+                    // FUZZY matching
+                    List<Record> candidateRecords = recordRepository.findByNodeId(nodeId, Pageable.unpaged()).getContent();
+                    for (Record cand : candidateRecords) {
+                        if (cand.getData() == null) continue;
+                        try {
+                            Map<String, Object> candData = mapper.readValue(cand.getData(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                            double totalScore = 0.0;
+                            int count = 0;
+                            for (String field : fields) {
+                                Object v1 = data.get(field);
+                                Object v2 = candData.get(field);
+                                if (v1 != null && v2 != null) {
+                                    String s1 = v1.toString().trim().toLowerCase().replaceAll("[^a-zA-Z0-9가-힣]", "");
+                                    String s2 = v2.toString().trim().toLowerCase().replaceAll("[^a-zA-Z0-9가-힣]", "");
+                                    double sim = similarityAlgo.apply(s1, s2);
+                                    totalScore += sim;
+                                    count++;
+                                }
+                            }
+                            if (count > 0) {
+                                double avgScore = totalScore / count;
+                                if (avgScore >= threshold) {
+                                    result.hasDuplicates = true;
+                                    result.duplicateRecordIds.add(cand.getId());
+                                    result.message = "Fuzzy duplicate candidate found based on rule: " + rule.getRuleName() + " (Score: " + String.format("%.2f", avgScore) + ")";
+                                    result.score = avgScore;
+                                    result.matchedRuleId = rule.getId();
+                                    result.matchType = "FUZZY";
+                                    return result;
+                                }
+                            }
+                        } catch (Exception ignored) {}
                     }
                 }
             }

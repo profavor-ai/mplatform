@@ -17,6 +17,15 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, CustomRec
 
     Page<Record> findByNodeIdAndStatus(UUID nodeId, String status, Pageable pageable);
 
+    @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM record r "
+            + "WHERE r.id <> :excludedRecordId "
+            + "AND r.data ->> CAST(:fieldKey AS text) = :recordId "
+            + "AND r.status NOT IN ('REJECTED', 'MERGED')", nativeQuery = true)
+    List<Record> findReferencingRecords(
+            @org.springframework.data.repository.query.Param("fieldKey") String fieldKey,
+            @org.springframework.data.repository.query.Param("recordId") String recordId,
+            @org.springframework.data.repository.query.Param("excludedRecordId") UUID excludedRecordId);
+
     @org.springframework.data.jpa.repository.Query(value = "SELECT r FROM Record r JOIN FETCH r.node WHERE r.node.domain.id = :domainId AND r.status NOT IN ('REJECTED', 'MISMATCHED')", countQuery = "SELECT count(r) FROM Record r WHERE r.node.domain.id = :domainId AND r.status NOT IN ('REJECTED', 'MISMATCHED')")
     Page<Record> findByDomainId(@org.springframework.data.repository.query.Param("domainId") UUID domainId, Pageable pageable);
     

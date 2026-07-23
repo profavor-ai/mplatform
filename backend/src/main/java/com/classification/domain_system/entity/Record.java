@@ -42,6 +42,9 @@ public class Record {
     @Column(name = "source_system", length = 100)
     private String sourceSystem;
 
+    @Column(name = "merged_into_record_id")
+    private UUID mergedIntoRecordId;
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 

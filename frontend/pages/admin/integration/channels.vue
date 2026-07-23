@@ -88,6 +88,9 @@
                   </va-button>
                 </div>
               </div>
+              <div class="mt-3">
+                <va-checkbox v-model="formData.requiresApproval" label="Requires Approval (승인 절차 필수 적용)" />
+              </div>
             </va-card-content>
           </va-card>
 
@@ -309,7 +312,8 @@ const initialForm = {
   nodeId: null,
   configJson: '{}',
   mappingConfigJson: '{}',
-  isActive: true
+  isActive: true,
+  requiresApproval: false
 }
 
 const getWebhookUrl = () => {

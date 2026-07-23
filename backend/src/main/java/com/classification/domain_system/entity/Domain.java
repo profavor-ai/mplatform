@@ -50,6 +50,9 @@ public class Domain {
     @Column(name = "numbering_pattern")
     private String numberingPattern;
 
+    @Column(name = "auto_dq_scan_enabled", nullable = false)
+    private boolean autoDqScanEnabled = false;
+
     @Column(name = "current_sequence", nullable = false, columnDefinition = "bigint default 0")
     private Long currentSequence = 0L;
 

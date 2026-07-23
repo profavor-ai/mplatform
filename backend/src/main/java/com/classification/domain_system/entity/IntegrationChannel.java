@@ -47,6 +47,9 @@ public class IntegrationChannel {
     @Column(nullable = false)
     private boolean isActive = true;
 
+    @Column(name = "requires_approval", nullable = false)
+    private boolean requiresApproval = false;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

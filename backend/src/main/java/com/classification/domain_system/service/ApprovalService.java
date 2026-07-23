@@ -437,6 +437,19 @@ public class ApprovalService {
     public ApprovalRequest requestRecordDeletion(UUID recordId, RecordRequest request) {
         Record record = recordRepository.findById(recordId)
                 .orElseThrow(() -> new ResourceNotFoundException("Record not found"));
+
+        List<UUID> referencingRecordIds = fieldDefinitionRepository.findByType("DOMAIN_REFERENCE").stream()
+                .flatMap(field -> recordRepository.findReferencingRecords(
+                        field.getKey(), recordId.toString(), recordId).stream())
+                .map(Record::getId)
+                .distinct()
+                .toList();
+        if (!referencingRecordIds.isEmpty()) {
+            throw new BusinessException(
+                    ErrorCode.RECORD_REFERENCED_BY_OTHERS,
+                    "Record is referenced by " + referencingRecordIds.size()
+                            + " record(s): " + referencingRecordIds);
+        }
         
         if ("PENDING_APPROVAL".equals(record.getStatus())) {
             throw new BusinessException(ErrorCode.DELETE_PENDING_CREATION, "Cannot delete a record that is pending creation approval.");

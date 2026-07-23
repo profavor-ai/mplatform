@@ -22,6 +22,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -39,6 +40,9 @@ public class InboundIntegrationService {
     private final DqRuleEngine dqRuleEngine;
     private final DataMappingTransformer mappingTransformer;
     private final IntegrationLogService logService;
+    private final com.classification.domain_system.service.ApprovalService approvalService;
+    private final com.classification.domain_system.repository.SourcePriorityRepository sourcePriorityRepository;
+    private final com.classification.domain_system.repository.RecordFieldSourceRepository recordFieldSourceRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
@@ -78,7 +82,7 @@ public class InboundIntegrationService {
             }
 
             if (targetNode != null) {
-                savedRecordIds = saveAsRecords(targetNode, transformedPayload, channel.getName());
+                savedRecordIds = saveAsRecords(targetNode, transformedPayload, channel.getName(), channel);
             } else {
                 throw new IllegalArgumentException("Inbound 연계 채널에 데이터 수신 대상 도메인 및 분류 노드가 설정되어 있지 않습니다. 연계 채널 설정을 확인해 주세요.");
             }
@@ -114,7 +118,7 @@ public class InboundIntegrationService {
      * 변환된 payload를 Record로 저장하고 RecordHistory를 함께 생성한다.
      * 중복 검사(MatchingService)를 거쳐 중복 데이터는 UPDATE, 신규 데이터는 INSERT하며, DQE 규칙 평가를 수행한다.
      */
-    private List<UUID> saveAsRecords(ClassificationNode node, String transformedPayload, String sourceSystem) {
+    private List<UUID> saveAsRecords(ClassificationNode node, String transformedPayload, String sourceSystem, IntegrationChannel channel) {
         List<UUID> savedIds = new ArrayList<>();
         try {
             JsonNode root = objectMapper.readTree(transformedPayload);
@@ -122,12 +126,12 @@ public class InboundIntegrationService {
                 // 배열: 각 요소를 개별 Record로 Upsert 처리
                 for (JsonNode item : root) {
                     String itemJson = objectMapper.writeValueAsString(item);
-                    UUID id = saveOrUpdateSingleRecord(node, itemJson, sourceSystem);
+                    UUID id = saveOrUpdateSingleRecord(node, itemJson, sourceSystem, channel);
                     if (id != null) savedIds.add(id);
                 }
             } else {
                 // 단일 객체 Upsert 처리
-                UUID id = saveOrUpdateSingleRecord(node, transformedPayload, sourceSystem);
+                UUID id = saveOrUpdateSingleRecord(node, transformedPayload, sourceSystem, channel);
                 if (id != null) savedIds.add(id);
             }
         } catch (Exception e) {
@@ -136,7 +140,23 @@ public class InboundIntegrationService {
         return savedIds;
     }
 
-    private UUID saveOrUpdateSingleRecord(ClassificationNode node, String itemJson, String sourceSystem) {
+    private UUID saveOrUpdateSingleRecord(ClassificationNode node, String itemJson, String sourceSystem, IntegrationChannel channel) {
+        if (channel != null && channel.isRequiresApproval()) {
+            com.classification.domain_system.dto.RecordRequest req = new com.classification.domain_system.dto.RecordRequest();
+            req.setData(itemJson);
+            
+            MatchingService.DuplicateResult dupCheck = matchingService.checkDuplicates(node.getId(), itemJson);
+            if (dupCheck.hasDuplicates && dupCheck.duplicateRecordIds != null && !dupCheck.duplicateRecordIds.isEmpty()) {
+                UUID existingId = dupCheck.duplicateRecordIds.get(0);
+                com.classification.domain_system.entity.ApprovalRequest appReq = approvalService.requestRecordUpdate(existingId, req);
+                log.info("[Inbound Approval] Record update sent to approval queue (id: {}). ApprovalRequest ID: {}", existingId, appReq.getId());
+                return existingId;
+            } else {
+                com.classification.domain_system.entity.ApprovalRequest appReq = approvalService.requestRecordCreation(node.getId(), req);
+                log.info("[Inbound Approval] Record creation sent to approval queue. ApprovalRequest ID: {}", appReq.getId());
+                return appReq.getId();
+            }
+        }
         MatchingService.DuplicateResult dupCheck = matchingService.checkDuplicates(node.getId(), itemJson);
 
         if (dupCheck.hasDuplicates && dupCheck.duplicateRecordIds != null && !dupCheck.duplicateRecordIds.isEmpty()) {
@@ -145,7 +165,65 @@ public class InboundIntegrationService {
             Record existingRecord = recordRepository.findById(existingId).orElse(null);
             if (existingRecord != null) {
                 String prevData = existingRecord.getData();
-                existingRecord.setData(itemJson);
+                
+                UUID domainId = node.getDomain().getId();
+                List<com.classification.domain_system.entity.SourcePriority> priorities = sourcePriorityRepository.findByDomainIdOrderByPriorityAsc(domainId);
+
+                String mergedDataJson = itemJson;
+                if (priorities.isEmpty()) {
+                    log.info("[Survivorship] 서바이버십 미설정 도메인, 레거시 전체 덮어쓰기 방식 적용: domainId={}", domainId);
+                } else {
+                    try {
+                        Map<String, Object> existingMap = objectMapper.readValue(prevData != null ? prevData : "{}", new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                        Map<String, Object> incomingMap = objectMapper.readValue(itemJson, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                        
+                        int currentSystemPriority = priorities.stream()
+                                .filter(p -> p.getSourceSystem().equalsIgnoreCase(sourceSystem))
+                                .map(com.classification.domain_system.entity.SourcePriority::getPriority)
+                                .findFirst()
+                                .orElse(999);
+
+                        Map<String, Object> finalMap = new HashMap<>(existingMap);
+
+                        for (Map.Entry<String, Object> entry : incomingMap.entrySet()) {
+                            String key = entry.getKey();
+                            Object val = entry.getValue();
+                            if (val == null || val.toString().isBlank()) {
+                                continue;
+                            }
+
+                            com.classification.domain_system.entity.RecordFieldSource fieldSource = recordFieldSourceRepository
+                                    .findByRecordIdAndFieldKey(existingId, key)
+                                    .orElse(null);
+
+                            int lastPriority = 999;
+                            if (fieldSource != null) {
+                                final String prevSys = fieldSource.getSourceSystem();
+                                lastPriority = priorities.stream()
+                                        .filter(p -> p.getSourceSystem().equalsIgnoreCase(prevSys))
+                                        .map(com.classification.domain_system.entity.SourcePriority::getPriority)
+                                        .findFirst()
+                                        .orElse(999);
+                            }
+
+                            if (currentSystemPriority <= lastPriority) {
+                                finalMap.put(key, val);
+                                if (fieldSource == null) {
+                                    fieldSource = new com.classification.domain_system.entity.RecordFieldSource();
+                                    fieldSource.setRecordId(existingId);
+                                    fieldSource.setFieldKey(key);
+                                }
+                                fieldSource.setSourceSystem(sourceSystem);
+                                recordFieldSourceRepository.save(fieldSource);
+                            }
+                        }
+                        mergedDataJson = objectMapper.writeValueAsString(finalMap);
+                    } catch (Exception e) {
+                        log.error("[Survivorship Error] 서바이버십 병합 실패: {}", e.getMessage());
+                    }
+                }
+
+                existingRecord.setData(mergedDataJson);
                 existingRecord.setSourceSystem(sourceSystem);
                 int nextVer = (existingRecord.getVersion() != null ? existingRecord.getVersion() : 1) + 1;
                 existingRecord.setVersion(nextVer);

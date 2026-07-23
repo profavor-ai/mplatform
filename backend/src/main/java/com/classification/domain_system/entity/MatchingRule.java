@@ -35,6 +35,9 @@ public class MatchingRule {
     @Column(name = "match_type", nullable = false, length = 20)
     private String matchType; // EXACT, FUZZY
 
+    @Column(name = "similarity_threshold")
+    private Double similarityThreshold = 0.85;
+
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 

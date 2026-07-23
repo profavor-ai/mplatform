@@ -8,6 +8,9 @@ import com.classification.domain_system.entity.ApprovalStep;
 import com.classification.domain_system.entity.ClassificationNode;
 import com.classification.domain_system.entity.Domain;
 import com.classification.domain_system.entity.Record;
+import com.classification.domain_system.entity.FieldDefinition;
+import com.classification.domain_system.exception.BusinessException;
+import com.classification.domain_system.exception.ErrorCode;
 import com.classification.domain_system.repository.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -43,6 +46,7 @@ class ApprovalServiceTest extends BaseServiceTest {
     @Mock private FieldDefinitionService fieldDefinitionService;
     @Mock private MatchingService matchingService;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private FieldDefinitionRepository fieldDefinitionRepository;
 
     @InjectMocks
     private ApprovalService approvalService;
@@ -361,6 +365,64 @@ class ApprovalServiceTest extends BaseServiceTest {
 
             assertThat(result).isNotNull();
             verify(dqService).validateData(eq(nodeId), eq("{\"emp_id\":\"TEST\"}"), eq(recordId));
+        }
+    }
+
+    @Nested
+    @DisplayName("requestRecordDeletion reference integrity")
+    class RequestRecordDeletionReferenceIntegrityTest {
+
+        @Test
+        @DisplayName("blocks deletion when another record references the target through a domain reference field")
+        void blocksDeletionWhenReferenced() {
+            UUID recordId = UUID.randomUUID();
+            Record target = new Record();
+            target.setId(recordId);
+            target.setStatus("ACTIVE");
+
+            FieldDefinition referenceField = new FieldDefinition();
+            referenceField.setKey("parentRecordId");
+            Record referrer = new Record();
+            referrer.setId(UUID.randomUUID());
+
+            given(recordRepository.findById(recordId)).willReturn(Optional.of(target));
+            given(fieldDefinitionRepository.findByType("DOMAIN_REFERENCE")).willReturn(List.of(referenceField));
+            given(recordRepository.findReferencingRecords("parentRecordId", recordId.toString(), recordId))
+                    .willReturn(List.of(referrer));
+
+            assertThatThrownBy(() -> approvalService.requestRecordDeletion(recordId, createRecordRequest("{}", UUID.randomUUID())))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                    .isEqualTo(ErrorCode.RECORD_REFERENCED_BY_OTHERS);
+
+            verify(approvalRepository, org.mockito.Mockito.never()).saveAndFlush(any());
+        }
+
+        @Test
+        @DisplayName("allows deletion request when no records reference the target")
+        void allowsDeletionWhenUnreferenced() {
+            UUID recordId = UUID.randomUUID();
+            UUID nodeId = UUID.randomUUID();
+            ClassificationNode node = new ClassificationNode();
+            node.setId(nodeId);
+            node.setDomain(createTestDomain(UUID.randomUUID(), "domain", "DOMAIN"));
+            Record target = new Record();
+            target.setId(recordId);
+            target.setNode(node);
+            target.setStatus("ACTIVE");
+            ApprovalRequest savedApproval = new ApprovalRequest();
+            savedApproval.setSteps(new ArrayList<>());
+
+            given(recordRepository.findById(recordId)).willReturn(Optional.of(target));
+            given(fieldDefinitionRepository.findByType("DOMAIN_REFERENCE")).willReturn(Collections.emptyList());
+            given(workflowConfigRepository.findByNodeIdAndActionType(nodeId, "DELETE")).willReturn(Optional.empty());
+            given(workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(any(), eq("DELETE"))).willReturn(Optional.empty());
+            given(approvalRepository.saveAndFlush(any(ApprovalRequest.class))).willReturn(savedApproval);
+
+            ApprovalRequest result = approvalService.requestRecordDeletion(recordId, createRecordRequest("{}", UUID.randomUUID()));
+
+            assertThat(result).isSameAs(savedApproval);
+            verify(approvalRepository).saveAndFlush(any(ApprovalRequest.class));
         }
     }
 }
