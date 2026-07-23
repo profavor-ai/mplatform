@@ -55,7 +55,7 @@ public class AuthService {
                 .build();
         loginLogRepository.save(log);
 
-        return jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getId(), ipAddress);
+        return jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getId());
     }
     
     public User findByUsername(String username) {

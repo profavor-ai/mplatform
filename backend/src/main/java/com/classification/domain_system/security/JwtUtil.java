@@ -45,21 +45,12 @@ public class JwtUtil {
                 .compact();
     }
 
-    public String generateToken(String username, String role, String uuid, String ipAddress) {
-        return generateToken(username, role, uuid);
-    }
-
     public Claims extractAllClaims(String token) {
         return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
     }
     
     public String extractUsername(String token) {
         return extractAllClaims(token).getSubject();
-    }
-    
-    public String extractIpAddress(String token) {
-        Object ipObj = extractAllClaims(token).get("ipAddress");
-        return ipObj != null ? ipObj.toString() : null;
     }
     
     public boolean isTokenValid(String token) {
