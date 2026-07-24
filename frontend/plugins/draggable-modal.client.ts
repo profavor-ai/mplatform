@@ -3,22 +3,22 @@ import { defineNuxtPlugin } from '#app'
 export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.directive('draggable-modal', {
     mounted(el) {
-      // Find the actual modal dialog element inside va-modal wrapper
-      const findTarget = () => {
-        return el.querySelector('.va-modal__dialog') || el.querySelector('.va-modal__container') || el
-      }
+      const setupDrag = () => {
+        // Find dialog element inside teleported container or current element
+        const dialog = (el.querySelector('.va-modal__dialog') ||
+                       el.querySelector('.va-modal__container') ||
+                       el) as HTMLElement
 
-      setTimeout(() => {
-        const dialog = findTarget() as HTMLElement
-        if (!dialog) return
+        if (!dialog || (dialog as any)._hasDragBinding) return
 
-        let handle = dialog.querySelector('.va-modal__header') as HTMLElement || 
-                     dialog.querySelector('.va-modal__title') as HTMLElement ||
-                     dialog.firstElementChild as HTMLElement || 
-                     dialog
+        let handle = (dialog.querySelector('.va-modal__header') ||
+                     dialog.querySelector('.va-modal__title') ||
+                     dialog.firstElementChild ||
+                     dialog) as HTMLElement
 
         if (!handle) return
 
+        (dialog as any)._hasDragBinding = true
         handle.style.cursor = 'grab'
         handle.style.userSelect = 'none'
         handle.title = '드래그하여 모달 창 이동'
@@ -43,7 +43,6 @@ export default defineNuxtPlugin((nuxtApp) => {
         }
 
         const onMouseDown = (e: MouseEvent) => {
-          // Ignore clicks on buttons, inputs, or close icons inside header
           const targetNode = e.target as HTMLElement
           if (targetNode && (targetNode.tagName === 'BUTTON' || targetNode.tagName === 'INPUT' || targetNode.closest('button') || targetNode.closest('.va-button'))) {
             return
@@ -83,15 +82,22 @@ export default defineNuxtPlugin((nuxtApp) => {
 
         handle.addEventListener('mousedown', onMouseDown)
 
-        // Store cleanup on element for unmounted hook
         ;(el as any)._draggableCleanup = () => {
           handle.removeEventListener('mousedown', onMouseDown)
           window.removeEventListener('mousemove', onMouseMove)
           window.removeEventListener('mouseup', onMouseUp)
         }
-      }, 100)
+      }
+
+      // Check repeatedly for dynamic/teleported modal DOM appearance
+      setupDrag()
+      const timer = setInterval(setupDrag, 250)
+      ;(el as any)._draggableTimer = timer
     },
     unmounted(el) {
+      if ((el as any)._draggableTimer) {
+        clearInterval((el as any)._draggableTimer)
+      }
       if ((el as any)._draggableCleanup) {
         ;(el as any)._draggableCleanup()
       }

@@ -21,15 +21,21 @@ public class OrganizationController {
     private final DepartmentRepository departmentRepository;
     private final TeamRepository teamRepository;
     private final RoleInitializer roleInitializer;
+    private final com.classification.domain_system.repository.RoleRepository roleRepository;
+    private final com.classification.domain_system.repository.UserRoleRepository userRoleRepository;
 
     public OrganizationController(OrganizationRepository organizationRepository,
                                   DepartmentRepository departmentRepository,
                                   TeamRepository teamRepository,
-                                  RoleInitializer roleInitializer) {
+                                  RoleInitializer roleInitializer,
+                                  com.classification.domain_system.repository.RoleRepository roleRepository,
+                                  com.classification.domain_system.repository.UserRoleRepository userRoleRepository) {
         this.organizationRepository = organizationRepository;
         this.departmentRepository = departmentRepository;
         this.teamRepository = teamRepository;
         this.roleInitializer = roleInitializer;
+        this.roleRepository = roleRepository;
+        this.userRoleRepository = userRoleRepository;
     }
 
     @GetMapping
@@ -60,6 +66,32 @@ public class OrganizationController {
                     existing.setDescription(req.getDescription());
                     existing.setIcon(req.getIcon());
                     return ResponseEntity.ok(organizationRepository.save(existing));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<Void> deleteOrganization(@PathVariable UUID id) {
+        return organizationRepository.findById(id)
+                .map(org -> {
+                    List<Team> teams = teamRepository.findByOrganizationId(id);
+                    if (teams != null && !teams.isEmpty()) {
+                        teamRepository.deleteAll(teams);
+                    }
+                    List<Department> depts = departmentRepository.findByOrganizationId(id);
+                    if (depts != null && !depts.isEmpty()) {
+                        departmentRepository.deleteAll(depts);
+                    }
+                    List<com.classification.domain_system.entity.Role> roles = roleRepository.findByOrganizationId(id);
+                    if (roles != null && !roles.isEmpty()) {
+                        for (com.classification.domain_system.entity.Role r : roles) {
+                            userRoleRepository.deleteByRoleId(r.getId());
+                        }
+                        roleRepository.deleteAll(roles);
+                    }
+                    organizationRepository.delete(org);
+                    return ResponseEntity.noContent().<Void>build();
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

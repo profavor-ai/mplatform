@@ -35,6 +35,12 @@ class OrganizationControllerTest {
     @Mock
     private RoleInitializer roleInitializer;
 
+    @Mock
+    private com.classification.domain_system.repository.RoleRepository roleRepository;
+
+    @Mock
+    private com.classification.domain_system.repository.UserRoleRepository userRoleRepository;
+
     @InjectMocks
     private OrganizationController organizationController;
 
@@ -89,5 +95,20 @@ class OrganizationControllerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.NO_CONTENT);
         verify(departmentRepository, times(1)).delete(dept);
+    }
+
+    @Test
+    @DisplayName("성공 - 조직 삭제 API (DELETE)")
+    void testDeleteOrganization() {
+        UUID orgId = UUID.randomUUID();
+        com.classification.domain_system.entity.Organization targetOrg = new com.classification.domain_system.entity.Organization();
+        targetOrg.setId(orgId);
+
+        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(targetOrg));
+
+        ResponseEntity<Void> response = organizationController.deleteOrganization(orgId);
+
+        assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.NO_CONTENT);
+        verify(organizationRepository, times(1)).delete(targetOrg);
     }
 }
