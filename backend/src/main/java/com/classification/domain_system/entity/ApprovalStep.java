@@ -45,7 +45,8 @@ public class ApprovalStep {
     private LocalDateTime updatedAt;
 
     @Version
-    private Long version;
+    @Column(columnDefinition = "bigint default 0")
+    private Long version = 0L;
 
     @PrePersist
     protected void onCreate() {
