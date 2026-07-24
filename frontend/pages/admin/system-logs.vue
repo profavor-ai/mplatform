@@ -306,42 +306,54 @@ const { init } = useToast()
 const activeTab = ref('access')
 const isMounted = ref(false)
 
-// Multilingual Menu Translation Helper
+const { fetchMenuTree } = useMenu()
+const dbMenuMap = ref(new Map())
+let isMapLoaded = false
+
+const loadDbMenuMap = async (force = false) => {
+  if (isMapLoaded && !force) return
+  try {
+    const tree = await fetchMenuTree(force)
+    const newMap = new Map()
+    const traverse = (nodes) => {
+      if (!Array.isArray(nodes)) return
+      nodes.forEach(node => {
+        if (node && node.path) {
+          const clean = node.path.toLowerCase().replace(/\/+$/, '')
+          newMap.set(clean, node.name)
+        }
+        if (node.children && node.children.length > 0) {
+          traverse(node.children)
+        }
+      })
+    }
+    traverse(tree)
+    dbMenuMap.value = newMap
+    isMapLoaded = true
+  } catch (e) {
+    console.error('Failed to load menu tree for chart lookup:', e)
+  }
+}
+
+// Multilingual Menu Translation Helper (Pure DB dynamic lookup - NO hardcoding)
 const getMenuName = (path) => {
   if (!path) return ''
-  const isKo = locale.value === 'ko'
   const cleanPath = path.toLowerCase().replace(/\/+$/, '')
   
-  if (cleanPath === '' || cleanPath === '/') {
-    return isKo ? '대시보드' : 'Dashboard'
+  if (dbMenuMap.value.has(cleanPath)) {
+    const rawName = dbMenuMap.value.get(cleanPath)
+    const text = getMultilingualText(rawName)
+    if (text) return text
   }
-  if (cleanPath.includes('/schema')) {
-    return isKo ? '스키마' : 'Schema'
+
+  // Exact path or prefix match against DB menu map
+  for (const [menuPath, rawName] of dbMenuMap.value.entries()) {
+    if (menuPath && (cleanPath === menuPath || cleanPath.startsWith(menuPath) || menuPath.startsWith(cleanPath))) {
+      const text = getMultilingualText(rawName)
+      if (text) return text
+    }
   }
-  if (cleanPath.includes('/records')) {
-    return isKo ? '레코드' : 'Records'
-  }
-  if (cleanPath.includes('/approvals')) {
-    return isKo ? '결재' : 'Approvals'
-  }
-  if (cleanPath === '/admin') {
-    return isKo ? '관리자' : 'Admin'
-  }
-  if (cleanPath.includes('/admin/users')) {
-    return isKo ? '사용자 관리' : 'User Management'
-  }
-  if (cleanPath.includes('/admin/menus')) {
-    return isKo ? '메뉴 관리' : 'Menu Management'
-  }
-  if (cleanPath.includes('/admin/system-logs') || cleanPath.includes('/admin/menu-logs') || cleanPath.includes('/admin/menulogs')) {
-    return isKo ? '시스템 로그' : 'System Logs'
-  }
-  if (cleanPath.includes('/admin/integration/channels')) {
-    return isKo ? '연계 채널' : 'Integration Channels'
-  }
-  if (cleanPath.includes('/admin/integration/logs')) {
-    return isKo ? '연계 로그' : 'Integration Logs'
-  }
+
   return path
 }
 
@@ -449,6 +461,7 @@ const datasource = {
 
 const updateChart = async () => {
   try {
+     await loadDbMenuMap()
      const response = await $fetch('/api/menus/logs', {
         headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
         params: { page: 0, size: 200, sort: 'accessedAt,desc' }
@@ -795,6 +808,7 @@ watch(locale, () => {
 
 onMounted(async () => {
   isMounted.value = true
+  await loadDbMenuMap()
   updateChart()
   updateLoginChart()
   await fetchChannels()

@@ -6,6 +6,8 @@ import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import java.util.UUID;
+import java.util.Set;
+import java.util.HashSet;
 import java.time.LocalDateTime;
 
 @Entity
@@ -34,8 +36,14 @@ public class Department {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Deprecated
     @Column(length = 50)
-    private String role;
+    private String role; // Legacy fallback
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "department_roles", joinColumns = @JoinColumn(name = "department_id"))
+    @Column(name = "role_name")
+    private Set<String> roles = new HashSet<>();
 
     @Column(length = 100)
     private String icon;

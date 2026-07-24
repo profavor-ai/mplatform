@@ -16,9 +16,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -75,6 +77,45 @@ public class MenuServiceTest {
         List<Map<String, Object>> children = (List<Map<String, Object>>) tree.get(0).get("children");
         assertThat(children).hasSize(1);
         assertThat(children.get(0).get("name")).isEqualTo("User Management");
+    }
+
+    @Test
+    void testChildRolesUnionInParentNode() {
+        Menu parent = Menu.builder().id(10L).name("Management").path("/mgt").sortOrder(1).isActive(true).build();
+        Menu child1 = Menu.builder().id(11L).name("Sub 1").parentId(10L).requiredRole("USER, DQ_MANAGER").sortOrder(1).isActive(true).build();
+        Menu child2 = Menu.builder().id(12L).name("Sub 2").parentId(10L).requiredRole("DATA_STEWARD, USER").sortOrder(2).isActive(true).build();
+
+        when(menuRepository.findAllByIsActiveTrueOrderBySortOrderAsc())
+                .thenReturn(Arrays.asList(parent, child1, child2));
+
+        List<Map<String, Object>> tree = menuService.getMenuTree();
+
+        assertThat(tree).hasSize(1);
+        Map<String, Object> parentNode = tree.get(0);
+        String unionRoles = (String) parentNode.get("requiredRole");
+
+        assertThat(unionRoles).contains("USER");
+        assertThat(unionRoles).contains("DQ_MANAGER");
+        assertThat(unionRoles).contains("DATA_STEWARD");
+    }
+
+    @Test
+    void testChildRolesSetUnion1NF() {
+        Menu parent = Menu.builder().id(20L).name("System").path("/sys").sortOrder(1).isActive(true).build();
+        Menu child1 = Menu.builder().id(21L).name("Sub 21").parentId(20L).requiredRoles(new HashSet<>(Arrays.asList("ROLE_ADMIN", "ORG_ADMIN"))).sortOrder(1).isActive(true).build();
+        Menu child2 = Menu.builder().id(22L).name("Sub 22").parentId(20L).requiredRoles(new HashSet<>(Arrays.asList("DATA_STEWARD", "ORG_ADMIN"))).sortOrder(2).isActive(true).build();
+
+        when(menuRepository.findAllByIsActiveTrueOrderBySortOrderAsc())
+                .thenReturn(Arrays.asList(parent, child1, child2));
+
+        List<Map<String, Object>> tree = menuService.getMenuTree();
+
+        assertThat(tree).hasSize(1);
+        Map<String, Object> parentNode = tree.get(0);
+        @SuppressWarnings("unchecked")
+        List<String> unionList = (List<String>) parentNode.get("requiredRoles");
+
+        assertThat(unionList).contains("ROLE_ADMIN", "ORG_ADMIN", "DATA_STEWARD");
     }
 
     @Test

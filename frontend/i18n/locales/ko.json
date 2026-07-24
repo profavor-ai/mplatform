@@ -1,15 +1,4 @@
 {
-  "roles": {
-    "ADMIN": "시스템 관리자",
-    "ROLE_ADMIN": "시스템 관리자",
-    "ORG_ADMIN": "조직 관리자",
-    "DATA_STEWARD": "데이터 스튜어드",
-    "DOMAIN_EDITOR": "도메인 편집자",
-    "DQ_MANAGER": "데이터 품질 관리자",
-    "VIEWER": "조회자",
-    "USER": "일반 사용자",
-    "ROLE_USER": "일반 사용자"
-  },
   "welcome": "환영합니다",
   "delete_dept": "부서/조직 삭제",
   "edit_dept": "부서/조직 정보 수정",
@@ -17,6 +6,12 @@
   "add_subdept": "하위 부서 추가",
   "manage_members": "구성원 관리",
   "vuestic": {
+    "cancel": "취소",
+    "ok": "확인",
+    "confirm": "확인",
+    "save": "저장",
+    "close": "닫기",
+    "delete": "삭제",
     "noOptions": "선택 가능한 항목이 없습니다",
     "toggleDropdown": "드롭다운 토글",
     "sortColumnBy": "컬럼 정렬",
@@ -25,6 +20,12 @@
     "search": "검색",
     "progressState": "진행 상태"
   },
+  "vuestic.cancel": "취소",
+  "vuestic.ok": "확인",
+  "vuestic.confirm": "확인",
+  "vuestic.save": "저장",
+  "vuestic.close": "닫기",
+  "vuestic.delete": "삭제",
   "vuestic.toggleDropdown": "드롭다운 토글",
   "vuestic.sortColumnBy": "컬럼 정렬",
   "vuestic.noOptions": "선택 가능한 항목이 없습니다",

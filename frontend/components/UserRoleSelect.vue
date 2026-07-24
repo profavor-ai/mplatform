@@ -87,18 +87,19 @@ const getLabel = (key, fallback) => {
   return (!res || res === key) ? fallback : res
 }
 
-const { fetchRolesForOrg, formatRoleText, getUserOrgId } = useRoles()
+const { fetchRolesForOrg, formatRoleText, getUserOrgId, initGlobalRoles } = useRoles()
 
 const localRoleList = ref([])
 const tempSelectedRole = ref(null)
 
 const loadRoles = async () => {
+  await initGlobalRoles()
   const targetOrgId = props.orgId || getUserOrgId()
   localRoleList.value = await fetchRolesForOrg(targetOrgId)
 }
 
-onMounted(() => {
-  loadRoles()
+onMounted(async () => {
+  await loadRoles()
 })
 
 watch(() => props.orgId, async (newOrgId) => {
@@ -135,7 +136,7 @@ const formattedOptions = computed(() => {
 const selectedRoleList = computed(() => {
   if (!props.modelValue) return []
   if (Array.isArray(props.modelValue)) {
-    return props.modelValue.filter(Boolean)
+    return props.modelValue.map(r => String(r).trim()).filter(Boolean)
   }
   if (typeof props.modelValue === 'string') {
     return props.modelValue.split(',').map(r => r.trim()).filter(Boolean)

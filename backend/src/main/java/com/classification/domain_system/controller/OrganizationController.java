@@ -104,6 +104,21 @@ public class OrganizationController {
     @PostMapping("/{orgId}/departments")
     public ResponseEntity<Department> createDepartment(@PathVariable UUID orgId, @RequestBody Department dept) {
         dept.setOrganizationId(orgId);
+        if (dept.getRoles() != null && !dept.getRoles().isEmpty()) {
+            java.util.Set<String> clean = dept.getRoles().stream()
+                    .filter(r -> r != null && !r.trim().isEmpty())
+                    .map(String::trim)
+                    .collect(java.util.stream.Collectors.toSet());
+            dept.setRoles(clean);
+            dept.setRole(String.join(",", clean));
+        } else if (dept.getRole() != null) {
+            java.util.Set<String> clean = java.util.Arrays.stream(dept.getRole().split(","))
+                    .filter(r -> !r.trim().isEmpty())
+                    .map(String::trim)
+                    .collect(java.util.stream.Collectors.toSet());
+            dept.setRoles(clean);
+            dept.setRole(String.join(",", clean));
+        }
         return ResponseEntity.ok(departmentRepository.save(dept));
     }
 
@@ -115,8 +130,24 @@ public class OrganizationController {
                     existing.setName(deptReq.getName());
                     existing.setDescription(deptReq.getDescription());
                     existing.setParentDepartmentId(deptReq.getParentDepartmentId());
-                    existing.setRole(deptReq.getRole());
                     existing.setIcon(deptReq.getIcon());
+                    if (deptReq.getRoles() != null) {
+                        java.util.Set<String> clean = deptReq.getRoles().stream()
+                                .filter(r -> r != null && !r.trim().isEmpty())
+                                .map(String::trim)
+                                .collect(java.util.stream.Collectors.toSet());
+                        existing.getRoles().clear();
+                        existing.getRoles().addAll(clean);
+                        existing.setRole(String.join(",", clean));
+                    } else if (deptReq.getRole() != null) {
+                        java.util.Set<String> clean = java.util.Arrays.stream(deptReq.getRole().split(","))
+                                .filter(r -> !r.trim().isEmpty())
+                                .map(String::trim)
+                                .collect(java.util.stream.Collectors.toSet());
+                        existing.getRoles().clear();
+                        existing.getRoles().addAll(clean);
+                        existing.setRole(String.join(",", clean));
+                    }
                     return ResponseEntity.ok(departmentRepository.save(existing));
                 })
                 .orElse(ResponseEntity.notFound().build());

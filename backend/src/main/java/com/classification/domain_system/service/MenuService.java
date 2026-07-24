@@ -39,13 +39,34 @@ public class MenuService {
                 node.put("path", menu.getPath());
                 node.put("icon", menu.getIcon());
                 node.put("sortOrder", menu.getSortOrder());
-                node.put("requiredRole", menu.getRequiredRole());
                 node.put("parentId", menu.getParentId());
                 node.put("isActive", menu.getIsActive());
+
+                Set<String> rolesSet = new LinkedHashSet<>();
+
+                // Legacy requiredRole (if present)
+                if (menu.getRequiredRole() != null && !menu.getRequiredRole().trim().isEmpty()) {
+                    for (String r : menu.getRequiredRole().split(",")) {
+                        if (!r.trim().isEmpty()) rolesSet.add(r.trim());
+                    }
+                }
+                // 1NF normalized menu_roles table rows
+                if (menu.getRequiredRoles() != null && !menu.getRequiredRoles().isEmpty()) {
+                    menu.getRequiredRoles().forEach(r -> {
+                        if (r != null && !r.trim().isEmpty()) rolesSet.add(r.trim());
+                    });
+                }
                 
                 List<Map<String, Object>> children = buildTree(allMenus, menu.getId());
                 if (!children.isEmpty()) {
                     node.put("children", children);
+                    Set<String> unionRoles = new LinkedHashSet<>();
+                    collectChildRoles(children, unionRoles);
+                    node.put("requiredRoles", new ArrayList<>(unionRoles));
+                    node.put("requiredRole", String.join(",", unionRoles));
+                } else {
+                    node.put("requiredRoles", new ArrayList<>(rolesSet));
+                    node.put("requiredRole", String.join(",", rolesSet));
                 }
                 result.add(node);
             }
@@ -53,8 +74,49 @@ public class MenuService {
         return result;
     }
 
+    private void collectChildRoles(List<Map<String, Object>> children, Set<String> unionRoles) {
+        for (Map<String, Object> child : children) {
+            Object rolesListObj = child.get("requiredRoles");
+            if (rolesListObj instanceof Collection<?>) {
+                for (Object item : (Collection<?>) rolesListObj) {
+                    if (item != null && !item.toString().trim().isEmpty()) {
+                        unionRoles.add(item.toString().trim());
+                    }
+                }
+            } else {
+                Object legacyObj = child.get("requiredRole");
+                if (legacyObj != null && !legacyObj.toString().trim().isEmpty()) {
+                    for (String r : legacyObj.toString().split(",")) {
+                        if (!r.trim().isEmpty()) unionRoles.add(r.trim());
+                    }
+                }
+            }
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> grandChildren = (List<Map<String, Object>>) child.get("children");
+            if (grandChildren != null && !grandChildren.isEmpty()) {
+                collectChildRoles(grandChildren, unionRoles);
+            }
+        }
+    }
+
     @Transactional
     public Menu createMenu(Menu menu) {
+        if (menu.getRequiredRoles() != null) {
+            Set<String> clean = menu.getRequiredRoles().stream()
+                    .filter(r -> r != null && !r.trim().isEmpty())
+                    .map(String::trim)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            menu.setRequiredRoles(clean);
+            menu.setRequiredRole(String.join(",", clean));
+        } else if (menu.getRequiredRole() != null) {
+            Set<String> clean = Arrays.stream(menu.getRequiredRole().split(","))
+                    .filter(r -> !r.trim().isEmpty())
+                    .map(String::trim)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            menu.setRequiredRoles(clean);
+            menu.setRequiredRole(String.join(",", clean));
+        }
         return menuRepository.save(menu);
     }
 
@@ -64,10 +126,29 @@ public class MenuService {
         if (menuDetails.getName() != null) menu.setName(menuDetails.getName());
         if (menuDetails.getPath() != null) menu.setPath(menuDetails.getPath());
         if (menuDetails.getIcon() != null) menu.setIcon(menuDetails.getIcon());
-        menu.setParentId(menuDetails.getParentId()); // Allow setting parentId to null for root menus
+        menu.setParentId(menuDetails.getParentId());
         if (menuDetails.getSortOrder() != null) menu.setSortOrder(menuDetails.getSortOrder());
-        if (menuDetails.getRequiredRole() != null) menu.setRequiredRole(menuDetails.getRequiredRole());
         if (menuDetails.getIsActive() != null) menu.setIsActive(menuDetails.getIsActive());
+
+        // Update 1NF normalized menu_roles table rows
+        if (menuDetails.getRequiredRoles() != null) {
+            Set<String> cleanRoles = menuDetails.getRequiredRoles().stream()
+                    .filter(r -> r != null && !r.trim().isEmpty())
+                    .map(String::trim)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            menu.getRequiredRoles().clear();
+            menu.getRequiredRoles().addAll(cleanRoles);
+            menu.setRequiredRole(String.join(",", cleanRoles));
+        } else if (menuDetails.getRequiredRole() != null) {
+            Set<String> cleanRoles = Arrays.stream(menuDetails.getRequiredRole().split(","))
+                    .filter(r -> !r.trim().isEmpty())
+                    .map(String::trim)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            menu.getRequiredRoles().clear();
+            menu.getRequiredRoles().addAll(cleanRoles);
+            menu.setRequiredRole(String.join(",", cleanRoles));
+        }
+
         return menuRepository.save(menu);
     }
 

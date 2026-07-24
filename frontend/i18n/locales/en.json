@@ -1,15 +1,4 @@
 {
-  "roles": {
-    "ADMIN": "System Administrator",
-    "ROLE_ADMIN": "System Administrator",
-    "ORG_ADMIN": "Organization Administrator",
-    "DATA_STEWARD": "Data Steward",
-    "DOMAIN_EDITOR": "Domain Editor",
-    "DQ_MANAGER": "DQ Manager",
-    "VIEWER": "Viewer",
-    "USER": "General User",
-    "ROLE_USER": "General User"
-  },
   "welcome": "Welcome",
   "delete_dept": "Delete Department",
   "edit_dept": "Edit Department",
@@ -17,6 +6,12 @@
   "add_subdept": "Add Sub-department",
   "manage_members": "Manage Members",
   "vuestic": {
+    "cancel": "Cancel",
+    "ok": "OK",
+    "confirm": "Confirm",
+    "save": "Save",
+    "close": "Close",
+    "delete": "Delete",
     "noOptions": "No options available",
     "toggleDropdown": "Toggle dropdown",
     "sortColumnBy": "Sort column by",
@@ -25,6 +20,12 @@
     "search": "Search",
     "progressState": "Progress State"
   },
+  "vuestic.cancel": "Cancel",
+  "vuestic.ok": "OK",
+  "vuestic.confirm": "Confirm",
+  "vuestic.save": "Save",
+  "vuestic.close": "Close",
+  "vuestic.delete": "Delete",
   "vuestic.toggleDropdown": "Toggle dropdown",
   "vuestic.sortColumnBy": "Sort column by",
   "vuestic.noOptions": "No options available",

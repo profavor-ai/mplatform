@@ -5,6 +5,8 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "menu")
@@ -29,8 +31,15 @@ public class Menu {
     @Column(name = "sort_order")
     private Integer sortOrder;
 
+    @Deprecated
     @Column(name = "required_role", length = 50)
-    private String requiredRole; // e.g. ADMIN, MANAGER
+    private String requiredRole; // Legacy fallback field
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "menu_roles", joinColumns = @JoinColumn(name = "menu_id"))
+    @Column(name = "role_name")
+    @Builder.Default
+    private Set<String> requiredRoles = new HashSet<>();
 
     @Column(name = "is_active")
     @Builder.Default

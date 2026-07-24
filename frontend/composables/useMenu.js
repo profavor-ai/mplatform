@@ -1,24 +1,36 @@
 import { ref } from 'vue'
+import { useCookie } from '#app'
 
 const menus = ref([])
+let fetchPromise = null
 
 export const useMenu = () => {
-  const fetchMenus = async () => {
-    try {
-      const token = useCookie('auth_token')
-      const response = await $fetch('/api/menus/tree', {
-        headers: token.value ? { Authorization: `Bearer ${token.value}` } : {}
-      })
-      menus.value = response || []
-    } catch (error) {
-      console.error('Failed to fetch menus:', error)
-      menus.value = []
+  const fetchMenus = async (forceRefresh = false) => {
+    if (fetchPromise && !forceRefresh) {
+      await fetchPromise
+      return menus.value
     }
+    fetchPromise = (async () => {
+      try {
+        const token = useCookie('auth_token')
+        const response = await $fetch('/api/menus/tree', {
+          headers: token.value ? { Authorization: `Bearer ${token.value}` } : {}
+        })
+        menus.value = response || []
+      } catch (error) {
+        console.error('Failed to fetch menus:', error)
+        menus.value = []
+        fetchPromise = null
+      }
+    })()
+    await fetchPromise
+    return menus.value
   }
+
+  const fetchMenuTree = fetchMenus
 
   const logAccess = async (menuPath) => {
     try {
-      // Find menuId based on path, if available in the current tree
       let menuId = null
       
       const findIdByPath = (items) => {
@@ -48,6 +60,7 @@ export const useMenu = () => {
   return {
     menus,
     fetchMenus,
+    fetchMenuTree,
     logAccess
   }
 }

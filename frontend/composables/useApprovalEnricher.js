@@ -54,19 +54,28 @@ export const useApprovalEnricher = () => {
     }
   }
 
+  const inFlightNodeRequests = {}
   const getFieldsForNode = async (nodeId) => {
     if (!nodeId) return []
     if (fieldSchemas.value[nodeId]) return fieldSchemas.value[nodeId]
-    try {
-      const fields = await $fetch(`/api/nodes/${nodeId}/fields/effective`, {
-        headers: { Authorization: `Bearer ${token.value}` }
-      })
-      fieldSchemas.value[nodeId] = fields
-      return fields
-    } catch (e) {
-      console.error(`Failed to fetch fields for node ${nodeId}`, e)
-      return []
-    }
+    if (inFlightNodeRequests[nodeId]) return await inFlightNodeRequests[nodeId]
+
+    inFlightNodeRequests[nodeId] = (async () => {
+      try {
+        const fields = await $fetch(`/api/nodes/${nodeId}/fields/effective`, {
+          headers: { Authorization: `Bearer ${token.value}` }
+        })
+        fieldSchemas.value[nodeId] = fields || []
+        return fieldSchemas.value[nodeId]
+      } catch (e) {
+        console.error(`Failed to fetch fields for node ${nodeId}`, e)
+        return []
+      } finally {
+        delete inFlightNodeRequests[nodeId]
+      }
+    })()
+
+    return await inFlightNodeRequests[nodeId]
   }
   
   const getTranslatedName = (nameObj) => {

@@ -49,8 +49,21 @@
                 </div>
               </div>
               
-              <va-input v-model="selectedMenu.sortOrder" :label="$t('sort_order') || 'Sort Order (정렬 순서)'" type="number" class="mb-4 w-100" />
-              <UserRoleSelect v-model="selectedMenuRoles" :label="$t('required_roles') || 'Required Roles (Multiple)'" class="mb-4 w-100" multiple clearable include-role-prefix />
+              <div class="mb-4 w-100">
+                <UserRoleSelect
+                  v-model="selectedMenuRoles"
+                  :label="$t('required_roles') || 'Required Roles (Multiple)'"
+                  class="w-100"
+                  multiple
+                  clearable
+                  include-role-prefix
+                  :disabled="selectedMenuHasChildren"
+                />
+                <div v-if="selectedMenuHasChildren" style="font-size: 0.78rem; color: #c2410c; margin-top: 0.35rem; display: flex; align-items: center; gap: 0.25rem; font-weight: 600;">
+                  <va-icon name="info" size="small" color="warning" />
+                  <span>하위 메뉴가 존재하여 하위 메뉴의 필요 역할들이 자동으로 합집합(Union)되어 적용됩니다 (수동 변경 불가).</span>
+                </div>
+              </div>
               
               <div class="d-flex justify-end mt-4">
                 <va-button @click="saveMenu">{{ $t('save_changes') || 'Save Changes' }}</va-button>
@@ -163,10 +176,27 @@ const parseMenuName = (name) => {
 }
 
 const selectedMenuRoles = computed({
-  get: () => selectedMenu.value && selectedMenu.value.requiredRole ? selectedMenu.value.requiredRole.split(',') : [],
+  get: () => {
+    if (!selectedMenu.value) return []
+    if (Array.isArray(selectedMenu.value.requiredRoles) && selectedMenu.value.requiredRoles.length > 0) {
+      return selectedMenu.value.requiredRoles
+    }
+    if (selectedMenu.value.requiredRole) {
+      return selectedMenu.value.requiredRole.split(',').map(r => r.trim()).filter(Boolean)
+    }
+    return []
+  },
   set: (val) => {
-    if (selectedMenu.value) selectedMenu.value.requiredRole = (val || []).join(',')
+    if (selectedMenu.value) {
+      const arr = (val || []).map(r => String(r).trim()).filter(Boolean)
+      selectedMenu.value.requiredRoles = arr
+      selectedMenu.value.requiredRole = arr.join(',')
+    }
   }
+})
+
+const selectedMenuHasChildren = computed(() => {
+  return !!(selectedMenu.value && selectedMenu.value.children && selectedMenu.value.children.length > 0)
 })
 
 const newMenuRoles = computed({
@@ -285,7 +315,10 @@ const deleteMenu = async (id) => {
   }
 }
 
+const { initGlobalRoles } = useRoles()
+
 onMounted(async () => {
+  await initGlobalRoles()
   await fetchMenus()
 })
 </script>

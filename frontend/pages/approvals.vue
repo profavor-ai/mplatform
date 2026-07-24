@@ -1493,6 +1493,7 @@ const handleAction = async (stepId, action, isBulk = false) => {
   }
 }
 
+const loadedEffectiveNodes = new Set();
 const loadFieldNamesForRecord = async (targetId, nodeId = null) => {
   try {
     let effectiveNodeId = nodeId;
@@ -1500,7 +1501,8 @@ const loadFieldNamesForRecord = async (targetId, nodeId = null) => {
       const record = await $fetch(`/api/records/${targetId}`, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => null);
       effectiveNodeId = record?.node?.id || record?.nodeId;
     }
-    if (effectiveNodeId) {
+    if (effectiveNodeId && !loadedEffectiveNodes.has(effectiveNodeId)) {
+      loadedEffectiveNodes.add(effectiveNodeId);
       const fields = await $fetch(`/api/nodes/${effectiveNodeId}/fields/effective`, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => []);
       if (fields && fields.length > 0) {
         fields.forEach(f => {

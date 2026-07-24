@@ -13,8 +13,9 @@ export interface RoleInfo {
 
 // Cache role lists by organization ID
 const orgRolesMap = ref<Record<string, RoleInfo[]>>({})
-// Global role lookup map for code -> RoleInfo
+// Global role lookup map for code -> RoleInfo (fetched purely from DB)
 const globalRoleLookupMap = ref<Record<string, RoleInfo>>({})
+let globalRolesPromise: Promise<void> | null = null
 
 export function useRoles() {
   const token = useCookie('auth_token')
@@ -30,9 +31,45 @@ export function useRoles() {
     }
   }
 
+  // Purely fetch all roles from DB using async/await Promise caching (NO HARDCODING)
+  const initGlobalRoles = async (forceRefresh = false): Promise<void> => {
+    if (globalRolesPromise && !forceRefresh) {
+      await globalRolesPromise
+      return
+    }
+
+    globalRolesPromise = (async () => {
+      try {
+        const headers = token.value ? { Authorization: `Bearer ${token.value}` } : {}
+        const list = await $fetch<RoleInfo[]>('/api/roles', { headers })
+        if (Array.isArray(list)) {
+          const newMap: Record<string, RoleInfo> = {}
+          list.forEach(r => {
+            if (r && r.name) {
+              newMap[r.name] = r
+              const clean = r.name.startsWith('ROLE_') ? r.name.replace('ROLE_', '') : r.name
+              const prefixed = r.name.startsWith('ROLE_') ? r.name : `ROLE_${r.name}`
+              newMap[clean] = r
+              newMap[prefixed] = r
+            }
+          })
+          globalRoleLookupMap.value = newMap
+        }
+      } catch (e) {
+        console.error('Failed to fetch roles from DB:', e)
+        globalRolesPromise = null
+      }
+    })()
+
+    await globalRolesPromise
+  }
+
   const fetchRolesForOrg = async (orgId?: string | null, forceRefresh = false): Promise<RoleInfo[]> => {
     const targetOrgId = orgId || getUserOrgId()
     const cacheKey = targetOrgId || 'GLOBAL'
+
+    // Always await DB global roles fetch first
+    await initGlobalRoles(forceRefresh)
 
     if (!forceRefresh && orgRolesMap.value[cacheKey]) {
       return orgRolesMap.value[cacheKey]
@@ -48,6 +85,10 @@ export function useRoles() {
         list.forEach(r => {
           if (r && r.name) {
             globalRoleLookupMap.value[r.name] = r
+            const clean = r.name.startsWith('ROLE_') ? r.name.replace('ROLE_', '') : r.name
+            const prefixed = r.name.startsWith('ROLE_') ? r.name : `ROLE_${r.name}`
+            globalRoleLookupMap.value[clean] = r
+            globalRoleLookupMap.value[prefixed] = r
           }
         })
         return list
@@ -59,30 +100,35 @@ export function useRoles() {
     return orgRolesMap.value[cacheKey] || []
   }
 
+  // Pure DB lookup only - NO hardcoding
   const getRoleDisplayName = (code: string): string => {
     if (!code) return ''
-    const cleanCode = code.startsWith('ROLE_') ? code.replace('ROLE_', '') : code
+    const cleanInput = code.trim()
+    const cleanCode = cleanInput.startsWith('ROLE_') ? cleanInput.replace('ROLE_', '') : cleanInput
 
-    const role = globalRoleLookupMap.value[code] || globalRoleLookupMap.value[cleanCode]
+    const role = globalRoleLookupMap.value[cleanInput] || globalRoleLookupMap.value[cleanCode]
     if (role && role.displayName) {
-      return getMultilingualText(role.displayName)
+      const text = getMultilingualText(role.displayName)
+      if (text) return text
     }
-    return code
+    return cleanInput
   }
 
   const formatRoleText = (code: string): string => {
     if (!code) return ''
-    const rawDisp = getRoleDisplayName(code)
+    const cleanInput = code.trim()
+    const rawDisp = getRoleDisplayName(cleanInput)
     const disp = getMultilingualText(rawDisp)
-    if (disp && disp !== code && !disp.startsWith(code)) {
-      return `${code} (${disp})`
+    if (disp && disp !== cleanInput && !disp.startsWith(cleanInput)) {
+      return `${cleanInput} (${disp})`
     }
-    return disp || code
+    return disp || cleanInput
   }
 
   return {
     orgRolesMap,
     globalRoleLookupMap,
+    initGlobalRoles,
     fetchRolesForOrg,
     getRoleDisplayName,
     formatRoleText,
