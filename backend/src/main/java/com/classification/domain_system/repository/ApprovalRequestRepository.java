@@ -10,9 +10,19 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import java.util.Optional;
+
 @Repository
 public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest, UUID>, JpaSpecificationExecutor<ApprovalRequest> {
     Page<ApprovalRequest> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
     Page<ApprovalRequest> findByRequesterIdOrderByCreatedAtDesc(UUID requesterId, Pageable pageable);
     List<ApprovalRequest> findByTargetIdAndStatus(UUID targetId, String status);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM ApprovalRequest a WHERE a.id = :id")
+    Optional<ApprovalRequest> findByIdWithLock(@Param("id") UUID id);
 }

@@ -9,12 +9,56 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.classification.domain_system.exception.BusinessException;
+import com.classification.domain_system.exception.ErrorCode;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
+import java.util.Collections;
+
 @RestController
 @RequestMapping("/api/workflow-configs")
 @RequiredArgsConstructor
 public class WorkflowConfigController {
 
     private final WorkflowConfigRepository repository;
+    private final ObjectMapper mapper = new ObjectMapper();
+
+    private void validateWorkflowConfig(WorkflowConfig config) {
+        if (config == null || config.getStepsConfig() == null || config.getStepsConfig().isBlank()) {
+            return;
+        }
+        try {
+            JsonNode root = mapper.readTree(config.getStepsConfig());
+            if (root.has("steps") && root.get("steps").isArray() && root.get("steps").size() > 0) {
+                List<Integer> orders = new ArrayList<>();
+                for (JsonNode stepNode : root.get("steps")) {
+                    if (stepNode.has("stepOrder")) {
+                        orders.add(stepNode.get("stepOrder").asInt());
+                    }
+                }
+                Collections.sort(orders);
+                if (orders.isEmpty() || orders.get(0) != 1) {
+                    throw new BusinessException(
+                            ErrorCode.INVALID_WORKFLOW_CONFIG,
+                            "Step orders must start at 1");
+                }
+                for (int i = 0; i < orders.size(); i++) {
+                    if (orders.get(i) != i + 1) {
+                        throw new BusinessException(
+                                ErrorCode.INVALID_WORKFLOW_CONFIG,
+                                "Step orders must be contiguous with no gaps");
+                    }
+                }
+            }
+        } catch (BusinessException be) {
+            throw be;
+        } catch (Exception e) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_WORKFLOW_CONFIG,
+                    "Invalid stepsConfig JSON format");
+        }
+    }
 
     @GetMapping("/domain/{domainId}")
     public ResponseEntity<List<WorkflowConfig>> getByDomain(@PathVariable UUID domainId) {
@@ -34,6 +78,7 @@ public class WorkflowConfigController {
     @PostMapping("/domain/{domainId}")
     @Transactional
     public ResponseEntity<List<WorkflowConfig>> saveForDomain(@PathVariable UUID domainId, @RequestBody List<WorkflowConfig> configs) {
+        configs.forEach(this::validateWorkflowConfig);
         List<WorkflowConfig> existing = repository.findByDomainId(domainId).stream().filter(c -> c.getNodeId() == null).toList();
         repository.deleteAll(existing);
         
@@ -48,6 +93,7 @@ public class WorkflowConfigController {
     @PostMapping("/node/{nodeId}")
     @Transactional
     public ResponseEntity<List<WorkflowConfig>> saveForNode(@PathVariable UUID nodeId, @RequestBody List<WorkflowConfig> configs) {
+        configs.forEach(this::validateWorkflowConfig);
         List<WorkflowConfig> existing = repository.findByNodeId(nodeId);
         repository.deleteAll(existing);
         

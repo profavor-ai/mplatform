@@ -48,6 +48,9 @@ class ApprovalControllerTest {
     @MockitoBean
     private PermissionService permissionService;
 
+    @MockitoBean
+    private com.classification.domain_system.context.AuthContext authContext;
+
     private UUID nodeId;
     private UUID stepId;
     private UUID approverId;
@@ -57,6 +60,7 @@ class ApprovalControllerTest {
         nodeId = UUID.randomUUID();
         stepId = UUID.randomUUID();
         approverId = UUID.randomUUID();
+        when(authContext.getUserId()).thenReturn(approverId.toString());
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -112,7 +116,7 @@ class ApprovalControllerTest {
     class ApproveStep {
 
         @Test
-        @DisplayName("payload에 comment 포함 시 comment 전달되어 승인 성공")
+        @DisplayName("payload에 comment 포함 시 AuthContext의 userId로 승인 성공")
         void withComment_Success() throws Exception {
             ApprovalRequest approvalRequest = new ApprovalRequest();
             approvalRequest.setId(UUID.randomUUID());
@@ -122,7 +126,6 @@ class ApprovalControllerTest {
                     .thenReturn(approvalRequest);
 
             mockMvc.perform(post("/api/approval-requests/steps/{stepId}/approve", stepId)
-                    .param("approverId", approverId.toString())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"comment\":\"승인합니다\"}"))
                     .andExpect(status().isOk())
@@ -130,25 +133,34 @@ class ApprovalControllerTest {
         }
 
         @Test
-        @DisplayName("payload가 null이어도 comment=null로 정상 처리")
-        void withoutPayload_NullComment_Success() throws Exception {
+        @DisplayName("spoofed approverId 파라미터가 전달되어도 무시되고 AuthContext의 userId가 사용됨")
+        void withSpoofedParam_UsesAuthContext() throws Exception {
             ApprovalRequest approvalRequest = new ApprovalRequest();
             approvalRequest.setId(UUID.randomUUID());
             approvalRequest.setStatus("APPROVED");
 
+            UUID spoofedId = UUID.randomUUID();
             when(approvalService.approveStep(eq(stepId), eq(approverId), isNull()))
                     .thenReturn(approvalRequest);
 
             mockMvc.perform(post("/api/approval-requests/steps/{stepId}/approve", stepId)
-                    .param("approverId", approverId.toString()))
+                    .param("approverId", spoofedId.toString()))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("APPROVED"));
+
+            verify(approvalService).approveStep(eq(stepId), eq(approverId), isNull());
+        }
+
+        @Test
+        @DisplayName("AuthContext에 userId가 없으면 거부됨")
+        void withoutAuthContextUserId_Fails() throws Exception {
+            when(authContext.getUserId()).thenReturn(null);
+
+            mockMvc.perform(post("/api/approval-requests/steps/{stepId}/approve", stepId))
+                    .andExpect(status().isForbidden());
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // rejectStep 테스트
-    // ─────────────────────────────────────────────────────────────────
     @Nested
     @DisplayName("rejectStep")
     class RejectStep {
@@ -164,7 +176,6 @@ class ApprovalControllerTest {
                     .thenReturn(approvalRequest);
 
             mockMvc.perform(post("/api/approval-requests/steps/{stepId}/reject", stepId)
-                    .param("approverId", approverId.toString())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"comment\":\"반려 사유\"}"))
                     .andExpect(status().isOk())

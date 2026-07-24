@@ -19,6 +19,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
+import com.classification.domain_system.service.CalculatedFieldEvaluator;
+import com.classification.domain_system.service.RecordHistoryWriter;
+import java.util.Optional;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+
 @ExtendWith(MockitoExtension.class)
 class ApprovalEventListenerTest {
 
@@ -27,6 +33,8 @@ class ApprovalEventListenerTest {
     @Mock private RecordRepository recordRepository;
     @Mock private RecordHistoryRepository recordHistoryRepository;
     @Mock private FieldDefinitionService fieldDefinitionService;
+    @Mock private CalculatedFieldEvaluator calculatedFieldEvaluator;
+    @Mock private RecordHistoryWriter recordHistoryWriter;
 
     @InjectMocks
     private ApprovalEventListener eventListener;
@@ -114,6 +122,7 @@ class ApprovalEventListenerTest {
         step2.setStatus("WAITING");
 
         approval.setSteps(new ArrayList<>(List.of(step1, step2)));
+        when(approvalRepository.findByIdWithLock(eq(approval.getId()))).thenReturn(Optional.of(approval));
 
         // when
         eventListener.onApprovalStepApproved(new ApprovalStepApprovedEvent(approval, step1));
@@ -122,5 +131,26 @@ class ApprovalEventListenerTest {
         assertThat(step2.getStatus()).isEqualTo("PENDING");
         assertThat(approval.getStatus()).isEqualTo("PENDING");
         assertThat(approval.getCurrentStepOrder()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("동시성 - OptimisticLockException 발생 시 또 다른 스레드가 이미 처리한 것으로 간주하여 예외 없이 종료")
+    void handleOptimisticLockExceptionGracefully() {
+        // given
+        ApprovalRequest approval = new ApprovalRequest();
+        approval.setId(UUID.randomUUID());
+        approval.setStatus("PENDING");
+        approval.setCurrentStepOrder(1);
+
+        ApprovalStep step1 = new ApprovalStep();
+        step1.setApprovalRequest(approval);
+        step1.setStepOrder(1);
+        step1.setStatus("APPROVED");
+
+        when(approvalRepository.findByIdWithLock(eq(approval.getId())))
+                .thenThrow(new org.springframework.orm.ObjectOptimisticLockingFailureException("Concurrent update", new Throwable()));
+
+        // when & then (no exception thrown)
+        eventListener.onApprovalStepApproved(new ApprovalStepApprovedEvent(approval, step1));
     }
 }

@@ -1,6 +1,8 @@
 package com.classification.domain_system.security;
 
+import com.classification.domain_system.context.AuthContext;
 import com.classification.domain_system.service.PermissionService;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,6 +25,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final PermissionService permissionService;
+    private final AuthContext authContext;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -51,7 +54,14 @@ public class JwtFilter extends OncePerRequestFilter {
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             if (jwtUtil.isTokenValid(jwt)) {
-                String roleStr = jwtUtil.extractAllClaims(jwt).get("role", String.class);
+                Claims claims = jwtUtil.extractAllClaims(jwt);
+                String roleStr = claims.get("role", String.class);
+                String userId = claims.get("userId", String.class);
+                if (userId == null) {
+                    userId = claims.get("uuid", String.class);
+                }
+                authContext.setUserId(userId != null ? userId : username);
+
                 Collection<GrantedAuthority> authorities = permissionService.getAuthoritiesForUser(username, roleStr);
 
                 UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(

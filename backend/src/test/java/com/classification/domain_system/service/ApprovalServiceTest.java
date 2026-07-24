@@ -47,9 +47,17 @@ class ApprovalServiceTest extends BaseServiceTest {
     @Mock private MatchingService matchingService;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private FieldDefinitionRepository fieldDefinitionRepository;
+    @Mock private CalculatedFieldEvaluator calculatedFieldEvaluator;
+    @Mock private RecordHistoryWriter recordHistoryWriter;
 
     @InjectMocks
     private ApprovalService approvalService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        given(calculatedFieldEvaluator.recomputeCalculatedFields(any(), any()))
+                .willAnswer(invocation -> invocation.getArgument(1));
+    }
 
     private RecordRequest createRecordRequest(String data, UUID requesterId) {
         RecordRequest req = new RecordRequest();

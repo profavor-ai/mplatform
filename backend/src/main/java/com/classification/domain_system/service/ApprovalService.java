@@ -54,178 +54,34 @@ public class ApprovalService {
     private final UserRepository userRepository;
     private final com.classification.domain_system.repository.DomainRepository domainRepository;
     private final com.classification.domain_system.repository.FieldDefinitionRepository fieldDefinitionRepository;
-    
-    private void logHistory(Record record, String changeType, UUID changedBy, String prevData, String newData, UUID approvalRequestId) {
-        RecordHistory history = new RecordHistory();
-        history.setRecordId(record.getId());
-        history.setChangeType(changeType);
-        history.setChangedBy(changedBy);
-        history.setPreviousData(prevData);
-        history.setNewData(newData);
-        history.setApprovalRequestId(approvalRequestId);
-        history.setVersion(record.getVersion());
-        history.setSourceSystem(record.getSourceSystem());
-        recordHistoryRepository.save(history);
+    private final CalculatedFieldEvaluator calculatedFieldEvaluator;
+    private final RecordHistoryWriter recordHistoryWriter;
+
+    private static final java.util.Set<String> ALLOWED_FILTER_KEYS = java.util.Set.of(
+            "domainName", "classificationName", "requesterId", "changes", "summary",
+            "status", "targetType", "targetId", "id", "currentStepOrder", "createdAt", "updatedAt"
+    );
+
+    private String recomputeCalculatedFields(UUID nodeId, String dataJson) {
+        return calculatedFieldEvaluator.recomputeCalculatedFields(nodeId, dataJson);
     }
 
-    /**
-     * Recompute all CALCULATED field values in the data JSON based on field definitions.
-     * This ensures calculated fields are always up-to-date when source fields change.
-     */
-    private String recomputeCalculatedFields(UUID nodeId, String dataJson) {
-        if (dataJson == null || dataJson.isBlank()) return dataJson;
-        try {
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            Map<String, Object> data = mapper.readValue(dataJson, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
-            
-            List<FieldDefinition> fields = fieldDefinitionService.getEffectiveFields(nodeId);
-            
-            for (FieldDefinition field : fields) {
-                if ("CALCULATED".equals(field.getType()) && field.getOptions() != null) {
-                    try {
-                        com.fasterxml.jackson.databind.JsonNode opts = mapper.readTree(field.getOptions());
-                        if (opts.has("formula")) {
-                            String formula = opts.get("formula").asText();
-                            Double result = evaluateFormula(formula, data);
-                            if (result != null && !result.isNaN() && !result.isInfinite()) {
-                                data.put(field.getKey(), result);
-                            }
-                        }
-                    } catch (Exception e) {
-                        // Skip individual field errors
-                    }
-                }
-            }
-            
-            return mapper.writeValueAsString(data);
-        } catch (Exception e) {
-            return dataJson;
-        }
+    private void logHistory(Record record, String changeType, UUID changedBy, String prevData, String newData, UUID approvalRequestId) {
+        recordHistoryWriter.logHistory(record, changeType, changedBy, prevData, newData, approvalRequestId);
     }
-    
-    /**
-     * Evaluate a formula string like "${PER} * ${PBR}" using data values.
-     */
-    private Double evaluateFormula(String formula, Map<String, Object> data) {
-        try {
-            Pattern pattern = Pattern.compile("\\$\\{([^}]+)}");
-            Matcher matcher = pattern.matcher(formula);
-            StringBuilder sb = new StringBuilder();
-            while (matcher.find()) {
-                String key = matcher.group(1);
-                Object val = data.get(key);
-                double numVal = 0;
-                if (val instanceof Number) {
-                    numVal = ((Number) val).doubleValue();
-                } else if (val != null) {
-                    try { numVal = Double.parseDouble(val.toString()); } catch (Exception e) { numVal = 0; }
-                }
-                matcher.appendReplacement(sb, String.valueOf(numVal));
-            }
-            matcher.appendTail(sb);
-            
-            return evalExpr(sb.toString().trim());
-        } catch (Exception e) {
-            return null;
+
+    private void revertRecordStatusOnRejection(ApprovalRequest approval) {
+        if ("RECORD".equals(approval.getTargetType())) {
+            Record record = recordRepository.findById(approval.getTargetId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Record not found"));
+            record.setStatus("REJECTED");
+            recordRepository.saveAndFlush(record);
+        } else if ("RECORD_UPDATE".equals(approval.getTargetType()) || "RECORD_DELETE".equals(approval.getTargetType())) {
+            Record record = recordRepository.findById(approval.getTargetId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Record not found"));
+            record.setStatus("ACTIVE");
+            recordRepository.saveAndFlush(record);
         }
-    }
-    
-    // Simple recursive-descent math expression evaluator (+, -, *, /, parentheses)
-    private double evalExpr(String expr) {
-        return new Object() {
-            int pos = 0;
-            
-            double parse() {
-                double result = parseAddSub();
-                return result;
-            }
-            
-            double parseAddSub() {
-                double left = parseMulDiv();
-                while (pos < expr.length()) {
-                    char op = expr.charAt(pos);
-                    if (op == '+' || op == '-') {
-                        pos++;
-                        double right = parseMulDiv();
-                        left = op == '+' ? left + right : left - right;
-                    } else break;
-                }
-                return left;
-            }
-            
-            double parseMulDiv() {
-                double left = parseUnary();
-                while (pos < expr.length()) {
-                    char op = expr.charAt(pos);
-                    if (op == '*' || op == '/') {
-                        pos++;
-                        double right = parseUnary();
-                        left = op == '*' ? left * right : left / right;
-                    } else break;
-                }
-                return left;
-            }
-            
-            double parseUnary() {
-                skipSpaces();
-                if (pos < expr.length() && expr.charAt(pos) == '-') {
-                    pos++;
-                    return -parseUnary();
-                }
-                return parsePrimary();
-            }
-            
-            double parsePrimary() {
-                skipSpaces();
-                // Handle math functions: CEIL, FLOOR, ROUND, ABS
-                for (String fn : new String[]{"CEIL", "FLOOR", "ROUND", "ABS"}) {
-                    if (pos + fn.length() <= expr.length() && expr.substring(pos, pos + fn.length()).equals(fn)) {
-                        pos += fn.length();
-                        skipSpaces();
-                        if (pos < expr.length() && expr.charAt(pos) == '(') {
-                            pos++; // skip '('
-                            double val = parseAddSub();
-                            // Check for optional second argument (for ROUND)
-                            double decimals = 0;
-                            skipSpaces();
-                            if (pos < expr.length() && expr.charAt(pos) == ',') {
-                                pos++; // skip ','
-                                decimals = parseAddSub();
-                            }
-                            skipSpaces();
-                            if (pos < expr.length() && expr.charAt(pos) == ')') pos++; // skip ')'
-                            switch (fn) {
-                                case "CEIL": return Math.ceil(val);
-                                case "FLOOR": return Math.floor(val);
-                                case "ABS": return Math.abs(val);
-                                case "ROUND": {
-                                    double factor = Math.pow(10, decimals);
-                                    return Math.round(val * factor) / factor;
-                                }
-                                default: return val;
-                            }
-                        }
-                    }
-                }
-                if (pos < expr.length() && expr.charAt(pos) == '(') {
-                    pos++; // skip '('
-                    double val = parseAddSub();
-                    skipSpaces();
-                    if (pos < expr.length() && expr.charAt(pos) == ')') pos++; // skip ')'
-                    return val;
-                }
-                int start = pos;
-                while (pos < expr.length() && (Character.isDigit(expr.charAt(pos)) || expr.charAt(pos) == '.')) {
-                    pos++;
-                }
-                if (start == pos) return 0;
-                return Double.parseDouble(expr.substring(start, pos));
-            }
-            
-            void skipSpaces() {
-                while (pos < expr.length() && expr.charAt(pos) == ' ') pos++;
-            }
-        }.parse();
     }
 
     private boolean isEffectiveConfig(WorkflowConfig config) {
@@ -531,17 +387,7 @@ public class ApprovalService {
         approval.setStatus("REJECTED");
         approvalRepository.saveAndFlush(approval);
         
-        if ("RECORD".equals(approval.getTargetType())) {
-            Record record = recordRepository.findById(approval.getTargetId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Record not found"));
-            record.setStatus("REJECTED");
-            recordRepository.saveAndFlush(record);
-        } else if ("RECORD_UPDATE".equals(approval.getTargetType()) || "RECORD_DELETE".equals(approval.getTargetType())) {
-            Record record = recordRepository.findById(approval.getTargetId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Record not found"));
-            record.setStatus("ACTIVE");
-            recordRepository.saveAndFlush(record);
-        }
+        revertRecordStatusOnRejection(approval);
         
         return approval;
     }
@@ -596,17 +442,7 @@ public class ApprovalService {
         approval.setStatus("REJECTED");
         approvalRepository.saveAndFlush(approval);
         
-        if ("RECORD".equals(approval.getTargetType())) {
-            Record record = recordRepository.findById(approval.getTargetId())
-                    .orElseThrow(() -> new RuntimeException("Record not found"));
-            record.setStatus("REJECTED");
-            recordRepository.saveAndFlush(record);
-        } else if ("RECORD_UPDATE".equals(approval.getTargetType()) || "RECORD_DELETE".equals(approval.getTargetType())) {
-            Record record = recordRepository.findById(approval.getTargetId())
-                    .orElseThrow(() -> new RuntimeException("Record not found"));
-            record.setStatus("ACTIVE");
-            recordRepository.saveAndFlush(record);
-        }
+        revertRecordStatusOnRejection(approval);
         
         return approval;
     }
@@ -643,6 +479,10 @@ public class ApprovalService {
                         Map.Entry<String, com.fasterxml.jackson.databind.JsonNode> fieldEntry = fields.next();
                         String fieldKey = fieldEntry.getKey();
                         com.fasterxml.jackson.databind.JsonNode filterInfo = fieldEntry.getValue();
+                        
+                        if (!ALLOWED_FILTER_KEYS.contains(fieldKey)) {
+                            throw new BusinessException(ErrorCode.INVALID_INPUT, "Filter key not allowed: " + fieldKey);
+                        }
                         
                         if (filterInfo.has("filterType")) {
                             String filterType = filterInfo.get("filterType").asText();
@@ -734,6 +574,8 @@ public class ApprovalService {
                             }
                         }
                     }
+                } catch (BusinessException be) {
+                    throw be;
                 } catch (Exception e) {
                     log.error("Failed to process dynamic search predicate", e);
                 }
@@ -843,6 +685,6 @@ public class ApprovalService {
 
     @Transactional(readOnly = true)
     public ApprovalRequest getRequestById(UUID id) {
-        return approvalRepository.findById(id).orElseThrow(() -> new RuntimeException("ApprovalRequest not found"));
+        return approvalRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("ApprovalRequest not found"));
     }
 }

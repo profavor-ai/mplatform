@@ -16,12 +16,24 @@ import org.springframework.data.domain.PageRequest;
 import com.classification.domain_system.dto.PageResponse;
 import org.springframework.data.domain.Pageable;
 
+import com.classification.domain_system.context.AuthContext;
+import com.classification.domain_system.exception.CustomAccessDeniedException;
+
 @RestController
 @RequestMapping("/api/approval-requests")
 @RequiredArgsConstructor
 public class ApprovalController {
     
     private final ApprovalService approvalService;
+    private final AuthContext authContext;
+    
+    private UUID getAuthenticatedUserId() {
+        String userIdStr = authContext.getUserId();
+        if (userIdStr == null || userIdStr.isBlank()) {
+            throw new CustomAccessDeniedException("Unauthenticated user context");
+        }
+        return UUID.fromString(userIdStr);
+    }
     
     @GetMapping("/effective-workflow/{nodeId}")
     public ResponseEntity<Boolean> hasEffectiveWorkflow(@PathVariable UUID nodeId, @RequestParam String actionType) {
@@ -93,8 +105,8 @@ public class ApprovalController {
     @PostMapping("/steps/{stepId}/approve")
     public ResponseEntity<ApprovalRequest> approveStep(
             @PathVariable UUID stepId, 
-            @RequestParam UUID approverId,
             @RequestBody(required = false) Map<String, String> payload) {
+        UUID approverId = getAuthenticatedUserId();
         String comment = payload != null ? payload.get("comment") : null;
         return ResponseEntity.ok(approvalService.approveStep(stepId, approverId, comment));
     }
@@ -102,8 +114,8 @@ public class ApprovalController {
     @PostMapping("/steps/{stepId}/reject")
     public ResponseEntity<ApprovalRequest> rejectStep(
             @PathVariable UUID stepId, 
-            @RequestParam UUID approverId,
             @RequestBody(required = false) Map<String, String> payload) {
+        UUID approverId = getAuthenticatedUserId();
         String comment = payload != null ? payload.get("comment") : null;
         return ResponseEntity.ok(approvalService.rejectStep(stepId, approverId, comment));
     }
@@ -111,8 +123,8 @@ public class ApprovalController {
     @PostMapping("/steps/{stepId}/admin-approve")
     public ResponseEntity<ApprovalRequest> adminApproveStep(
             @PathVariable UUID stepId, 
-            @RequestParam UUID adminId,
             @RequestBody(required = false) Map<String, String> payload) {
+        UUID adminId = getAuthenticatedUserId();
         String comment = payload != null ? payload.get("comment") : null;
         return ResponseEntity.ok(approvalService.adminApproveStep(stepId, adminId, comment));
     }
@@ -120,8 +132,8 @@ public class ApprovalController {
     @PostMapping("/steps/{stepId}/admin-reject")
     public ResponseEntity<ApprovalRequest> adminRejectStep(
             @PathVariable UUID stepId, 
-            @RequestParam UUID adminId,
             @RequestBody(required = false) Map<String, String> payload) {
+        UUID adminId = getAuthenticatedUserId();
         String comment = payload != null ? payload.get("comment") : null;
         return ResponseEntity.ok(approvalService.adminRejectStep(stepId, adminId, comment));
     }

@@ -44,6 +44,9 @@ public class ApprovalStep {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Version
+    private Long version;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

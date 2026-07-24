@@ -17,10 +17,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+import com.classification.domain_system.context.AuthContext;
+
 class JwtFilterTest {
 
     private JwtUtil jwtUtil;
     private PermissionService permissionService;
+    private AuthContext authContext;
     private JwtFilter jwtFilter;
     private HttpServletRequest request;
     private HttpServletResponse response;
@@ -32,13 +35,15 @@ class JwtFilterTest {
         jwtUtil = new JwtUtil();
         String testSecret = "test_secret_key_for_jwt_which_must_be_at_least_256_bits_long_for_hs256";
         ReflectionTestUtils.setField(jwtUtil, "secret", testSecret);
+        ReflectionTestUtils.setField(jwtUtil, "accessTokenExpirationSec", 1800L);
         jwtUtil.init();
 
         permissionService = mock(PermissionService.class);
         when(permissionService.getAuthoritiesForUser(anyString(), anyString()))
                 .thenReturn(List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER")));
 
-        jwtFilter = new JwtFilter(jwtUtil, permissionService);
+        authContext = new AuthContext();
+        jwtFilter = new JwtFilter(jwtUtil, permissionService, authContext);
         request = mock(HttpServletRequest.class);
         response = mock(HttpServletResponse.class);
         filterChain = mock(FilterChain.class);
