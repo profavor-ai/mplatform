@@ -81,27 +81,22 @@ const formattedOptions = computed(() => {
 
   const result = []
   const seenCodes = new Set()
+  const seenTexts = new Set()
 
   localRoleList.value.forEach(role => {
     if (!role || !role.name) return
     const code = role.name
-    if (!seenCodes.has(code)) {
+    const normCode = code.startsWith('ROLE_') ? code.replace('ROLE_', '') : code
+    const textStr = formatRoleText(code)
+
+    if (!seenCodes.has(code) && !seenCodes.has(normCode) && !seenTexts.has(textStr)) {
       seenCodes.add(code)
+      seenCodes.add(normCode)
+      seenTexts.add(textStr)
       result.push({
         value: code,
-        text: formatRoleText(code)
+        text: textStr
       })
-    }
-
-    if (props.includeRolePrefix && !code.startsWith('ROLE_')) {
-      const prefixedCode = `ROLE_${code}`
-      if (!seenCodes.has(prefixedCode)) {
-        seenCodes.add(prefixedCode)
-        result.push({
-          value: prefixedCode,
-          text: formatRoleText(code)
-        })
-      }
     }
   })
 
