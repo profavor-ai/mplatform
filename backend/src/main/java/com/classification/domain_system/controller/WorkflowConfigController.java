@@ -16,6 +16,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.Collections;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/workflow-configs")
 @RequiredArgsConstructor
@@ -61,22 +63,26 @@ public class WorkflowConfigController {
     }
 
     @GetMapping("/domain/{domainId}")
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'workflow:read')")
     public ResponseEntity<List<WorkflowConfig>> getByDomain(@PathVariable UUID domainId) {
         return ResponseEntity.ok(repository.findByDomainId(domainId).stream().filter(c -> c.getNodeId() == null).toList());
     }
     
     @GetMapping("/domain/{domainId}/all")
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'workflow:read')")
     public ResponseEntity<List<WorkflowConfig>> getAllByDomain(@PathVariable UUID domainId) {
         return ResponseEntity.ok(repository.findByDomainId(domainId).stream().filter(c -> c.getNodeId() == null).toList());
     }
 
     @GetMapping("/node/{nodeId}")
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'workflow:read')")
     public ResponseEntity<List<WorkflowConfig>> getByNode(@PathVariable UUID nodeId) {
         return ResponseEntity.ok(repository.findByNodeId(nodeId));
     }
 
     @PostMapping("/domain/{domainId}")
     @Transactional
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'workflow:write')")
     public ResponseEntity<List<WorkflowConfig>> saveForDomain(@PathVariable UUID domainId, @RequestBody List<WorkflowConfig> configs) {
         configs.forEach(this::validateWorkflowConfig);
         List<WorkflowConfig> existing = repository.findByDomainId(domainId).stream().filter(c -> c.getNodeId() == null).toList();
@@ -92,6 +98,7 @@ public class WorkflowConfigController {
 
     @PostMapping("/node/{nodeId}")
     @Transactional
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'workflow:write')")
     public ResponseEntity<List<WorkflowConfig>> saveForNode(@PathVariable UUID nodeId, @RequestBody List<WorkflowConfig> configs) {
         configs.forEach(this::validateWorkflowConfig);
         List<WorkflowConfig> existing = repository.findByNodeId(nodeId);

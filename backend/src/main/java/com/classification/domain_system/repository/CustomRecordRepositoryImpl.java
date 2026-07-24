@@ -12,7 +12,6 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import java.math.BigInteger;
 
 @Repository
 public class CustomRecordRepositoryImpl implements CustomRecordRepository {

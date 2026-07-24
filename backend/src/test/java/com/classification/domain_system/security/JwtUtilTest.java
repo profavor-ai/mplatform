@@ -17,6 +17,7 @@ class JwtUtilTest {
     void setUp() {
         jwtUtil = new JwtUtil();
         ReflectionTestUtils.setField(jwtUtil, "secret", testSecret);
+        ReflectionTestUtils.setField(jwtUtil, "accessTokenExpirationSec", 1800L);
         jwtUtil.init();
     }
 

@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.*;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -20,6 +22,7 @@ public class AuthController {
     private final com.classification.domain_system.service.PermissionService permissionService;
 
     @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getCurrentUser(org.springframework.security.core.Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
             return ResponseEntity.status(401).body("Unauthenticated");
@@ -33,6 +36,7 @@ public class AuthController {
     }
 
     @GetMapping("/users")
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'user:read')")
     public ResponseEntity<?> getAllUsers() {
         String serverOffset = OffsetDateTime.now().getOffset().getId();
         return ResponseEntity.ok(userRepository.findAll().stream()
@@ -90,21 +94,18 @@ public class AuthController {
     }
 
     @GetMapping("/login-logs")
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'log:read')")
     public ResponseEntity<?> getLoginLogs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             org.springframework.security.core.Authentication authentication) {
-        
-        if (authentication == null || !authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ADMIN"))) {
-            return ResponseEntity.status(403).body("Access denied. Admin role required.");
-        }
         
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "loginAt"));
         return ResponseEntity.ok(authService.getLoginLogs(pageable));
     }
 
     @PostMapping("/register")
+    @PreAuthorize("hasPermission(null, 'admin:write')")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         try {
             authService.register(request.getUsername(), request.getPassword(), request.getRole());

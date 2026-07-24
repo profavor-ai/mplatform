@@ -271,11 +271,11 @@ class FieldDefinitionServiceTest {
         }
 
         @Test
-        @DisplayName("존재하지 않는 nodeId 요청 시 RuntimeException 발생")
+        @DisplayName("존재하지 않는 nodeId 요청 시 getEffectiveFieldsPage에서 RuntimeException 발생")
         void nodeNotFound_ThrowsException() {
             when(nodeRepository.findById(nodeId)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> fieldDefinitionService.getEffectiveFields(nodeId))
+            assertThatThrownBy(() -> fieldDefinitionService.getEffectiveFieldsPage(nodeId, org.springframework.data.domain.PageRequest.of(0, 10)))
                     .isInstanceOf(RuntimeException.class)
                     .hasMessageContaining("Node not found");
         }

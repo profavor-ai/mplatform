@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/admin/integration/logs")
 @RequiredArgsConstructor
@@ -19,6 +21,7 @@ public class IntegrationLogController {
     private final com.classification.domain_system.integration.IntegrationLogService logService;
 
     @GetMapping
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'log:read')")
     public Page<IntegrationLog> getLogs(
             @RequestParam(required = false) UUID channelId,
             @RequestParam(defaultValue = "0") int page,
@@ -31,11 +34,13 @@ public class IntegrationLogController {
     }
 
     @GetMapping("/by-record/{recordId}")
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'log:read')")
     public java.util.List<IntegrationLog> getLogsByRecordId(@PathVariable UUID recordId) {
         return repository.findByRecordIdOrderByCreatedAtDesc(recordId);
     }
 
     @PostMapping("/{logId}/retry")
+    @PreAuthorize("hasPermission(null, 'admin:write')")
     public org.springframework.http.ResponseEntity<Void> retryLog(@PathVariable UUID logId) {
         logService.retryLog(logId);
         return org.springframework.http.ResponseEntity.ok().build();

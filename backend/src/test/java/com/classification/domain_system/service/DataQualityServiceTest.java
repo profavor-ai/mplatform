@@ -43,7 +43,7 @@ class DataQualityServiceTest {
         nodeId = UUID.randomUUID();
         lenient().when(nodeRepository.findById(nodeId)).thenReturn(Optional.empty());
         // Default: engine returns empty result (no violations)
-        lenient().when(dqRuleEngine.evaluate(eq(nodeId), any()))
+        lenient().when(dqRuleEngine.evaluate(eq(nodeId), any(), any()))
                 .thenReturn(new DqEvaluationResult());
     }
 
@@ -192,7 +192,7 @@ class DataQualityServiceTest {
             DqEvaluationResult engineResult = new DqEvaluationResult();
             engineResult.addViolation("_json", "PARSE", "ERROR",
                     Map.of("en", "Invalid JSON format"), "NOT_JSON");
-            when(dqRuleEngine.evaluate(eq(nodeId), eq("NOT_JSON"))).thenReturn(engineResult);
+            when(dqRuleEngine.evaluate(eq(nodeId), eq("NOT_JSON"), any())).thenReturn(engineResult);
 
             DataQualityService.DQResult result = dataQualityService.validateData(nodeId, "NOT_JSON");
 
@@ -250,7 +250,7 @@ class DataQualityServiceTest {
             DqEvaluationResult engineResult = new DqEvaluationResult();
             engineResult.addViolation("email", "REGEX", "ERROR",
                     Map.of("en", "Invalid email format"), "bad-email");
-            when(dqRuleEngine.evaluate(eq(nodeId), any())).thenReturn(engineResult);
+            when(dqRuleEngine.evaluate(eq(nodeId), any(), any())).thenReturn(engineResult);
             when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of());
 
             DataQualityService.DQResult result = dataQualityService.validateData(nodeId, "{\"email\":\"bad-email\"}");
@@ -265,7 +265,7 @@ class DataQualityServiceTest {
             DqEvaluationResult engineResult = new DqEvaluationResult();
             engineResult.addViolation("nickname", "LENGTH", "WARNING",
                     Map.of("en", "Nickname is too short"), "ab");
-            when(dqRuleEngine.evaluate(eq(nodeId), any())).thenReturn(engineResult);
+            when(dqRuleEngine.evaluate(eq(nodeId), any(), any())).thenReturn(engineResult);
             when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of());
 
             DataQualityService.DQResult result = dataQualityService.validateData(nodeId, "{\"nickname\":\"ab\"}");

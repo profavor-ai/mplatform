@@ -68,6 +68,11 @@ public class SecurityConfig {
                     response.setContentType("application/json;charset=UTF-8");
                     response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"Authentication token expired or invalid\"}");
                 })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"error\":\"Forbidden\",\"message\":\"Access denied\"}");
+                })
             )
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 

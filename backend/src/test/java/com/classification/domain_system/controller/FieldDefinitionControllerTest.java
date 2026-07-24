@@ -43,6 +43,9 @@ class FieldDefinitionControllerTest {
     @MockitoBean
     private PermissionService permissionService;
 
+    @MockitoBean
+    private com.classification.domain_system.context.AuthContext authContext;
+
     @Test
     @DisplayName("addField - 올바른 파라미터 전달 및 결과 반환")
     void addField_Success() throws Exception {

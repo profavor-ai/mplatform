@@ -35,6 +35,9 @@ class UserControllerTest {
     @MockitoBean
     private PermissionService permissionService;
 
+    @MockitoBean
+    private com.classification.domain_system.context.AuthContext authContext;
+
     @Test
     @DisplayName("getAllUsers - 전체 유저를 UserDto로 반환하는 서비스 호출")
     void getAllUsers_ReturnsMappedUserDtos() throws Exception {

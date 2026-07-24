@@ -17,6 +17,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/menus")
 @RequiredArgsConstructor
@@ -25,27 +27,32 @@ public class MenuController {
     private final MenuService menuService;
 
     @GetMapping("/tree")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Map<String, Object>>> getMenuTree() {
         return ResponseEntity.ok(menuService.getMenuTree());
     }
 
     @PostMapping
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'menu:write')")
     public ResponseEntity<Menu> createMenu(@RequestBody Menu menu) {
         return ResponseEntity.ok(menuService.createMenu(menu));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'menu:write')")
     public ResponseEntity<Menu> updateMenu(@PathVariable Long id, @RequestBody Menu menu) {
         return ResponseEntity.ok(menuService.updateMenu(id, menu));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'admin:delete') or hasPermission(null, 'menu:write')")
     public ResponseEntity<Void> deleteMenu(@PathVariable Long id) {
         menuService.deleteMenu(id);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/access")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> logAccess(@RequestBody Map<String, Object> payload, Authentication authentication, jakarta.servlet.http.HttpServletRequest request) {
         Long menuId = payload.get("menuId") != null ? Long.valueOf(payload.get("menuId").toString()) : null;
         String menuPath = (String) payload.get("menuPath");
@@ -74,6 +81,7 @@ public class MenuController {
     }
 
     @GetMapping("/logs")
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'log:read')")
     public ResponseEntity<Page<MenuAccessLog>> getAccessLogs(
             @RequestParam(required = false) String userId,
             @RequestParam(required = false) String menuPath,

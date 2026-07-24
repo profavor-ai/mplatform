@@ -27,6 +27,6 @@ class RoleInitializerTest {
 
         roleInitializer.createDefaultRolesForOrg(orgId);
 
-        verify(roleRepository, times(5)).save(any(Role.class));
+        verify(roleRepository, times(7)).save(any(Role.class));
     }
 }

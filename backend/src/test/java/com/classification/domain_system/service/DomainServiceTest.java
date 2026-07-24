@@ -89,6 +89,7 @@ class DomainServiceTest extends BaseServiceTest {
             
             given(auth.isAuthenticated()).willReturn(true);
             given(auth.getName()).willReturn("adminUser");
+            given(auth.getAuthorities()).willReturn((Collection) List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN")));
             
             com.classification.domain_system.entity.User admin = new com.classification.domain_system.entity.User();
             admin.setId(UUID.randomUUID().toString());
@@ -124,6 +125,7 @@ class DomainServiceTest extends BaseServiceTest {
             
             given(auth.isAuthenticated()).willReturn(true);
             given(auth.getName()).willReturn("profavor");
+            given(auth.getAuthorities()).willReturn((Collection) List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN")));
             
             com.classification.domain_system.entity.User multiRoleUser = new com.classification.domain_system.entity.User();
             multiRoleUser.setId(UUID.randomUUID().toString());

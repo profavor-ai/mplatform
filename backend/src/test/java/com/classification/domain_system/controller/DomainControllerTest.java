@@ -66,6 +66,9 @@ class DomainControllerTest {
     @MockitoBean
     private PermissionService permissionService;
 
+    @MockitoBean
+    private com.classification.domain_system.context.AuthContext authContext;
+
     private Domain createTestDomain(UUID id, String koName, String enName) {
         Domain domain = new Domain();
         domain.setId(id);

@@ -41,6 +41,9 @@ class PermissionMasterControllerTest {
     @MockitoBean
     private PermissionService permissionService;
 
+    @MockitoBean
+    private com.classification.domain_system.context.AuthContext authContext;
+
     @Test
     @DisplayName("getAllGroups - 전체 권한 그룹 조회 성공")
     void getAllGroups_Success() throws Exception {

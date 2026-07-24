@@ -26,6 +26,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/files")
 public class FileController {
@@ -66,6 +68,7 @@ public class FileController {
     }
 
     @PostMapping("/upload")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, String>> uploadFile(@RequestParam("file") MultipartFile file) {
         String originalFileName = file.getOriginalFilename();
         if (originalFileName == null) {
@@ -99,6 +102,7 @@ public class FileController {
     }
 
     @GetMapping("/download/{fileName:.+}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Resource> downloadFile(@PathVariable String fileName, @RequestParam(value = "name", required = false) String originalName) {
         try {
             Path filePath = this.fileStorageLocation.resolve(fileName).normalize();

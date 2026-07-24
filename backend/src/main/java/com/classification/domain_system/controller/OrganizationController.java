@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/organizations")
 public class OrganizationController {
@@ -39,11 +41,13 @@ public class OrganizationController {
     }
 
     @GetMapping
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'org:read')")
     public ResponseEntity<List<Organization>> getAllOrganizations() {
         return ResponseEntity.ok(organizationRepository.findAll());
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'org:read')")
     public ResponseEntity<Organization> getOrganization(@PathVariable UUID id) {
         return organizationRepository.findById(id)
                 .map(ResponseEntity::ok)
@@ -51,6 +55,7 @@ public class OrganizationController {
     }
 
     @PostMapping
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'org:write')")
     public ResponseEntity<Organization> createOrganization(@RequestBody Organization org) {
         Organization saved = organizationRepository.save(org);
         roleInitializer.createDefaultRolesForOrg(saved.getId());
@@ -59,6 +64,7 @@ public class OrganizationController {
 
     @PutMapping("/{id}")
     @org.springframework.transaction.annotation.Transactional
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'org:write')")
     public ResponseEntity<Organization> updateOrganization(@PathVariable UUID id, @RequestBody Organization req) {
         return organizationRepository.findById(id)
                 .map(existing -> {
@@ -72,6 +78,7 @@ public class OrganizationController {
 
     @DeleteMapping("/{id}")
     @org.springframework.transaction.annotation.Transactional
+    @PreAuthorize("hasPermission(null, 'admin:delete') or hasPermission(null, 'org:write')")
     public ResponseEntity<Void> deleteOrganization(@PathVariable UUID id) {
         return organizationRepository.findById(id)
                 .map(org -> {
@@ -97,11 +104,13 @@ public class OrganizationController {
     }
 
     @GetMapping("/{orgId}/departments")
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'org:read')")
     public ResponseEntity<List<Department>> getDepartments(@PathVariable UUID orgId) {
         return ResponseEntity.ok(departmentRepository.findByOrganizationId(orgId));
     }
 
     @PostMapping("/{orgId}/departments")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'org:write')")
     public ResponseEntity<Department> createDepartment(@PathVariable UUID orgId, @RequestBody Department dept) {
         dept.setOrganizationId(orgId);
         if (dept.getRoles() != null && !dept.getRoles().isEmpty()) {
@@ -124,6 +133,7 @@ public class OrganizationController {
 
     @PutMapping("/{orgId}/departments/{deptId}")
     @org.springframework.transaction.annotation.Transactional
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'org:write')")
     public ResponseEntity<Department> updateDepartment(@PathVariable UUID orgId, @PathVariable UUID deptId, @RequestBody Department deptReq) {
         return departmentRepository.findById(deptId)
                 .map(existing -> {
@@ -155,6 +165,7 @@ public class OrganizationController {
 
     @DeleteMapping("/{orgId}/departments/{deptId}")
     @org.springframework.transaction.annotation.Transactional
+    @PreAuthorize("hasPermission(null, 'admin:delete') or hasPermission(null, 'org:write')")
     public ResponseEntity<Void> deleteDepartment(@PathVariable UUID orgId, @PathVariable UUID deptId) {
         return departmentRepository.findById(deptId)
                 .map(dept -> {
@@ -178,11 +189,13 @@ public class OrganizationController {
     }
 
     @GetMapping("/{orgId}/teams")
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'org:read')")
     public ResponseEntity<List<Team>> getTeams(@PathVariable UUID orgId) {
         return ResponseEntity.ok(teamRepository.findByOrganizationId(orgId));
     }
 
     @PostMapping("/{orgId}/teams")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'org:write')")
     public ResponseEntity<Team> createTeam(@PathVariable UUID orgId, @RequestBody Team team) {
         team.setOrganizationId(orgId);
         return ResponseEntity.ok(teamRepository.save(team));

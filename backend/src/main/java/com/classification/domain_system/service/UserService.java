@@ -9,6 +9,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.classification.domain_system.dto.AdminUserUpdateDto;
+import com.classification.domain_system.dto.SelfUserUpdateDto;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -23,15 +26,36 @@ public class UserService {
     }
 
     @Transactional
-    public com.classification.domain_system.entity.User updateUserInfo(String userId, com.classification.domain_system.entity.User updateReq) {
+    public com.classification.domain_system.entity.User updateAdminUserInfo(String userId, AdminUserUpdateDto dto) {
         com.classification.domain_system.entity.User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
-        if (updateReq.getRole() != null) user.setRole(updateReq.getRole());
-        if (updateReq.getOrganizationId() != null) user.setOrganizationId(updateReq.getOrganizationId());
-        user.setDepartmentId(updateReq.getDepartmentId());
-        if (updateReq.getTeamId() != null) user.setTeamId(updateReq.getTeamId());
-        if (updateReq.getIsActive() != null) user.setIsActive(updateReq.getIsActive());
+        if (dto.getRole() != null) user.setRole(dto.getRole());
+        if (dto.getOrganizationId() != null) user.setOrganizationId(dto.getOrganizationId());
+        user.setDepartmentId(dto.getDepartmentId());
+        if (dto.getTeamId() != null) user.setTeamId(dto.getTeamId());
+        if (dto.getIsActive() != null) user.setIsActive(dto.getIsActive());
         return userRepository.save(user);
+    }
+
+    @Transactional
+    public com.classification.domain_system.entity.User updateSelfUserInfo(String username, SelfUserUpdateDto dto) {
+        com.classification.domain_system.entity.User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+        if (dto != null && dto.getTimezone() != null) {
+            user.setTimezone(dto.getTimezone());
+        }
+        return userRepository.save(user);
+    }
+
+    @Transactional
+    public com.classification.domain_system.entity.User updateUserInfo(String userId, com.classification.domain_system.entity.User updateReq) {
+        AdminUserUpdateDto dto = new AdminUserUpdateDto();
+        dto.setRole(updateReq.getRole());
+        dto.setOrganizationId(updateReq.getOrganizationId());
+        dto.setDepartmentId(updateReq.getDepartmentId());
+        dto.setTeamId(updateReq.getTeamId());
+        dto.setIsActive(updateReq.getIsActive());
+        return updateAdminUserInfo(userId, dto);
     }
 
     @Transactional

@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/roles")
 public class RoleController {
@@ -26,22 +28,26 @@ public class RoleController {
     }
 
     @GetMapping
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'role:read')")
     public ResponseEntity<List<Role>> getAllRoles() {
         return ResponseEntity.ok(roleRepository.findAll());
     }
 
     @GetMapping("/org/{orgId}")
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'role:read')")
     public ResponseEntity<List<Role>> getRolesByOrg(@PathVariable UUID orgId) {
         roleInitializer.createDefaultRolesForOrg(orgId);
         return ResponseEntity.ok(roleRepository.findByOrganizationId(orgId));
     }
 
     @PostMapping
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'role:write')")
     public ResponseEntity<Role> createRole(@RequestBody Role role) {
         return ResponseEntity.ok(roleRepository.save(role));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'role:write')")
     public ResponseEntity<Role> updateRole(@PathVariable UUID id, @RequestBody Role updated) {
         return roleRepository.findById(id)
                 .map(existing -> {
@@ -55,6 +61,7 @@ public class RoleController {
 
     @DeleteMapping("/{id}")
     @Transactional
+    @PreAuthorize("hasPermission(null, 'admin:delete') or hasPermission(null, 'role:write')")
     public ResponseEntity<Void> deleteRole(@PathVariable UUID id) {
         return roleRepository.findById(id)
                 .map(role -> {

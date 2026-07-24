@@ -14,6 +14,8 @@ import java.util.UUID;
 import java.util.Map;
 import java.util.HashMap;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/permissions")
 @RequiredArgsConstructor
@@ -23,6 +25,7 @@ public class DomainPermissionController {
     private final UserService userService;
 
     @GetMapping("/users")
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'user:read')")
     public ResponseEntity<org.springframework.data.domain.Page<User>> searchUsers(
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
@@ -32,11 +35,13 @@ public class DomainPermissionController {
     }
 
     @GetMapping("/users/{userId}/domains")
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'user:read')")
     public ResponseEntity<List<DomainPermission>> getUserPermissions(@PathVariable String userId) {
         return ResponseEntity.ok(permissionService.getUserPermissions(userId));
     }
 
     @GetMapping("/domains/available")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<com.classification.domain_system.entity.Domain>> getAvailableDomains() {
         String userId = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userService.findByUsername(userId);
@@ -44,18 +49,21 @@ public class DomainPermissionController {
     }
 
     @PostMapping("/users/{userId}/domains/{domainId}")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'user:write')")
     public ResponseEntity<Void> grantPermission(@PathVariable String userId, @PathVariable UUID domainId) {
         permissionService.grantPermission(userId, domainId);
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/users/{userId}/domains/{domainId}")
+    @PreAuthorize("hasPermission(null, 'admin:delete') or hasPermission(null, 'user:write')")
     public ResponseEntity<Void> revokePermission(@PathVariable String userId, @PathVariable UUID domainId) {
         permissionService.revokePermission(userId, domainId);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/requests")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DomainAccessRequest> requestAccess(@RequestBody Map<String, String> payload) {
         String userId = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userService.findByUsername(userId);
@@ -64,23 +72,27 @@ public class DomainPermissionController {
     }
 
     @GetMapping("/requests/pending")
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'domain:read')")
     public ResponseEntity<List<DomainAccessRequest>> getPendingRequests() {
         return ResponseEntity.ok(permissionService.getPendingRequests());
     }
 
     @PostMapping("/requests/{requestId}/approve")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'domain:write')")
     public ResponseEntity<Void> approveRequest(@PathVariable UUID requestId) {
         permissionService.approveRequest(requestId);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/requests/{requestId}/reject")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'domain:write')")
     public ResponseEntity<Void> rejectRequest(@PathVariable UUID requestId) {
         permissionService.rejectRequest(requestId);
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/users/{userId}/role")
+    @PreAuthorize("hasPermission(null, 'admin:write')")
     public ResponseEntity<Void> updateUserRole(@PathVariable String userId, @RequestBody Map<String, String> payload) {
         String role = payload.get("role");
         userService.updateUserRole(userId, role);
@@ -88,6 +100,7 @@ public class DomainPermissionController {
     }
 
     @PutMapping("/users/{userId}/tenant-info")
+    @PreAuthorize("hasPermission(null, 'admin:write')")
     public ResponseEntity<Void> updateUserTenantInfo(@PathVariable String userId, @RequestBody Map<String, Object> payload) {
         String role = (String) payload.get("role");
         String orgIdStr = (String) payload.get("organizationId");

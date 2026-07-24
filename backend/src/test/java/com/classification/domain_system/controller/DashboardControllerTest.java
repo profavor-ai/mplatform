@@ -34,6 +34,9 @@ class DashboardControllerTest {
     @MockitoBean
     private PermissionService permissionService;
 
+    @MockitoBean
+    private com.classification.domain_system.context.AuthContext authContext;
+
     @Test
     @DisplayName("getStats - DashboardService에서 반환된 통계 데이터 응답")
     void getStats_ReturnsStatsMap() throws Exception {

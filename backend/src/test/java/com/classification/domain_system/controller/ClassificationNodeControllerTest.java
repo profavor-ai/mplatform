@@ -45,6 +45,9 @@ class ClassificationNodeControllerTest {
     @MockitoBean
     private PermissionService permissionService;
 
+    @MockitoBean
+    private com.classification.domain_system.context.AuthContext authContext;
+
     private UUID domainId;
 
     @BeforeEach

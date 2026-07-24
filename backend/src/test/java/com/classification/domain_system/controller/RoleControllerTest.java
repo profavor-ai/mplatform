@@ -45,6 +45,9 @@ class RoleControllerTest {
     @MockitoBean
     private PermissionService permissionService;
 
+    @MockitoBean
+    private com.classification.domain_system.context.AuthContext authContext;
+
     @Test
     @DisplayName("deleteRole - 역할 삭제 시 연관된 user_roles 매핑과 함께 성공적으로 삭제 처리")
     void deleteRole_Success() throws Exception {

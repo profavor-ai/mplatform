@@ -44,11 +44,15 @@ class AuthControllerTest {
     @Mock
     private JwtUtil jwtUtil;
 
+    @Mock
+    private com.classification.domain_system.service.PermissionService permissionService;
+
     @InjectMocks
     private AuthController authController;
 
     @BeforeEach
     void setUp() {
+        lenient().when(permissionService.getAuthoritiesForUser(any(), any())).thenReturn(List.of());
         mockMvc = MockMvcBuilders.standaloneSetup(authController).build();
     }
 

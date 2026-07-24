@@ -11,6 +11,14 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
+import com.classification.domain_system.dto.AdminUserUpdateDto;
+import com.classification.domain_system.dto.SelfUserUpdateDto;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -19,13 +27,23 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping
+    @PreAuthorize("hasPermission(null, 'admin:read')")
     public ResponseEntity<List<UserDto>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
-    @org.springframework.web.bind.annotation.PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@org.springframework.web.bind.annotation.PathVariable String id, @RequestBody User updateReq) {
-        User u = userService.updateUserInfo(id, updateReq);
+    @PutMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<User> updateSelfUser(@RequestBody SelfUserUpdateDto updateReq) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User u = userService.updateSelfUserInfo(username, updateReq);
+        return ResponseEntity.ok(u);
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'admin:write')")
+    public ResponseEntity<User> updateUser(@PathVariable String id, @RequestBody AdminUserUpdateDto updateReq) {
+        User u = userService.updateAdminUserInfo(id, updateReq);
         return ResponseEntity.ok(u);
     }
     
@@ -53,9 +71,10 @@ public class UserController {
         }
     }
 
-    @org.springframework.web.bind.annotation.PostMapping("/timezone")
+    @PostMapping("/timezone")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateTimezone(@RequestBody TimezoneRequest request) {
-        String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
         userService.updateTimezone(username, request.getTimezone());
         return ResponseEntity.ok().build();
     }

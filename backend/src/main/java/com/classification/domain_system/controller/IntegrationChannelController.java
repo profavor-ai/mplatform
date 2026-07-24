@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/admin/integration/channels")
 @RequiredArgsConstructor
@@ -21,16 +23,19 @@ public class IntegrationChannelController {
     private final IntegrationTestService testService;
 
     @PostMapping("/test-connection")
+    @PreAuthorize("hasPermission(null, 'admin:write')")
     public ResponseEntity<ConnectionTestResponse> testConnection(@RequestBody ConnectionTestRequest request) {
         return ResponseEntity.ok(testService.testConnection(request));
     }
 
     @GetMapping
+    @PreAuthorize("hasPermission(null, 'admin:read')")
     public List<IntegrationChannel> getAll() {
         return repository.findAll();
     }
 
     @PostMapping
+    @PreAuthorize("hasPermission(null, 'admin:write')")
     public IntegrationChannel create(@RequestBody IntegrationChannel channel) {
         if (channel.getDirection() == null || channel.getDirection().isBlank()) {
             channel.setDirection("OUTBOUND");
@@ -39,6 +44,7 @@ public class IntegrationChannelController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'admin:write')")
     public ResponseEntity<IntegrationChannel> update(@PathVariable UUID id, @RequestBody IntegrationChannel updated) {
         return repository.findById(id).map(channel -> {
             channel.setName(updated.getName());
@@ -55,6 +61,7 @@ public class IntegrationChannelController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'admin:delete')")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         if (repository.existsById(id)) {
             repository.deleteById(id);

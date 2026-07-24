@@ -8,7 +8,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.test.context.ActiveProfiles;
+
 @SpringBootTest
+@ActiveProfiles("test")
 public class DatabaseCheckTest {
 
     @Autowired
