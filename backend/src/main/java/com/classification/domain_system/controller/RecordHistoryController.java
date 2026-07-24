@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -17,6 +19,7 @@ public class RecordHistoryController {
     private RecordHistoryRepository recordHistoryRepository;
 
     @GetMapping("/{id}/history")
+    @PreAuthorize("hasPermission(null, 'record:read')")
     public ResponseEntity<List<RecordHistory>> getRecordHistory(@PathVariable UUID id) {
         return ResponseEntity.ok(recordHistoryRepository.findByRecordIdOrderByChangedAtDesc(id));
     }

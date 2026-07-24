@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/admin/error-logs")
 @RequiredArgsConstructor
@@ -22,15 +24,10 @@ public class ErrorLogController {
     private final ErrorLogService errorLogService;
 
     @GetMapping
+    @PreAuthorize("hasPermission(null, 'log:read')")
     public ResponseEntity<?> getErrorLogs(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
-            Authentication authentication) {
-
-        if (authentication == null || !authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ADMIN"))) {
-            return ResponseEntity.status(403).body("Access denied. Admin role required.");
-        }
+            @RequestParam(defaultValue = "20") int size) {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "loggedAt"));
         Page<ErrorLog> logs = errorLogService.getErrorLogs(pageable);

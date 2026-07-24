@@ -32,8 +32,9 @@ class DqRuleControllerSecurityTest {
         dqRuleRepository = mock(DqRuleRepository.class);
         fieldDefinitionRepository = mock(FieldDefinitionRepository.class);
         dqRuleEngine = mock(DqRuleEngine.class);
+        com.classification.domain_system.security.CustomPermissionEvaluator permissionEvaluator = new com.classification.domain_system.security.CustomPermissionEvaluator();
 
-        controller = new DqRuleController(dqRuleRepository, fieldDefinitionRepository, dqRuleEngine);
+        controller = new DqRuleController(dqRuleRepository, fieldDefinitionRepository, dqRuleEngine, permissionEvaluator);
     }
 
     private void setSecurityContext(String role) {
@@ -51,28 +52,28 @@ class DqRuleControllerSecurityTest {
         req.setRuleType("NOT_NULL");
 
         assertThatThrownBy(() -> controller.createRule(UUID.randomUUID(), req))
-                .isInstanceOf(AccessDeniedException.class)
-                .hasMessageContaining("Admin role required");
+                .isInstanceOf(com.classification.domain_system.exception.CustomAccessDeniedException.class)
+                .hasMessageContaining("DQ write permission required");
     }
 
     @Test
-    @DisplayName("일반 USER 권한으로 규칙 수정 시 AccessDeniedException 발생")
+    @DisplayName("일반 USER 권한으로 규칙 수정 시 CustomAccessDeniedException 발생")
     void updateRule_AsUser_ShouldThrowAccessDenied() {
         setSecurityContext("USER");
         DqRuleRequest req = new DqRuleRequest();
 
         assertThatThrownBy(() -> controller.updateRule(UUID.randomUUID(), req))
-                .isInstanceOf(AccessDeniedException.class)
-                .hasMessageContaining("Admin role required");
+                .isInstanceOf(com.classification.domain_system.exception.CustomAccessDeniedException.class)
+                .hasMessageContaining("DQ write permission required");
     }
 
     @Test
-    @DisplayName("일반 USER 권한으로 규칙 삭제 시 AccessDeniedException 발생")
+    @DisplayName("일반 USER 권한으로 규칙 삭제 시 CustomAccessDeniedException 발생")
     void deleteRule_AsUser_ShouldThrowAccessDenied() {
         setSecurityContext("USER");
 
         assertThatThrownBy(() -> controller.deleteRule(UUID.randomUUID()))
-                .isInstanceOf(AccessDeniedException.class)
-                .hasMessageContaining("Admin role required");
+                .isInstanceOf(com.classification.domain_system.exception.CustomAccessDeniedException.class)
+                .hasMessageContaining("DQ write permission required");
     }
 }

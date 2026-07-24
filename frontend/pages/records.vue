@@ -32,10 +32,10 @@
           </va-chip>
         </div>
         <template v-if="selectedNode && !selectedNode.isDomain">
-          <va-button color="primary" @click="openCreateModal">
+          <va-button v-if="hasPermission('record:write')" color="primary" @click="openCreateModal">
             <va-icon name="add" class="mr-2"/> Create Record
           </va-button>
-          <va-button color="success" outline @click="showExcelUploader = true" class="ml-2">
+          <va-button v-if="hasPermission('record:write')" color="success" outline @click="showExcelUploader = true" class="ml-2">
             <va-icon name="upload" class="mr-2"/> Bulk Upload
           </va-button>
         </template>
@@ -708,10 +708,10 @@
         </div>
       </div>
       <div style="display: flex; justify-content: flex-end; margin-top: 1rem; gap: 0.5rem;">
-        <va-button v-if="!isEditingRecord && !isSnapshotMode && !hasPendingUpdate" color="danger" @click="requestDeleteRecord">Delete</va-button>
-        <va-button v-if="!isEditingRecord && !isSnapshotMode && !hasPendingUpdate" color="warning" @click="isEditingRecord = true">Edit</va-button>
-        <va-button v-if="!isEditingRecord && !isSnapshotMode" color="info" @click="openHistory">History</va-button>
-        <va-button v-if="isEditingRecord && !isSnapshotMode" color="success" :disabled="!hasUpdateWorkflow" @click="promptDraftComment('UPDATE')">Save</va-button>
+        <va-button v-if="!isEditingRecord && !isSnapshotMode && hasPermission('record:delete')" color="danger" @click="requestDeleteRecord">Delete</va-button>
+        <va-button v-if="!isEditingRecord && !isSnapshotMode && hasPermission('record:write')" color="warning" @click="isEditingRecord = true">Edit</va-button>
+        <va-button v-if="!isEditingRecord && (hasPermission('record:read') || hasPermission('record:*'))" color="info" @click="openHistory">History</va-button>
+        <va-button v-if="isEditingRecord && !isSnapshotMode && hasPermission('record:write')" color="success" :disabled="!hasUpdateWorkflow" @click="promptDraftComment('UPDATE')">Save</va-button>
         <va-button @click="showDetailModal = false">Close</va-button>
       </div>
     </va-modal>
@@ -986,8 +986,11 @@ import ExcelUploader from '~/components/ExcelUploader.vue'
 import { useColors } from 'vuestic-ui'
 import { useI18n } from 'vue-i18n'
 
+import { usePermission } from '~/composables/usePermission'
+
 const { t } = useI18n()
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
+const { hasPermission } = usePermission()
 
 const { currentPresetName } = useColors()
 const isDark = computed(() => currentPresetName.value === 'dark')
@@ -1371,50 +1374,108 @@ function findNodeInTree(nodeId, nodesList = treeNodes.value) {
   return null
 }
 
-const openRecordDetailModal = async (record) => {
-  if (!record) return
-  selectedRecordId.value = record.id
-
-  if ((!nodeFields.value || nodeFields.value.length === 0) && (record.node?.id || selectedNode.value?.id)) {
-    try {
-      const nodeId = record.node?.id || selectedNode.value?.id
-      const isDomain = selectedNode.value?.isDomain || (record.node && !record.node.parent)
-      const fieldsUrl = isDomain ? `/api/domains/${nodeId}/fields` : `/api/nodes/${nodeId}/fields/effective`
-      nodeFields.value = await $fetch(fieldsUrl, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => [])
-    } catch (e) {
-      console.error('Failed to load node fields for detail modal:', e)
-    }
-  }
-
-  const rawData = typeof record.data === 'string' ? JSON.parse(record.data) : (record.data || {})
+const processRecordDataWithFields = (rawDataObj, fields) => {
+  const rawData = typeof rawDataObj === 'string' ? (rawDataObj ? JSON.parse(rawDataObj) : {}) : (rawDataObj || {})
   const data = { ...rawData }
-  const fieldsToProcess = nodeFields.value || []
+  const fieldsToProcess = fields || []
+  
+  // 모든 키를 대문자(UPPERCASE)로 변환한 Map 생성
+  const rawDataUpperMap = new Map()
+  Object.keys(rawData).forEach(k => {
+    if (k) rawDataUpperMap.set(k.trim().toUpperCase(), rawData[k])
+  })
+
   fieldsToProcess.forEach(f => {
+    if (!f || !f.key) return
+    const fKeyUpper = f.key.trim().toUpperCase()
+    
+    // 1. 대문자 키 대조 (UPPERCASE Exact Match)
+    let rawVal = data[f.key] !== undefined 
+      ? data[f.key] 
+      : (rawDataUpperMap.has(fKeyUpper) ? rawDataUpperMap.get(fKeyUpper) : undefined)
+
+    // 2. 대문자 키 포함 대조 Fallback (예: STOCK_CODE <-> CODE, STOCK_NAME <-> NAME, MARKET_TYPE <-> MARKET)
+    if (rawVal === undefined) {
+      for (const [uKey, val] of rawDataUpperMap.entries()) {
+        if (uKey === fKeyUpper || uKey.endsWith('_' + fKeyUpper) || fKeyUpper.endsWith('_' + uKey) || uKey.includes(fKeyUpper) || fKeyUpper.includes(uKey)) {
+          rawVal = val
+          break
+        }
+      }
+    }
+    
     if (f.type === 'MULTILINGUAL') {
-      if (!data[f.key]) {
+      if (rawVal === null || rawVal === undefined) {
         data[f.key] = { ko: '', en: '' }
-      } else if (typeof data[f.key] === 'string') {
-        try { data[f.key] = JSON.parse(data[f.key]) } catch (e) { data[f.key] = { ko: data[f.key], en: '' } }
+      } else if (typeof rawVal === 'string') {
+        try {
+          const parsed = JSON.parse(rawVal)
+          if (parsed && typeof parsed === 'object') {
+            data[f.key] = { ko: parsed.ko || '', en: parsed.en || '' }
+          } else {
+            data[f.key] = { ko: rawVal, en: '' }
+          }
+        } catch (e) {
+          data[f.key] = { ko: rawVal, en: '' }
+        }
+      } else if (typeof rawVal === 'object' && rawVal !== null) {
+        data[f.key] = { ko: rawVal.ko || '', en: rawVal.en || '' }
+      } else {
+        data[f.key] = { ko: String(rawVal), en: '' }
       }
     } else if (f.type === 'FILE') {
-      if (data[f.key]) {
+      if (rawVal) {
         try {
-          const arr = JSON.parse(data[f.key])
+          const arr = typeof rawVal === 'string' ? JSON.parse(rawVal) : rawVal
           if (Array.isArray(arr)) {
-            data[f.key] = arr.map(url => ({ name: extractFilename(url), url: url }))
-          } else if (typeof data[f.key] === 'string') {
-            data[f.key] = [{ name: extractFilename(data[f.key]), url: data[f.key] }]
+            data[f.key] = arr.map(fileObj => typeof fileObj === 'string' ? { name: extractFilename(fileObj), url: fileObj } : fileObj)
+          } else if (typeof rawVal === 'string') {
+            data[f.key] = [{ name: extractFilename(rawVal), url: rawVal }]
           }
         } catch(e) {
-          if (typeof data[f.key] === 'string') {
-            data[f.key] = [{ name: extractFilename(data[f.key]), url: data[f.key] }]
+          if (typeof rawVal === 'string') {
+            data[f.key] = [{ name: extractFilename(rawVal), url: rawVal }]
           }
         }
       } else {
         data[f.key] = []
       }
+    } else {
+      if (rawVal !== null && rawVal !== undefined) {
+        if (typeof rawVal === 'object') {
+          data[f.key] = rawVal.ko || rawVal.en || JSON.stringify(rawVal)
+        } else {
+          data[f.key] = rawVal
+        }
+      }
     }
   })
+
+  return data
+}
+
+const openRecordDetailModal = async (record) => {
+  if (!record) return
+  selectedRecordId.value = record.id
+
+  const targetNodeId = record.node?.id || record.domainId || selectedNode.value?.id
+  if (targetNodeId) {
+    try {
+      const isDomain = (selectedNode.value?.isDomain && selectedNode.value?.id === targetNodeId) || 
+                       (record.node && !record.node.parent) || 
+                       (!record.node && record.domainId)
+      const fieldsUrl = isDomain ? `/api/domains/${targetNodeId}/fields` : `/api/nodes/${targetNodeId}/fields/effective`
+      const fetched = await $fetch(fieldsUrl, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => null)
+      if (fetched && Array.isArray(fetched) && fetched.length > 0) {
+        nodeFields.value = fetched
+      }
+    } catch (e) {
+      console.error('Failed to load node fields for detail modal:', e)
+    }
+  }
+
+  const data = processRecordDataWithFields(record.data, nodeFields.value)
+
   selectedRecordData.value = data
   originalRecordData.value = JSON.parse(JSON.stringify(data))
   activeSectorTab.value = 0
@@ -2137,10 +2198,13 @@ const isSnapshotMode = ref(false)
 const viewSnapshot = (dataString) => {
   if (!dataString) return
   try {
-    snapshotRecordData.value = JSON.parse(dataString)
+    const data = processRecordDataWithFields(dataString, nodeFields.value)
+    snapshotRecordData.value = data
     activeSnapshotSectorTab.value = activeSectorTab.value
     showSnapshotModal.value = true
-  } catch(e) {}
+  } catch(e) {
+    console.error('Failed to view snapshot:', e)
+  }
 }
 
 const getParsedDiffs = (prev, next) => {

@@ -1,92 +1,118 @@
 <template>
   <div>
-    <!-- Data Changes Display -->
-    <div style="background-color: var(--va-background-secondary); border-left: 4px solid var(--va-primary); border-radius: 4px; padding: 1rem 0 1rem 1rem; margin-bottom: 1.5rem;">
-      <h4 style="margin-top: 0; margin-bottom: 0.8rem; font-size: 0.9rem; color: var(--va-text-primary); font-weight: bold;">{{ t('requestedData') }}</h4>
-      
-      <template v-if="getParsedChanges(request?.changes)">
-        <div class="custom-scrollbar">
-          <div v-for="sector in getGroupedChangesList(request.changes, request.targetType)" :key="sector.key" style="margin-bottom: 1rem;">
-            <div style="font-weight: bold; padding: 0.5rem; background: var(--va-background-secondary); border-radius: 4px; font-size: 0.95rem; color: var(--va-primary); display: flex; align-items: center; gap: 0.5rem;">
-              <va-icon name="folder" size="small" /> {{ sector.label }}
-            </div>
-            
-            <div style="width: 100%; margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-              <div v-for="group in sector.groups" :key="group.key" style="border: 1px solid var(--va-background-border); border-radius: 4px; overflow: hidden; background: var(--va-background-element);">
-                <div style="background: var(--va-background-secondary); padding: 0.75rem 1rem; font-weight: bold; font-size: 0.95rem; color: var(--va-text-primary); border-bottom: 1px solid var(--va-background-border);">
-                  {{ group.label }}
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(12, 1fr); gap: 1rem; padding: 0.75rem;">
-                  <template v-for="f in group.fields" :key="f.key">
-                    <div v-if="request.targetType !== 'RECORD_UPDATE' || (f.val.isChanged || (f.val.before !== f.val.after))" :style="{ gridColumn: 'span ' + (f.gridWidth || 12), border: '1px solid var(--va-background-border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--va-background-element)', boxShadow: 'var(--va-box-shadow)' }">
-                      <div style="background: var(--va-background-secondary); padding: 0.75rem 1rem; border-bottom: 1px solid var(--va-background-border); font-weight: 600; font-size: 0.85rem; color: var(--va-text-primary); display: flex; justify-content: space-between; align-items: center;">
-                        {{ f.label }}
-                        <va-badge v-if="request.targetType === 'RECORD_UPDATE' && f.val.isChanged" color="warning" size="small">{{ t('modified') }}</va-badge>
-                      </div>
-                      <div style="padding: 0;">
-                        <template v-if="request.targetType === 'RECORD_UPDATE'">
-                          <div v-if="f.val.isChanged" style="display: flex; flex-direction: column;">
-                            <div style="background-color: rgba(229, 57, 53, 0.1); border-bottom: 1px solid rgba(229, 57, 53, 0.2); padding: 0.75rem 1rem; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 0.5rem;">
-                              <va-icon name="remove_circle_outline" color="danger" size="small" style="margin-top: 2px;" />
-                              <div style="color: var(--va-danger); word-break: break-all; width: 100%;">
-                                <template v-if="f.type === 'FILE' && getFilesList(f.val.before).length > 0">
-                                  <div v-for="(fileUrl, idx) in getFilesList(f.val.before)" :key="idx" style="margin-bottom: 4px;">
-                                    <a :href="fileUrl" target="_blank" style="color: var(--va-danger); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
-                                      <va-icon name="attach_file" size="small" />{{ getFileName(fileUrl) }}
-                                    </a>
-                                  </div>
-                                </template>
-                                 <template v-else>{{ formatValue(f.val.before) }}</template>
+    <!-- Data Changes Display (Collapsible Accordion with Silky Smooth CSS Grid Animation) -->
+    <div class="accordion-card" style="background-color: var(--va-background-secondary); border-left: 4px solid var(--va-primary); border-radius: 6px; padding: 0.85rem 1rem; margin-bottom: 1.5rem; transition: all 0.25s ease;">
+      <div 
+        class="accordion-header"
+        @click="isRequestedDataExpanded = !isRequestedDataExpanded" 
+        style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; border-radius: 4px; padding: 0.25rem 0.4rem; margin: -0.25rem -0.4rem; transition: background-color 0.2s ease;"
+      >
+        <h4 style="margin: 0; font-size: 0.95rem; color: var(--va-text-primary); font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
+          <va-icon 
+            name="chevron_right" 
+            size="small" 
+            color="primary" 
+            :style="{ transform: isRequestedDataExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)' }" 
+          />
+          {{ t('requestedData') }}
+        </h4>
+        <va-chip size="small" color="primary" preset="outline" style="font-weight: 600; transition: transform 0.2s ease;">
+          {{ isRequestedDataExpanded ? ($t('collapse') || '접기') : ($t('expand') || '펼치기') }}
+        </va-chip>
+      </div>
+
+      <div 
+        class="accordion-wrapper" 
+        :class="{ 'is-expanded': isRequestedDataExpanded }"
+      >
+        <div class="accordion-inner">
+          <div style="padding-top: 1rem;">
+            <template v-if="getParsedChanges(request?.changes)">
+          <div class="custom-scrollbar">
+            <div v-for="sector in getGroupedChangesList(request.changes, request.targetType)" :key="sector.key" style="margin-bottom: 1rem;">
+              <div style="font-weight: bold; padding: 0.5rem; background: var(--va-background-secondary); border-radius: 4px; font-size: 0.95rem; color: var(--va-primary); display: flex; align-items: center; gap: 0.5rem;">
+                <va-icon name="folder" size="small" /> {{ sector.label }}
+              </div>
+              
+              <div style="width: 100%; margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div v-for="group in sector.groups" :key="group.key" style="border: 1px solid var(--va-background-border); border-radius: 4px; overflow: hidden; background: var(--va-background-element);">
+                  <div style="background: var(--va-background-secondary); padding: 0.75rem 1rem; font-weight: bold; font-size: 0.95rem; color: var(--va-text-primary); border-bottom: 1px solid var(--va-background-border);">
+                    {{ group.label }}
+                  </div>
+                  <div style="display: grid; grid-template-columns: repeat(12, 1fr); gap: 1rem; padding: 0.75rem;">
+                    <template v-for="f in group.fields" :key="f.key">
+                      <div v-if="request.targetType !== 'RECORD_UPDATE' || (f.val.isChanged || (f.val.before !== f.val.after))" :style="{ gridColumn: 'span ' + (f.gridWidth || 12), border: '1px solid var(--va-background-border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--va-background-element)', boxShadow: 'var(--va-box-shadow)' }">
+                        <div style="background: var(--va-background-secondary); padding: 0.75rem 1rem; border-bottom: 1px solid var(--va-background-border); font-weight: 600; font-size: 0.85rem; color: var(--va-text-primary); display: flex; justify-content: space-between; align-items: center;">
+                          {{ f.label }}
+                          <va-badge v-if="request.targetType === 'RECORD_UPDATE' && f.val.isChanged" color="warning" size="small">{{ t('modified') }}</va-badge>
+                        </div>
+                        <div style="padding: 0;">
+                          <template v-if="request.targetType === 'RECORD_UPDATE'">
+                            <div v-if="f.val.isChanged" style="display: flex; flex-direction: column;">
+                              <div style="background-color: rgba(229, 57, 53, 0.1); border-bottom: 1px solid rgba(229, 57, 53, 0.2); padding: 0.75rem 1rem; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <va-icon name="remove_circle_outline" color="danger" size="small" style="margin-top: 2px;" />
+                                <div style="color: var(--va-danger); word-break: break-all; width: 100%;">
+                                  <template v-if="f.type === 'FILE' && getFilesList(f.val.before).length > 0">
+                                    <div v-for="(fileUrl, idx) in getFilesList(f.val.before)" :key="idx" style="margin-bottom: 4px;">
+                                      <a :href="fileUrl" target="_blank" style="color: var(--va-danger); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
+                                        <va-icon name="attach_file" size="small" />{{ getFileName(fileUrl) }}
+                                      </a>
+                                    </div>
+                                  </template>
+                                   <template v-else>{{ formatValue(f.val.before) }}</template>
+                                </div>
+                              </div>
+                              <div style="background-color: rgba(67, 160, 71, 0.1); padding: 0.75rem 1rem; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <va-icon name="add_circle_outline" color="success" size="small" style="margin-top: 2px;" />
+                                <div style="color: var(--va-success); font-weight: 500; word-break: break-all; width: 100%;">
+                                  <template v-if="f.type === 'FILE' && getFilesList(f.val.after).length > 0">
+                                    <div v-for="(fileUrl, idx) in getFilesList(f.val.after)" :key="idx" style="margin-bottom: 4px;">
+                                      <a :href="fileUrl" target="_blank" style="color: var(--va-success); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
+                                        <va-icon name="attach_file" size="small" />{{ getFileName(fileUrl) }}
+                                      </a>
+                                    </div>
+                                  </template>
+                                  <template v-else>{{ formatValue(f.val.after) }}</template>
+                                </div>
                               </div>
                             </div>
-                            <div style="background-color: rgba(67, 160, 71, 0.1); padding: 0.75rem 1rem; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 0.5rem;">
-                              <va-icon name="add_circle_outline" color="success" size="small" style="margin-top: 2px;" />
-                              <div style="color: var(--va-success); font-weight: 500; word-break: break-all; width: 100%;">
-                                <template v-if="f.type === 'FILE' && getFilesList(f.val.after).length > 0">
-                                  <div v-for="(fileUrl, idx) in getFilesList(f.val.after)" :key="idx" style="margin-bottom: 4px;">
-                                    <a :href="fileUrl" target="_blank" style="color: var(--va-success); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
-                                      <va-icon name="attach_file" size="small" />{{ getFileName(fileUrl) }}
-                                    </a>
-                                  </div>
-                                </template>
-                                <template v-else>{{ formatValue(f.val.after) }}</template>
-                              </div>
+                            <div v-else style="padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--va-text-secondary); background: var(--va-background-primary);">
+                              <template v-if="f.type === 'FILE' && getFilesList(f.val.before).length > 0">
+                                <div v-for="(fileUrl, idx) in getFilesList(f.val.before)" :key="idx" style="margin-bottom: 4px;">
+                                  <a :href="fileUrl" target="_blank" style="color: var(--va-primary); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
+                                    <va-icon name="attach_file" size="small" />{{ getFileName(fileUrl) }}
+                                  </a>
+                                </div>
+                              </template>
+                              <template v-else>{{ formatValue(f.val.before) }}</template>
                             </div>
-                          </div>
-                          <div v-else style="padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--va-text-secondary); background: var(--va-background-primary);">
-                            <template v-if="f.type === 'FILE' && getFilesList(f.val.before).length > 0">
-                              <div v-for="(fileUrl, idx) in getFilesList(f.val.before)" :key="idx" style="margin-bottom: 4px;">
-                                <a :href="fileUrl" target="_blank" style="color: var(--va-primary); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
-                                  <va-icon name="attach_file" size="small" />{{ getFileName(fileUrl) }}
-                                </a>
-                              </div>
-                            </template>
-                            <template v-else>{{ formatValue(f.val.before) }}</template>
-                          </div>
-                        </template>
-                        <template v-else>
-                          <div style="padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--va-text-primary);">
-                            <template v-if="f.type === 'FILE' && getFilesList(f.val).length > 0">
-                              <div v-for="(fileUrl, idx) in getFilesList(f.val)" :key="idx" style="margin-bottom: 4px;">
-                                <a :href="fileUrl" target="_blank" style="color: var(--va-primary); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
-                                  <va-icon name="attach_file" size="small" />{{ getFileName(fileUrl) }}
-                                </a>
-                              </div>
-                            </template>
-                            <template v-else>{{ formatValue(f.val) }}</template>
-                          </div>
-                        </template>
+                          </template>
+                          <template v-else>
+                            <div style="padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--va-text-primary);">
+                              <template v-if="f.type === 'FILE' && getFilesList(f.val).length > 0">
+                                <div v-for="(fileUrl, idx) in getFilesList(f.val)" :key="idx" style="margin-bottom: 4px;">
+                                  <a :href="fileUrl" target="_blank" style="color: var(--va-primary); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
+                                    <va-icon name="attach_file" size="small" />{{ getFileName(fileUrl) }}
+                                  </a>
+                                </div>
+                              </template>
+                              <template v-else>{{ formatValue(f.val) }}</template>
+                            </div>
+                          </template>
+                        </div>
                       </div>
-                    </div>
-                  </template>
+                    </template>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+        </template>
+        <div v-else style="color: var(--va-text-secondary); font-style: italic; font-size: 0.9rem;">
+          {{ t('noParsable') }}
         </div>
-      </template>
-      <div v-else style="color: var(--va-text-secondary); font-style: italic; font-size: 0.9rem;">
-        {{ t('noParsable') }}
+          </div>
+        </div>
       </div>
     </div>
 
@@ -213,6 +239,9 @@ import { ref, watch, onMounted } from 'vue'
 import { useCookie } from '#app'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
+
+const isRequestedDataExpanded = ref(true)
+
 const props = defineProps({
   request: {
     type: Object,
@@ -956,3 +985,29 @@ const getObserversList = (obsString) => {
   }
 }
 </i18n>
+
+<style scoped>
+.accordion-header:hover {
+  background-color: rgba(67, 56, 202, 0.06) !important;
+}
+
+.accordion-header:hover .va-chip {
+  transform: translateY(-1px);
+}
+
+.accordion-wrapper {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.38s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 0;
+}
+
+.accordion-wrapper.is-expanded {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.accordion-inner {
+  overflow: hidden;
+}
+</style>

@@ -72,7 +72,7 @@
                 :label="getLabel('user_roles', '사용자 시스템 역할 (다중 선택 가능)')"
                 style="flex: 1;"
               />
-              <va-button color="primary" icon="save" @click="updateUserRoleOnly">
+              <va-button v-if="hasPermission('org:write') || hasPermission('org:*')" color="primary" icon="save" @click="updateUserRoleOnly">
                 {{ $t('save_changes') || '역할 저장' }}
               </va-button>
             </div>
@@ -87,7 +87,7 @@
             <div v-else style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
               <va-chip v-for="perm in userPermissions" :key="perm.id" color="success" style="margin-bottom: 0.5rem;">
                 {{ getDomainName(perm.domain.name) }}
-                <va-icon name="close" size="small" style="margin-left: 0.5rem; cursor: pointer;" @click="revokePermission(perm.domain.id)" />
+                <va-icon v-if="hasPermission('org:write') || hasPermission('org:*')" name="close" size="small" style="margin-left: 0.5rem; cursor: pointer;" @click="revokePermission(perm.domain.id)" />
               </va-chip>
             </div>
           </div>
@@ -106,7 +106,7 @@
                 :placeholder="$t('select_a_domain') || '도메인을 선택하세요 (다중 선택 가능)'"
                 style="flex: 1;"
               />
-              <va-button @click="grantPermissions" :disabled="!selectedDomainsToGrant || selectedDomainsToGrant.length === 0">
+              <va-button v-if="hasPermission('org:write') || hasPermission('org:*')" @click="grantPermissions" :disabled="!selectedDomainsToGrant || selectedDomainsToGrant.length === 0">
                 {{ $t('grant') || '권한 부여' }}
               </va-button>
             </div>
@@ -149,10 +149,10 @@
               </div>
 
               <div style="display: flex; gap: 0.75rem; justify-content: flex-end; border-top: 1px solid var(--va-background-element); padding-top: 1rem;">
-                <va-button color="danger" preset="secondary" size="small" @click="handleBatchReject(group.reqIds)">
+                <va-button v-if="hasPermission('org:write') || hasPermission('org:*')" color="danger" preset="secondary" size="small" @click="handleBatchReject(group.reqIds)">
                   {{ $t('reject') }}
                 </va-button>
-                <va-button color="success" size="small" @click="handleBatchApprove(group.reqIds)">
+                <va-button v-if="hasPermission('org:write') || hasPermission('org:*')" color="success" size="small" @click="handleBatchApprove(group.reqIds)">
                   {{ $t('approve') }}
                 </va-button>
               </div>
@@ -222,10 +222,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
-import { useCookie } from '#app'
+import { usePermission } from '~/composables/usePermission'
 
 const { t, locale } = useI18n()
+const { hasPermission } = usePermission()
 
 const getLabel = (key, fallback) => {
   const res = t(key)

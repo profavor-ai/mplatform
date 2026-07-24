@@ -16,7 +16,7 @@ public class RecordMergeController {
     private final RecordMergeService recordMergeService;
 
     @PostMapping("/merge")
-    @PreAuthorize("hasAnyAuthority('domain:write', 'domain:*', 'ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'record:write')")
     public ResponseEntity<Record> mergeRecords(
             @RequestBody RecordMergeService.MergeRequest request,
             @AuthenticationPrincipal String username) {

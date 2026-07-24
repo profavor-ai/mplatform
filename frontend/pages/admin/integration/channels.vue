@@ -145,10 +145,46 @@
                   {{ $t('integration.channels.inbound_notice') || '외부 시스템에서 아래 Webhook URL로 JSON Payload를 POST 요청하면 설정된 매핑 규칙에 따라 데이터가 연동 처리됩니다.' }}
                 </div>
                 <va-input :model-value="getWebhookUrl()" readonly style="font-family: monospace; font-size: 0.85rem;" />
-                <div v-if="uiConfig.inboundAuthType !== 'NONE'" style="font-size: 0.8rem; background: rgba(255,255,255,0.9); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #c7d2fe; color: #1e1b4b;">
-                  <strong>{{ $t('integration.channels.auth_header_example') || '요청 인증 헤더' }}:</strong>
-                  <code v-if="uiConfig.inboundAuthType === 'BEARER_TOKEN'" style="margin-left: 0.5rem; color: #4338ca; font-weight: bold;">Authorization: Bearer {{ uiConfig.inboundSecretToken || 'secretToken' }}</code>
-                  <code v-else-if="uiConfig.inboundAuthType === 'API_KEY'" style="margin-left: 0.5rem; color: #4338ca; font-weight: bold;">X-API-KEY: {{ uiConfig.inboundSecretToken || 'secretToken' }}</code>
+                <div v-if="uiConfig.inboundAuthType !== 'NONE'" style="font-size: 0.8rem; background: rgba(255,255,255,0.95); padding: 0.6rem 0.85rem; border-radius: 8px; border: 1px solid #c7d2fe; color: #1e1b4b; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                  <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <va-chip size="small" color="primary" outline style="font-weight: 700;">
+                      Header
+                    </va-chip>
+                    <div style="display: flex; align-items: center; gap: 0.4rem; font-family: monospace;">
+                      <span style="font-weight: 700; color: #3730a3;">
+                        {{ uiConfig.inboundAuthType === 'BEARER_TOKEN' ? 'Authorization' : 'X-API-KEY' }}:
+                      </span>
+                      <code style="color: #4338ca; font-weight: bold; background: #eef2ff; padding: 2px 6px; border-radius: 4px;">
+                        {{ uiConfig.inboundAuthType === 'BEARER_TOKEN' ? `Bearer ${uiConfig.inboundSecretToken || 'secretToken'}` : (uiConfig.inboundSecretToken || 'secretToken') }}
+                      </code>
+                    </div>
+                  </div>
+                  <va-button size="small" preset="secondary" color="primary" icon="content_copy" @click="copyAuthHeaderValue">
+                    {{ $t('integration.channels.copy_value') || '값 복사' }}
+                  </va-button>
+                </div>
+
+                <!-- Real-time JSON Payload Sample Box -->
+                <div style="font-size: 0.8rem; background: rgba(255,255,255,0.95); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid #c7d2fe; color: #1e1b4b; display: flex; flex-direction: column; gap: 0.6rem;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                    <strong style="display: flex; align-items: center; gap: 0.35rem; color: #3730a3;">
+                      <va-icon name="code" size="small" color="#4338ca" />
+                      {{ $t('integration.channels.sample_payload_title') || '요청 JSON Payload 샘플 (실시간 매핑 반영)' }}
+                    </strong>
+                    <div style="display: flex; gap: 0.4rem;">
+                      <va-button size="small" preset="secondary" color="primary" icon="terminal" @click="copyCurlSample">
+                        {{ $t('integration.channels.copy_curl') || 'cURL 복사' }}
+                      </va-button>
+                      <va-button size="small" preset="secondary" color="primary" icon="content_copy" @click="copySampleJsonPayload">
+                        {{ $t('integration.channels.copy_json') || 'JSON 복사' }}
+                      </va-button>
+                    </div>
+                  </div>
+                  <pre style="margin: 0; font-family: 'Fira Code', 'Consolas', 'Courier New', monospace; font-size: 0.82rem; background: #0f172a; color: #38bdf8; padding: 0.75rem 1rem; border-radius: 6px; overflow-x: auto; max-height: 220px; line-height: 1.45; border: 1px solid #1e293b;">{{ sampleJsonPayload }}</pre>
+                  <div style="font-size: 0.75rem; color: #64748b; display: flex; align-items: center; gap: 0.3rem;">
+                    <va-icon name="info" size="extra-small" color="#64748b" />
+                    <span>{{ $t('integration.channels.sample_payload_notice') || '매핑 탭에서 구성한 소스 표현식과 Root Path 정보가 실시간으로 반영된 요청 Payload 예시입니다.' }}</span>
+                  </div>
                 </div>
               </div>
             </template>
@@ -425,6 +461,165 @@ const copyWebhookUrl = () => {
   }
 }
 
+const syncUiMappingsFromGrid = () => {
+  if (mappingGridApi) {
+    try {
+      mappingGridApi.stopEditing(false)
+    } catch (e) {}
+
+    const rowData = []
+    mappingGridApi.forEachNode(node => {
+      if (node.data) rowData.push({ ...node.data })
+    })
+    uiMappings.value = rowData
+  }
+}
+
+const sampleJsonPayload = computed(() => {
+  const sampleObj = {}
+  const mappings = uiMappings.value || []
+
+  // 1. Root Key 추출
+  let rootKey = null
+  if (uiMappingRootPath.value) {
+    const rp = String(uiMappingRootPath.value).trim()
+    const bracketMatches = [...rp.matchAll(/\[['"](.+?)['"]\]/g)]
+    const dotMatch = rp.match(/\.([a-zA-Z0-9_]+)$/)
+    if (bracketMatches.length > 0) {
+      rootKey = bracketMatches[bracketMatches.length - 1][1]
+    } else if (dotMatch) {
+      rootKey = dotMatch[1]
+    } else if (/^[a-zA-Z0-9_]+$/.test(rp) && rp !== 'payload' && rp !== '#this') {
+      rootKey = rp
+    }
+  }
+
+  // 2. 매핑 항목이 전혀 없으면 순수 빈 객체/배열 반환 (하드코딩 0%)
+  if (mappings.length === 0) {
+    if (rootKey) {
+      return JSON.stringify({ [rootKey]: [] }, null, 2)
+    }
+    return JSON.stringify({}, null, 2)
+  }
+
+  // 3. 복합 SpEL Map 표현식 (예: {'ko': #this['emp_kor_name'], 'en': #this['emp_eng_name']}) 내 모든 참조 소스 필드 파싱
+  mappings.forEach((m, idx) => {
+    const keysFound = []
+
+    if (m.sourceExpression) {
+      const expr = String(m.sourceExpression).trim()
+
+      const matches = [...expr.matchAll(/(?:#this|payload|[a-zA-Z0-9_]+)?\[['"]([^'"]+)['"]\]|\.([a-zA-Z0-9_]+)/g)]
+
+      matches.forEach(match => {
+        const cand = (match[1] || match[2] || '').trim()
+        if (
+          cand &&
+          cand !== rootKey &&
+          cand !== 'payload' &&
+          cand !== '#this' &&
+          cand !== 'ko' &&
+          cand !== 'en' &&
+          !keysFound.includes(cand)
+        ) {
+          keysFound.push(cand)
+        }
+      })
+
+      if (keysFound.length === 0 && /^[a-zA-Z0-9_]+$/.test(expr) && expr !== 'payload' && expr !== '#this' && expr !== rootKey) {
+        keysFound.push(expr)
+      }
+    }
+
+    if (keysFound.length === 0) {
+      let fallbackKey = m.selectedField || m.targetField
+      if (!fallbackKey || String(fallbackKey).trim() === '') {
+        fallbackKey = `field_${idx + 1}`
+      }
+      keysFound.push(String(fallbackKey).trim())
+    }
+
+    // 추출된 모든 참조 필드별로 DB 도메인 속성 다국어 이름(name) 매핑
+    keysFound.forEach(key => {
+      let dummyVal = null
+      const matchedField = rawFields.value?.find(f => f.key === key || f.key === m.selectedField || f.key === m.targetField)
+      if (matchedField && matchedField.name) {
+        dummyVal = parseI18nName(matchedField.name)
+      }
+
+      if (!dummyVal) {
+        dummyVal = key
+      }
+
+      // 한글/영문 필드 구분 접미사 자동 추가 (예: "이름 (한글)", "이름 (영문)")
+      const currentLang = (locale?.value || 'ko').toLowerCase().startsWith('en') ? 'en' : 'ko'
+      const lowerKey = key.toLowerCase()
+      if (lowerKey.includes('kor') || lowerKey.includes('ko_name') || lowerKey.includes('_ko')) {
+        const suffix = currentLang === 'en' ? ' (Korean)' : ' (한글)'
+        if (!dummyVal.includes(suffix) && !dummyVal.includes('한글')) {
+          dummyVal += suffix
+        }
+      } else if (lowerKey.includes('eng') || lowerKey.includes('en_name') || lowerKey.includes('_en')) {
+        const suffix = currentLang === 'en' ? ' (English)' : ' (영문)'
+        if (!dummyVal.includes(suffix) && !dummyVal.includes('영문')) {
+          dummyVal += suffix
+        }
+      }
+
+      sampleObj[key] = dummyVal
+    })
+  })
+
+  let finalPayload
+  if (rootKey) {
+    finalPayload = {
+      [rootKey]: [sampleObj]
+    }
+  } else {
+    finalPayload = sampleObj
+  }
+
+  return JSON.stringify(finalPayload, null, 2)
+})
+
+const copySampleJsonPayload = () => {
+  if (navigator.clipboard && sampleJsonPayload.value) {
+    navigator.clipboard.writeText(sampleJsonPayload.value)
+    init({ message: t('integration.channels.json_copied') || '샘플 JSON Payload가 클립보드에 복사되었습니다.', color: 'success' })
+  }
+}
+
+const copyCurlSample = () => {
+  const url = getWebhookUrl()
+  let authHeaderStr = ''
+  if (uiConfig.value.inboundAuthType === 'BEARER_TOKEN') {
+    authHeaderStr = `  -H "Authorization: Bearer ${uiConfig.value.inboundSecretToken || 'secretToken'}" \\\n`
+  } else if (uiConfig.value.inboundAuthType === 'API_KEY') {
+    authHeaderStr = `  -H "X-API-KEY: ${uiConfig.value.inboundSecretToken || 'secretToken'}" \\\n`
+  }
+
+  const curlCmd = `curl -X POST "${url}" \\\n  -H "Content-Type: application/json" \\\n${authHeaderStr}  -d '${sampleJsonPayload.value}'`
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(curlCmd)
+    init({ message: t('integration.channels.curl_copied') || 'cURL 호출 샘플이 클립보드에 복사되었습니다.', color: 'success' })
+  }
+}
+
+const copyAuthHeaderValue = () => {
+  let headerValue = ''
+  if (uiConfig.value.inboundAuthType === 'BEARER_TOKEN') {
+    headerValue = `Bearer ${uiConfig.value.inboundSecretToken || 'secretToken'}`
+  } else if (uiConfig.value.inboundAuthType === 'API_KEY') {
+    headerValue = uiConfig.value.inboundSecretToken || 'secretToken'
+  }
+
+  if (navigator.clipboard && headerValue) {
+    navigator.clipboard.writeText(headerValue)
+    init({ message: t('integration.channels.header_value_copied') || '헤더 값(Bearer 토큰)이 클립보드에 복사되었습니다.', color: 'success' })
+  }
+}
+
 const formData = ref({ ...initialForm })
 let editingId = null
 
@@ -631,6 +826,7 @@ const mappingColumnDefs = computed(() => {
         e.preventDefault()
         e.stopPropagation()
         params.api.applyTransaction({ remove: [params.node.data] })
+        syncUiMappingsFromGrid()
       })
       return eDiv
     }
@@ -643,11 +839,15 @@ const onMappingCellValueChanged = (event) => {
     if (formData.value.direction === 'INBOUND') {
       // Inbound: 외부(소스) -> 내부(타겟). 도메인 필드를 선택하면 타겟 필드(내부 필드)로 자동 지정
       event.node.setDataValue('targetField', event.newValue)
+      if (!event.node.data.sourceExpression) {
+        event.node.setDataValue('sourceExpression', `payload['${event.newValue}']`)
+      }
     } else {
       // Outbound: 내부(소스) -> 외부(타겟). 도메인 필드를 선택하면 소스 표현식으로 자동 지정
       event.node.setDataValue('sourceExpression', `payload['${event.newValue}']`)
     }
   }
+  syncUiMappingsFromGrid()
 }
 
 const addMapping = () => {
@@ -656,6 +856,7 @@ const addMapping = () => {
   } else {
     uiMappings.value.push({ targetField: '', selectedField: null, sourceExpression: '' })
   }
+  syncUiMappingsFromGrid()
 }
 
 const serializeUiData = () => {

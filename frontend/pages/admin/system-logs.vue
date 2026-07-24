@@ -250,7 +250,7 @@
           </div>
           
           <div class="flex justify-end mt-4" style="gap: 1rem;">
-            <va-button v-if="selectedIntegrationLog.status === 'FAIL'" color="warning" @click="retryIntegrationLog(selectedIntegrationLog.id)">재전송 (Retry)</va-button>
+            <va-button v-if="selectedIntegrationLog.status === 'FAIL' && (hasPermission('integration:write') || hasPermission('integration:*'))" color="warning" @click="retryIntegrationLog(selectedIntegrationLog.id)">재전송 (Retry)</va-button>
             <va-button color="secondary" @click="showIntegrationDetailsModal = false">Close</va-button>
           </div>
         </div>
@@ -294,6 +294,9 @@ import { TitleComponent, TooltipComponent, GridComponent } from 'echarts/compone
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vuestic-ui'
+import { usePermission } from '~/composables/usePermission'
+
+const { hasPermission } = usePermission()
 
 if (process.client) {
   use([CanvasRenderer, BarChart, LineChart, TitleComponent, TooltipComponent, GridComponent])

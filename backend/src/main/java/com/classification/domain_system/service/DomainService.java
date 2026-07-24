@@ -43,8 +43,13 @@ public class DomainService {
         com.classification.domain_system.entity.User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
                 
-        String role = user.getRole();
-        if (role != null && (role.contains("ADMIN") || role.contains("ROLE_ADMIN"))) {
+        boolean hasFullAccess = auth.getAuthorities().stream()
+                .anyMatch(a -> "*:*".equals(a.getAuthority()) 
+                            || "*".equals(a.getAuthority()) 
+                            || "domain:*".equalsIgnoreCase(a.getAuthority()) 
+                            || "ROLE_ADMIN".equalsIgnoreCase(a.getAuthority()));
+
+        if (hasFullAccess) {
             return domainRepository.findAllByOrderBySortOrderAsc();
         }
         

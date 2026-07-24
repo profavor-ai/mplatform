@@ -88,18 +88,21 @@ export default defineNuxtPlugin((nuxtApp) => {
     },
 
     async onResponseError({ request, response, options }) {
-      if ((response.status === 401 || response.status === 403) && process.client) {
+      if (response.status === 401 && process.client) {
         const reqUrl = request.toString()
         if (reqUrl.includes('/api/auth/login') || reqUrl.includes('/api/auth/refresh')) {
-          clearAuthCookies()
-          window.location.href = '/login'
+          if (reqUrl.includes('/api/auth/refresh')) {
+            clearAuthCookies()
+          }
           return
         }
 
         const refreshToken = getCookieValue('refresh_token')
         if (!refreshToken) {
           clearAuthCookies()
-          window.location.href = '/login'
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login'
+          }
           return
         }
 
@@ -120,7 +123,9 @@ export default defineNuxtPlugin((nuxtApp) => {
           return customFetch(request, options)
         } else {
           clearAuthCookies()
-          window.location.href = '/login'
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login'
+          }
           return
         }
       }

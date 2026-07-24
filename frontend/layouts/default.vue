@@ -173,6 +173,7 @@ import { computed, ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useCookie, useState } from '#app'
 import { useColors } from 'vuestic-ui'
+import { useMenu } from '~/composables/useMenu'
 
 const { t, locale, setLocale } = useI18n()
 const { applyPreset, currentPresetName } = useColors()
@@ -190,7 +191,6 @@ const isSavingTimezone = ref(false)
 
 const showRequestAccessModal = ref(false)
 
-import { useMenu } from '~/composables/useMenu'
 const { menus, fetchMenus } = useMenu()
 
 const userRolesArray = computed(() => {
@@ -478,12 +478,28 @@ const isMobile = ref(false)
 const route = useRoute()
 
 const isMounted = ref(false)
+const userPermissionsCookie = useCookie('user_permissions')
+
+const syncPermissions = async () => {
+  try {
+    if (!tokenCookie.value) return
+    const me = await $fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${tokenCookie.value}` }
+    })
+    if (me && Array.isArray(me.permissions)) {
+      userPermissionsCookie.value = me.permissions
+    }
+  } catch (e) {
+    console.error('Failed to sync permissions from DB:', e)
+  }
+}
 
 onMounted(async () => {
   if (savedTheme.value) {
     applyPreset(savedTheme.value)
   }
   
+  await syncPermissions()
   await fetchMenus()
   await fetchUserOrganizationName()
   await syncCurrentUserInfo()
@@ -570,6 +586,11 @@ const currentOrgName = computed(() => {
 const handleLogout = () => {
   tokenCookie.value = null
   userCookie.value = null
+  if (process.client) {
+    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+    document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+    document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+  }
   router.push('/login')
 }
 </script>

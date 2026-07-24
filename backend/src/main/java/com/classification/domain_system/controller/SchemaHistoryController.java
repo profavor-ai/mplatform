@@ -18,7 +18,7 @@ public class SchemaHistoryController {
     private final SchemaHistoryRepository historyRepository;
 
     @GetMapping("/api/domains/{domainId}/schema-history")
-    @PreAuthorize("hasAnyAuthority('domain:read', 'domain:*', 'ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'domain:read')")
     public ResponseEntity<PageResponse<SchemaHistory>> getSchemaHistory(
             @PathVariable UUID domainId,
             @RequestParam(defaultValue = "0") int page,

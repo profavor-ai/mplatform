@@ -17,12 +17,31 @@ public class AuthController {
 
     private final AuthService authService;
     private final com.classification.domain_system.repository.UserRepository userRepository;
+    private final com.classification.domain_system.service.PermissionService permissionService;
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser(org.springframework.security.core.Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
+            return ResponseEntity.status(401).body("Unauthenticated");
+        }
+        User user = authService.findByUsername(authentication.getName());
+        var perms = permissionService.getAuthoritiesForUser(user.getUsername(), user.getRole()).stream()
+            .map(a -> a.getAuthority())
+            .toList();
+        String serverOffset = OffsetDateTime.now().getOffset().getId();
+        return ResponseEntity.ok(new LoginResponse(null, null, user.getUsername(), user.getRole(), user.getId(), user.getId(), user.getOrganizationId(), user.getDepartmentId(), user.getTimezone(), serverOffset, perms));
+    }
 
     @GetMapping("/users")
     public ResponseEntity<?> getAllUsers() {
         String serverOffset = OffsetDateTime.now().getOffset().getId();
         return ResponseEntity.ok(userRepository.findAll().stream()
-            .map(user -> new LoginResponse(null, null, user.getUsername(), user.getRole(), user.getId(), user.getId(), user.getOrganizationId(), user.getDepartmentId(), user.getTimezone(), serverOffset))
+            .map(user -> {
+                var perms = permissionService.getAuthoritiesForUser(user.getUsername(), user.getRole()).stream()
+                    .map(a -> a.getAuthority())
+                    .toList();
+                return new LoginResponse(null, null, user.getUsername(), user.getRole(), user.getId(), user.getId(), user.getOrganizationId(), user.getDepartmentId(), user.getTimezone(), serverOffset, perms);
+            })
             .toList());
     }
 
@@ -36,6 +55,10 @@ public class AuthController {
             java.util.Map<String, String> tokens = authService.loginWithTokens(request.getUsername(), request.getPassword(), ip, userAgent);
             User user = authService.findByUsername(request.getUsername());
             
+            var perms = permissionService.getAuthoritiesForUser(user.getUsername(), user.getRole()).stream()
+                .map(a -> a.getAuthority())
+                .toList();
+
             String serverOffset = OffsetDateTime.now().getOffset().getId();
             return ResponseEntity.ok(new LoginResponse(
                 tokens.get("token"),
@@ -47,7 +70,8 @@ public class AuthController {
                 user.getOrganizationId(),
                 user.getDepartmentId(),
                 user.getTimezone(),
-                serverOffset
+                serverOffset,
+                perms
             ));
         } catch (Exception e) {
             return ResponseEntity.status(401).body(e.getMessage());
@@ -115,5 +139,6 @@ public class AuthController {
         private final UUID departmentId;
         private final String timezone;
         private final String serverOffset;
+        private final java.util.List<String> permissions;
     }
 }

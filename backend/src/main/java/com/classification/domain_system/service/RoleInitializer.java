@@ -41,11 +41,11 @@ public class RoleInitializer {
         createSystemRole(orgId, "DQ_MANAGER", "{\"ko\":\"데이터 품질 관리자\",\"en\":\"DQ Manager\"}", "{\"ko\":\"품질 규칙 및 검사 결과 관리\",\"en\":\"Manage DQ rules and scan results\"}",
                 Set.of("dq:read", "dq:write", "dq_rule:*", "dq_scan:*"));
 
-        createSystemRole(orgId, "VIEWER", "{\"ko\":\"조회자\",\"en\":\"Viewer\"}", "{\"ko\":\"도메인, 노드, 필드 및 품질 정보 읽기 전용\",\"en\":\"Read-only access to domains, nodes, fields and DQ\"}",
-                Set.of("domain:read", "node:read", "field:read", "dq:read"));
+        createSystemRole(orgId, "VIEWER", "{\"ko\":\"조회자\",\"en\":\"Viewer\"}", "{\"ko\":\"도메인, 노드, 필드, 레코드 및 품질 정보 읽기 전용\",\"en\":\"Read-only access to domains, nodes, fields, records and DQ\"}",
+                Set.of("domain:read", "node:read", "field:read", "record:read", "dq:read"));
 
         createSystemRole(orgId, "ROLE_USER", "{\"ko\":\"일반 사용자\",\"en\":\"General User\"}", "{\"ko\":\"기본 사용자 접근 권한\",\"en\":\"Basic user access\"}",
-                Set.of("domain:read", "node:read"));
+                Set.of("domain:read", "node:read", "record:read"));
     }
 
     private void createSystemRole(UUID orgId, String name, String displayName, String description, Set<String> permissions) {

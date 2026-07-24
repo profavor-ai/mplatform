@@ -57,6 +57,41 @@ public class RoleDataMigrationInitializer implements CommandLineRunner {
             jdbcTemplate.update("UPDATE role SET display_name = '{\"ko\":\"시스템 관리자\",\"en\":\"System Admin\"}' WHERE name IN ('ADMIN', 'ROLE_ADMIN') AND (display_name IS NULL OR display_name = '')");
             jdbcTemplate.update("UPDATE role SET display_name = '{\"ko\":\"조직 관리자\",\"en\":\"Organization Admin\"}' WHERE name = 'ORG_ADMIN' AND (display_name IS NULL OR display_name = '')");
 
+            // 6. department_roles 1NF 테이블: 'ADMIN' -> 'ROLE_ADMIN'
+            int updatedDeptRoles = jdbcTemplate.update(
+                    "UPDATE department_roles SET role_name = 'ROLE_ADMIN' WHERE role_name = 'ADMIN'"
+            );
+            if (updatedDeptRoles > 0) {
+                log.info("Migrated {} department_roles row(s) from 'ADMIN' to 'ROLE_ADMIN'.", updatedDeptRoles);
+            }
+
+            // 7. department 레거시 role 컬럼: 'ADMIN' -> 'ROLE_ADMIN'
+            int updatedDeptLegacy = jdbcTemplate.update(
+                    "UPDATE department SET role = 'ROLE_ADMIN' WHERE role = 'ADMIN'"
+            );
+            if (updatedDeptLegacy > 0) {
+                log.info("Migrated {} department(s) legacy role from 'ADMIN' to 'ROLE_ADMIN'.", updatedDeptLegacy);
+            }
+
+            // 8. menu_roles 1NF 테이블: 'ADMIN' -> 'ROLE_ADMIN'
+            int updatedMenuRoles = jdbcTemplate.update(
+                    "UPDATE menu_roles SET role_name = 'ROLE_ADMIN' WHERE role_name = 'ADMIN'"
+            );
+            if (updatedMenuRoles > 0) {
+                log.info("Migrated {} menu_roles row(s) from 'ADMIN' to 'ROLE_ADMIN'.", updatedMenuRoles);
+            }
+
+            // 9. ROLE_USER, USER, VIEWER 역할에 record:read 권한 보정
+            int addedRecordReadPerms = jdbcTemplate.update(
+                    "INSERT INTO role_permissions (role_id, permission) " +
+                    "SELECT r.id, 'record:read' FROM role r " +
+                    "WHERE r.name IN ('ROLE_USER', 'USER', 'VIEWER') " +
+                    "AND NOT EXISTS (SELECT 1 FROM role_permissions rp WHERE rp.role_id = r.id AND rp.permission = 'record:read')"
+            );
+            if (addedRecordReadPerms > 0) {
+                log.info("Migrated {} 'record:read' permission(s) to USER and VIEWER roles.", addedRecordReadPerms);
+            }
+
             log.info("Completed safety DB data migration for ROLE_ADMIN and ORG_ADMIN.");
         } catch (Exception e) {
             log.error("Error occurred during DB role data migration", e);

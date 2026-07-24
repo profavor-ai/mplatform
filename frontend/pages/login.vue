@@ -131,17 +131,16 @@
 </template>
 
 <script setup>
-import { useI18n } from 'vue-i18n'
-const { t } = useI18n()
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useCookie, useRuntimeConfig } from '#app'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const isMounted = ref(false)
 onMounted(() => {
   isMounted.value = true
 })
-import { useRouter } from 'vue-router'
-import { useCookie } from '#app'
-
 const usernameInputRef = ref(null)
 const passwordInputRef = ref(null)
 
@@ -173,6 +172,7 @@ const refreshMaxAge = Number(config.public.refreshTokenExpirationSec || 172800)
 const tokenCookie = useCookie('auth_token', { maxAge: accessMaxAge })
 const refreshTokenCookie = useCookie('refresh_token', { maxAge: refreshMaxAge })
 const userCookie = useCookie('user_data', { maxAge: accessMaxAge })
+const userPermissionsCookie = useCookie('user_permissions', { maxAge: accessMaxAge })
 
 definePageMeta({
   layout: false
@@ -193,6 +193,9 @@ const handleLogin = async () => {
     if (response.refreshToken) {
       refreshTokenCookie.value = response.refreshToken
     }
+    if (response.permissions) {
+      userPermissionsCookie.value = response.permissions
+    }
     userCookie.value = JSON.stringify({
       id: response.id || response.uuid,
       uuid: response.uuid || response.id,
@@ -201,7 +204,8 @@ const handleLogin = async () => {
       organizationId: response.organizationId,
       departmentId: response.departmentId,
       timezone: response.timezone,
-      serverOffset: response.serverOffset
+      serverOffset: response.serverOffset,
+      permissions: response.permissions || []
     })
     
     const tzCookie = useCookie('timezone', { default: () => 'Asia/Seoul' })

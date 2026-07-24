@@ -22,8 +22,8 @@
               />
             </div>
             <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; padding: 0 0.5rem;">
-              <va-button v-if="isAdmin" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" @click="openDomainModal()" color="primary">Domain</va-button>
-              <va-button style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="note_add" @click="openNodeModal()" :disabled="!selectedNode" color="primary" :preset="selectedNode ? 'primary' : 'secondary'">Node</va-button>
+              <va-button v-if="isAdmin || hasPermission('domain:write') || hasPermission('domain:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" @click="openDomainModal()" color="primary">Domain</va-button>
+              <va-button v-if="hasPermission('node:write') || hasPermission('node:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="note_add" @click="openNodeModal()" :disabled="!selectedNode" color="primary" :preset="selectedNode ? 'primary' : 'secondary'">Node</va-button>
             </div>
             <div v-if="!isAdmin" style="margin-top: 0.75rem; padding: 0 0.5rem;">
               <va-button preset="secondary" style="width: 100%;" @click="showRequestAccessModal = true">Request Domain Access</va-button>
@@ -67,7 +67,7 @@
               </div>
               
               <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-                <va-button icon="add" @click="openFieldModal(null)">Add Field</va-button>
+                <va-button v-if="hasPermission('field:write') || hasPermission('field:*')" icon="add" @click="openFieldModal(null)">Add Field</va-button>
               </div>
             </div>
 
@@ -440,7 +440,7 @@
 
       <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
         <va-button preset="secondary" @click="showFieldModal = false">Cancel</va-button>
-        <va-button @click="saveField">{{ isEditMode ? 'Save' : 'Create' }}</va-button>
+        <va-button v-if="hasPermission('field:write') || hasPermission('field:*')" @click="saveField">{{ isEditMode ? 'Save' : 'Create' }}</va-button>
       </div>
     </va-modal>
 
@@ -588,10 +588,11 @@
 <script setup>
 const colors = useColors()
 const isDark = computed(() => colors.currentPresetName.value === 'dark')
-import { useColors } from 'vuestic-ui'
-import { useI18n } from 'vue-i18n'
+import { usePermission } from '~/composables/usePermission'
+
 const { t } = useI18n()
 const { currentPresetName } = useColors()
+const { hasPermission } = usePermission()
 import { ref, computed, onMounted, watch } from 'vue'
 import { useCookie, useState } from '#app'
 

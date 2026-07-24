@@ -22,6 +22,8 @@ import org.springframework.data.domain.PageRequest;
 import com.classification.domain_system.dto.PageResponse;
 import org.springframework.data.domain.Pageable;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/nodes/{nodeId}/records")
 @RequiredArgsConstructor
@@ -32,6 +34,7 @@ public class RecordController {
     private final ClassificationNodeRepository classificationNodeRepository;
     
     @PostMapping
+    @PreAuthorize("hasPermission(null, 'record:write')")
     public ResponseEntity<ApprovalRequest> createRecordRequest(
             @PathVariable UUID nodeId, 
             @RequestBody RecordRequest request) {
@@ -39,6 +42,7 @@ public class RecordController {
     }
 
     @PostMapping("/batch")
+    @PreAuthorize("hasPermission(null, 'record:write')")
     public ResponseEntity<List<ApprovalRequest>> createBatchRecords(
             @PathVariable UUID nodeId, 
             @RequestBody List<RecordRequest> requests) {
@@ -50,6 +54,7 @@ public class RecordController {
     }
     
     @GetMapping
+    @PreAuthorize("hasPermission(null, 'record:read')")
     public ResponseEntity<PageResponse<Record>> getRecords(
             @PathVariable UUID nodeId,
             @RequestParam(required = false) String status,

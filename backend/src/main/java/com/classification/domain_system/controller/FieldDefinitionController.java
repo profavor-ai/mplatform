@@ -22,7 +22,7 @@ public class FieldDefinitionController {
     private final FieldDefinitionService fieldService;
     
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('field:write', 'field:*', 'ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'field:write')")
     public ResponseEntity<FieldDefinition> addField(
             @PathVariable UUID nodeId, 
             @RequestBody FieldDefinitionRequest request) {
@@ -30,7 +30,7 @@ public class FieldDefinitionController {
     }
     
     @GetMapping("/effective/page")
-    @PreAuthorize("hasAnyAuthority('field:read', 'field:*', 'ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'field:read')")
     public ResponseEntity<PageResponse<FieldDefinition>> getEffectiveFieldsPage(
             @PathVariable UUID nodeId,
             @RequestParam(defaultValue = "0") int page,
@@ -40,13 +40,13 @@ public class FieldDefinitionController {
     }
     
     @GetMapping("/effective")
-    @PreAuthorize("hasAnyAuthority('field:read', 'field:*', 'ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'field:read')")
     public ResponseEntity<List<FieldDefinition>> getEffectiveFields(@PathVariable UUID nodeId) {
         return ResponseEntity.ok(fieldService.getEffectiveFields(nodeId));
     }
     
     @PutMapping("/{fieldId}")
-    @PreAuthorize("hasAnyAuthority('field:write', 'field:*', 'ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'field:write')")
     public ResponseEntity<FieldDefinition> updateField(
             @PathVariable UUID nodeId,
             @PathVariable UUID fieldId,

@@ -20,7 +20,7 @@ public class MatchCandidateController {
     private final MatchCandidateService candidateService;
 
     @GetMapping("/api/domains/{domainId}/match-candidates")
-    @PreAuthorize("hasAnyAuthority('domain:read', 'domain:*', 'ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'domain:read')")
     public ResponseEntity<PageResponse<MatchCandidate>> getCandidates(
             @PathVariable UUID domainId,
             @RequestParam(defaultValue = "0") int page,
@@ -29,7 +29,7 @@ public class MatchCandidateController {
     }
 
     @PostMapping("/api/match-candidates/{id}/confirm")
-    @PreAuthorize("hasAnyAuthority('domain:write', 'domain:*', 'ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
     public ResponseEntity<MatchCandidate> confirm(
             @PathVariable UUID id,
             @RequestBody(required = false) RecordMergeService.MergeRequest mergeReq,
@@ -38,7 +38,7 @@ public class MatchCandidateController {
     }
 
     @PostMapping("/api/match-candidates/{id}/reject")
-    @PreAuthorize("hasAnyAuthority('domain:write', 'domain:*', 'ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
     public ResponseEntity<Record> reject(
             @PathVariable UUID id,
             @AuthenticationPrincipal String username) {

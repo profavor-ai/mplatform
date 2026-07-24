@@ -32,17 +32,19 @@ public class DqRuleController {
     private final FieldDefinitionRepository fieldDefinitionRepository;
     private final DqRuleEngine dqRuleEngine;
 
+    private final com.classification.domain_system.security.CustomPermissionEvaluator permissionEvaluator;
+
     // ─── CRUD for DQ Rules ───────────────────────────────────────────
 
     @GetMapping("/fields/{fieldId}/dq-rules")
-    @PreAuthorize("hasAnyAuthority('dq:read', 'dq:*', 'ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'dq:read')")
     public ResponseEntity<List<DqRuleResponse>> getRulesByField(@PathVariable UUID fieldId) {
         List<DqRule> rules = dqRuleRepository.findByFieldDefinition_IdOrderBySortOrderAsc(fieldId);
         return ResponseEntity.ok(rules.stream().map(this::toResponse).toList());
     }
 
     @PostMapping("/fields/{fieldId}/dq-rules")
-    @PreAuthorize("hasAnyAuthority('dq:write', 'dq:*', 'ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'dq:write')")
     @Transactional
     public ResponseEntity<DqRuleResponse> createRule(@PathVariable UUID fieldId,
                                                       @RequestBody DqRuleRequest request) {
@@ -88,7 +90,7 @@ public class DqRuleController {
     }
 
     @PutMapping("/dq-rules/{ruleId}")
-    @PreAuthorize("hasAnyAuthority('dq:write', 'dq:*', 'ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'dq:write')")
     @Transactional
     public ResponseEntity<DqRuleResponse> updateRule(@PathVariable UUID ruleId,
                                                       @RequestBody DqRuleRequest request) {
@@ -120,7 +122,7 @@ public class DqRuleController {
     }
 
     @DeleteMapping("/dq-rules/{ruleId}")
-    @PreAuthorize("hasAnyAuthority('dq:write', 'dq:*', 'ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'dq:write')")
     @Transactional
     public ResponseEntity<Void> deleteRule(@PathVariable UUID ruleId) {
         checkAdminAccess();
@@ -134,9 +136,7 @@ public class DqRuleController {
     private void checkAdminAccess() {
         org.springframework.security.core.Authentication auth =
                 org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.getAuthorities().stream()
-                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority())
-                            || "dq:write".equals(a.getAuthority()) || "dq:*".equals(a.getAuthority()))) {
+        if (!permissionEvaluator.hasPermission(auth, null, "dq:write")) {
             throw new com.classification.domain_system.exception.CustomAccessDeniedException("Access denied. DQ write permission required.");
         }
     }
@@ -144,7 +144,7 @@ public class DqRuleController {
     // ─── Validation Preview ──────────────────────────────────────────
 
     @PostMapping("/dq-rules/validate")
-    @PreAuthorize("hasAnyAuthority('dq:read', 'dq:write', 'dq:*', 'ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'dq:read')")
     public ResponseEntity<DqEvaluationResponse> validatePreview(
             @RequestParam UUID nodeId,
             @RequestParam(required = false) UUID recordId,

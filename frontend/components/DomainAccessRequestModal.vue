@@ -76,12 +76,22 @@ const getDomainName = (nameObj) => {
 const loadDomains = async () => {
   try {
     const headers = { Authorization: `Bearer ${tokenCookie.value}` }
-    const [availRes, domainRes] = await Promise.all([
+    const [availResult, domainResult] = await Promise.allSettled([
       $fetch('/api/permissions/domains/available', { headers }),
       $fetch('/api/domains', { headers })
     ])
-    availableDomains.value = availRes.map(d => ({ id: d.id, label: getDomainName(d.name) }))
-    domainList.value = domainRes
+
+    if (availResult.status === 'fulfilled' && Array.isArray(availResult.value)) {
+      availableDomains.value = availResult.value.map(d => ({ id: d.id, label: getDomainName(d.name) }))
+    } else {
+      availableDomains.value = []
+    }
+
+    if (domainResult.status === 'fulfilled' && Array.isArray(domainResult.value)) {
+      domainList.value = domainResult.value
+    } else {
+      domainList.value = []
+    }
   } catch (e) {
     console.error('Error fetching domains for request:', e)
   }

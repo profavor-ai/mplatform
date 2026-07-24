@@ -13,6 +13,8 @@ import org.springframework.data.domain.PageRequest;
 import com.classification.domain_system.dto.PageResponse;
 import org.springframework.data.domain.Pageable;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/records")
 @RequiredArgsConstructor
@@ -21,6 +23,7 @@ public class GlobalRecordController {
     private final com.classification.domain_system.service.ApprovalService approvalService;
     
     @GetMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'record:read')")
     public ResponseEntity<Record> getRecord(@PathVariable UUID id) {
         return recordRepository.findById(id)
                 .map(ResponseEntity::ok)
@@ -28,6 +31,7 @@ public class GlobalRecordController {
     }
 
     @PostMapping("/{id}/update-request")
+    @PreAuthorize("hasPermission(null, 'record:write')")
     public ResponseEntity<?> updateRecordRequest(
             @PathVariable UUID id, 
             @RequestBody com.classification.domain_system.dto.RecordRequest request) {
@@ -39,6 +43,7 @@ public class GlobalRecordController {
     }
 
     @PostMapping("/{id}/delete-request")
+    @PreAuthorize("hasPermission(null, 'record:delete')")
     public ResponseEntity<?> deleteRecordRequest(
             @PathVariable UUID id,
             @RequestBody com.classification.domain_system.dto.RecordRequest request) {

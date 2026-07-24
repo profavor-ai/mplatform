@@ -36,10 +36,11 @@ public class JwtUtil {
         this.key = Keys.hmacShaKeyFor(secret.getBytes());
     }
 
-    public String generateToken(String username, String role, String uuid) {
+    public String generateToken(String username, String role, String userId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", role);
-        claims.put("uuid", uuid);
+        claims.put("userId", userId);
+        claims.put("uuid", userId); // backward compatibility
         
         return Jwts.builder()
                 .setClaims(claims)

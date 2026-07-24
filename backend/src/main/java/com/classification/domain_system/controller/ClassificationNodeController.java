@@ -19,7 +19,7 @@ public class ClassificationNodeController {
     private final ClassificationNodeService nodeService;
     
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('node:write', 'node:*', 'ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'node:write')")
     public ResponseEntity<ClassificationNode> createNode(
             @PathVariable UUID domainId, 
             @RequestBody ClassificationNodeRequest request) {
@@ -27,13 +27,13 @@ public class ClassificationNodeController {
     }
     
     @GetMapping("/tree")
-    @PreAuthorize("hasAnyAuthority('node:read', 'node:*', 'ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'node:read')")
     public ResponseEntity<List<ClassificationNode>> getTree(@PathVariable UUID domainId) {
         return ResponseEntity.ok(nodeService.getTree(domainId));
     }
     
     @PutMapping("/{nodeId}")
-    @PreAuthorize("hasAnyAuthority('node:write', 'node:*', 'ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'node:write')")
     public ResponseEntity<ClassificationNode> updateNode(
             @PathVariable UUID domainId,
             @PathVariable UUID nodeId,
