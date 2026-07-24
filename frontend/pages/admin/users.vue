@@ -422,9 +422,7 @@ const selectUser = async (user) => {
     selectedUserRoles.value = getUserRolesArray(user.role)
     selectedUserOrgId.value = user.organizationId
     selectedUserDeptId.value = user.departmentId
-    if (user.organizationId) {
-      await fetchDepartments(user.organizationId)
-    }
+    await fetchAllDepartments()
     await loadUserPermissions(user.id)
   }
 }
