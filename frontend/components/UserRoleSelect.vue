@@ -1,17 +1,35 @@
 <template>
-  <va-select
-    :model-value="modelValue"
-    :options="formattedOptions"
-    :multiple="multiple"
-    :label="label"
-    :placeholder="placeholder"
-    :clearable="clearable"
-    :disabled="disabled"
-    :size="size"
-    value-by="value"
-    text-by="text"
-    @update:modelValue="onUpdate"
-  />
+  <div class="user-role-select-wrapper" style="display: flex; flex-direction: column; gap: 0.4rem; width: 100%;">
+    <va-select
+      :model-value="modelValue"
+      :options="formattedOptions"
+      :multiple="multiple"
+      :label="label"
+      :placeholder="placeholder"
+      :clearable="clearable"
+      :disabled="disabled"
+      :size="size"
+      value-by="value"
+      text-by="text"
+      @update:modelValue="onUpdate"
+      class="slim-role-select"
+    />
+
+    <!-- Selected Roles Chip List -->
+    <div v-if="multiple && selectedRoleList.length > 0" class="selected-role-chips" style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.25rem;">
+      <va-chip
+        v-for="roleCode in selectedRoleList"
+        :key="roleCode"
+        size="small"
+        :color="getRoleColor(roleCode)"
+        closeable
+        @remove="removeRole(roleCode)"
+        style="font-weight: 600; font-size: 0.78rem; padding: 2px 8px;"
+      >
+        {{ formatRoleText(roleCode) }}
+      </va-chip>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -103,8 +121,52 @@ const formattedOptions = computed(() => {
   return result
 })
 
+const selectedRoleList = computed(() => {
+  if (!props.modelValue) return []
+  if (Array.isArray(props.modelValue)) {
+    return props.modelValue.filter(Boolean)
+  }
+  if (typeof props.modelValue === 'string') {
+    return props.modelValue.split(',').map(r => r.trim()).filter(Boolean)
+  }
+  return []
+})
+
+const removeRole = (roleCodeToRemove) => {
+  const normTarget = roleCodeToRemove.replace('ROLE_', '')
+  const currentList = Array.isArray(props.modelValue)
+    ? [...props.modelValue]
+    : (typeof props.modelValue === 'string' ? props.modelValue.split(',').map(r => r.trim()) : [])
+
+  const newList = currentList.filter(r => r !== roleCodeToRemove && r.replace('ROLE_', '') !== normTarget)
+
+  const finalVal = Array.isArray(props.modelValue) ? newList : newList.join(', ')
+  emit('update:modelValue', finalVal)
+  emit('change', finalVal)
+}
+
+const getRoleColor = (code) => {
+  const norm = code ? code.replace('ROLE_', '') : ''
+  switch (norm) {
+    case 'ADMIN': return 'danger'
+    case 'ORG_ADMIN': return 'warning'
+    case 'DATA_STEWARD': return 'primary'
+    case 'DOMAIN_EDITOR': return 'info'
+    case 'DQ_MANAGER': return 'success'
+    case 'VIEWER': return 'secondary'
+    default: return 'primary'
+  }
+}
+
 const onUpdate = (val) => {
   emit('update:modelValue', val)
   emit('change', val)
 }
 </script>
+
+<style scoped>
+:deep(.slim-role-select .va-input-wrapper__field) {
+  max-height: 42px !important;
+  overflow: hidden !important;
+}
+</style>
