@@ -368,18 +368,6 @@ const filteredMenus = computed(() => {
   const menusCopy = JSON.parse(JSON.stringify(menus.value))
   const filtered = filterTree(menusCopy)
   
-  // Ensure DQ Dashboard is accessible in sidebar
-  const hasDqDashboard = filtered.some(m => m.path === '/dq-dashboard' || (m.children && m.children.some(c => c.path === '/dq-dashboard')))
-  if (!hasDqDashboard) {
-    filtered.push({
-      id: 'dq-dashboard-auto',
-      name: 'DQ Dashboard',
-      path: '/dq-dashboard',
-      icon: 'analytics',
-      requiredRole: 'USER',
-      children: []
-    })
-  }
   return filtered
 })
 const timezoneOptions = ref([
