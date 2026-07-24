@@ -660,7 +660,34 @@
           </div>
         </div>
         <va-input v-model="newGroupForm.code" :label="getLabel('group_code_label', '그룹 코드명 (예: report, api)')" placeholder="영문 소문자" :disabled="isEditingGroup" required />
-        <va-input v-model="newGroupForm.icon" :label="getLabel('group_icon_label', '이모지 아이콘 (예: 📊, 🔑, ⚙️)')" placeholder="이모지 또는 문구" />
+        <!-- Interactive Emoji Picker Palette -->
+        <div>
+          <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--va-primary); margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.4px;">
+            {{ getLabel('group_icon_picker_label', '이모지 아이콘 선택') }}
+          </label>
+          <div style="display: flex; align-items: center; gap: 0.75rem; background: var(--va-background-secondary); border: 1px solid var(--va-background-border); padding: 0.5rem 0.75rem; border-radius: 8px; margin-bottom: 0.5rem;">
+            <span style="font-size: 1.5rem; line-height: 1;">{{ newGroupForm.icon || '⚙️' }}</span>
+            <span style="font-size: 0.85rem; color: var(--va-text-primary); font-weight: 600;">
+              선택된 아이콘: <b style="color: var(--va-primary); font-size: 1.1rem; margin-left: 0.25rem;">{{ newGroupForm.icon || '⚙️' }}</b>
+            </span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.35rem; background: var(--va-background-element); border: 1px solid var(--va-background-border); padding: 0.5rem; border-radius: 8px; max-height: 120px; overflow-y: auto;">
+            <button
+              v-for="emoji in presetEmojiList"
+              :key="emoji"
+              type="button"
+              @click="newGroupForm.icon = emoji"
+              style="font-size: 1.25rem; padding: 0.3rem 0; border: 1.5px solid transparent; border-radius: 6px; cursor: pointer; transition: all 0.15s; background: transparent; display: flex; align-items: center; justify-content: center;"
+              :style="{
+                borderColor: newGroupForm.icon === emoji ? 'var(--va-primary)' : 'transparent',
+                background: newGroupForm.icon === emoji ? 'rgba(21, 101, 192, 0.14)' : 'transparent',
+                transform: newGroupForm.icon === emoji ? 'scale(1.15)' : 'none'
+              }"
+            >
+              {{ emoji }}
+            </button>
+          </div>
+        </div>
         <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
           <va-button preset="secondary" @click="showAddGroupModalFlag = false">{{ getLabel('cancel', '취소') }}</va-button>
           <va-button color="primary" @click="saveNewGroup">{{ isEditingGroup ? getLabel('save', '저장') : getLabel('create_group_btn', '그룹 생성') }}</va-button>
@@ -1489,6 +1516,7 @@ const customPermissionGroups = ref([
 
 const showAddGroupModalFlag = ref(false)
 const modalTargetContext = ref('new')
+const presetEmojiList = ['⚙️', '🌐', '📁', '📌', '⚡', '📊', '🔑', '🛡️', '🔒', '👤', '🏢', '📦', '📑', '🛠️', '🎯', '🚀', '⭐', '💡', '🏷️', '📋', '📈', '🔔', '💬', '🔍']
 const newGroupForm = ref({ titleKo: '', titleEn: '', code: '', icon: '⚙️' })
 
 const isEditingGroup = ref(false)
