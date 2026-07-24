@@ -249,7 +249,7 @@
     </div>
 
     <!-- Create Organization Modal -->
-    <va-modal v-model="showCreateOrgModalFlag" :title="t('create_new_org')" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
+    <va-modal v-draggable-modal v-model="showCreateOrgModalFlag" :title="t('create_new_org')" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
       <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
         <va-input v-model="newOrgForm.name" :label="t('org_code_placeholder')" required />
         <div>
@@ -286,7 +286,7 @@
     </va-modal>
 
     <!-- Create Department Modal -->
-    <va-modal v-model="showCreateDeptModalFlag" :title="getLabel('add_new_dept', '부서 신규 등록')" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
+    <va-modal v-draggable-modal v-model="showCreateDeptModalFlag" :title="getLabel('add_new_dept', '부서 신규 등록')" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
       <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
         <va-select
           v-model="newDeptForm.parentDepartmentId"
@@ -348,7 +348,7 @@
     </va-modal>
 
     <!-- Edit Department Modal -->
-    <va-modal v-model="showEditDeptModalFlag" :title="getLabel('edit_dept', '부서/조직 정보 수정')" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
+    <va-modal v-draggable-modal v-model="showEditDeptModalFlag" :title="getLabel('edit_dept', '부서/조직 정보 수정')" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
       <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
         <va-select
           v-model="editDeptForm.parentDepartmentId"
@@ -410,7 +410,7 @@
     </va-modal>
 
     <!-- Create Role Modal -->
-    <va-modal v-model="showCreateRoleModalFlag" :title="getLabel('create_role_title', '조직 RBAC 역할 신규 등록')" hide-default-actions size="medium" :prevent-click-outside="true" :no-outside-dismiss="true">
+    <va-modal v-draggable-modal v-model="showCreateRoleModalFlag" :title="getLabel('create_role_title', '조직 RBAC 역할 신규 등록')" hide-default-actions size="medium" :prevent-click-outside="true" :no-outside-dismiss="true">
       <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1.1rem;">
         <va-input v-model="newRoleForm.name" :label="getLabel('role_code_label', '역할 코드명 (예: CUSTOM_MANAGER, DQ_OPERATOR)')" placeholder="영문 대문자" required />
         <div>
@@ -453,7 +453,7 @@
     </va-modal>
 
     <!-- Edit Role Modal -->
-    <va-modal v-model="showEditRoleModalFlag" :title="getLabel('edit_role_title', '조직 RBAC 역할 정보 수정')" hide-default-actions size="medium" :prevent-click-outside="true" :no-outside-dismiss="true">
+    <va-modal v-draggable-modal v-model="showEditRoleModalFlag" :title="getLabel('edit_role_title', '조직 RBAC 역할 정보 수정')" hide-default-actions size="medium" :prevent-click-outside="true" :no-outside-dismiss="true">
       <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1.1rem;">
         <va-input v-model="editRoleForm.name" :label="getLabel('role_code_label', '역할 코드명')" readonly class="readonly-sys-code" />
         <div>
@@ -496,7 +496,7 @@
     </va-modal>
 
     <!-- Delete Role Confirm Modal -->
-    <va-modal v-model="showDeleteRoleModalFlag" title="역할 삭제 확인" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
+    <va-modal v-draggable-modal v-model="showDeleteRoleModalFlag" title="역할 삭제 확인" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
       <div style="padding: 1.25rem 0; text-align: center;">
         <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(229, 57, 53, 0.12); color: #b91c1c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
           <va-icon name="warning" size="large" color="danger" />
@@ -623,7 +623,7 @@
     </va-modal>
 
     <!-- Permission Master Management Modal -->
-    <va-modal v-model="showPermMasterModal" :title="getLabel('perm_master_management', '세부 권한 마스터 관리')" hide-default-actions size="large" style="--va-modal-max-width: 1000px;" :prevent-click-outside="true">
+    <va-modal v-draggable-modal v-model="showPermMasterModal" :title="getLabel('perm_master_management', '세부 권한 마스터 관리')" hide-default-actions size="large" style="--va-modal-max-width: 1000px;" :prevent-click-outside="true">
       <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
         <div style="background: var(--va-background-secondary); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem;">
           <PermissionMatrix
@@ -738,6 +738,7 @@
 
     <!-- System Notification Modal -->
     <va-modal
+      v-draggable-modal
       v-model="showErrorAlertModal"
       :title="errorAlertTitle || $t('system_notification')"
       hide-default-actions
@@ -793,6 +794,7 @@
 
     <!-- Organization Delete Confirm Modal -->
     <va-modal
+      v-draggable-modal
       v-model="showDeleteOrgModalFlag"
       :title="getLabel('delete_organization', '조직 삭제')"
       :ok-text="getLabel('delete', '삭제')"
