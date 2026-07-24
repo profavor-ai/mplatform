@@ -100,6 +100,58 @@ class CustomRecordRepositoryImplTest {
     }
 
     @Test
+    @DisplayName("EQ 조건 검색 시 다국어 및 부분 문자열 매칭용 searchValLike 파라미터가 바인딩되어야 한다")
+    void findDynamicRecords_MultilingualEQ_BindsLikeParams() {
+        Map<String, String> params = new HashMap<>();
+        params.put("stock_name", "삼성전자");
+
+        customRecordRepository.findDynamicRecords(
+                List.of(nodeId), null, params, PageRequest.of(0, 10));
+
+        verify(query, times(2)).setParameter(eq("searchValLike0"), eq("삼성전자"));
+    }
+
+    @Test
+    @DisplayName("STARTS_WITH 조건 검색 시 앞단어 와일드카드(val%) 파라미터가 바인딩되어야 한다")
+    void findDynamicRecords_StartsWith_BindsLikeParams() {
+        Map<String, String> params = new HashMap<>();
+        params.put("stock_name", "삼성");
+        params.put("op_stock_name", "STARTS_WITH");
+
+        customRecordRepository.findDynamicRecords(
+                List.of(nodeId), null, params, PageRequest.of(0, 10));
+
+        verify(query, times(2)).setParameter(eq("searchValLike0"), eq("삼성%"));
+    }
+
+    @Test
+    @DisplayName("ENDS_WITH 조건 검색 시 뒷단어 와일드카드(%val) 파라미터가 바인딩되어야 한다")
+    void findDynamicRecords_EndsWith_BindsLikeParams() {
+        Map<String, String> params = new HashMap<>();
+        params.put("stock_name", "전자");
+        params.put("op_stock_name", "ENDS_WITH");
+
+        customRecordRepository.findDynamicRecords(
+                List.of(nodeId), null, params, PageRequest.of(0, 10));
+
+        verify(query, times(2)).setParameter(eq("searchValLike0"), eq("%전자"));
+    }
+
+    @Test
+    @DisplayName("CONTAINS 조건 검색 시 ILIKE 조건과 searchValLike 파라미터가 정상 생성 및 바인딩되어야 한다")
+    void findDynamicRecords_Contains_GeneratesLikeClauseAndBindsParams() {
+        Map<String, String> params = new HashMap<>();
+        params.put("stock_code", "9019");
+        params.put("op_stock_code", "CONTAINS");
+
+        customRecordRepository.findDynamicRecords(
+                List.of(nodeId), null, params, PageRequest.of(0, 10));
+
+        verify(entityManager).createNativeQuery(contains("ILIKE"), eq(Record.class));
+        verify(query, times(2)).setParameter(eq("searchValLike0"), eq("%9019%"));
+    }
+
+    @Test
     @DisplayName("숫자 값 EQ 검색 시 숫자형 파라미터(searchValNum)가 query/countQuery 각각 바인딩되어야 한다")
     void findDynamicRecords_NumericEQ_BindsNumericParams() {
         Map<String, String> params = new HashMap<>();
@@ -139,6 +191,20 @@ class CustomRecordRepositoryImplTest {
                 List.of(nodeId), null, params, PageRequest.of(0, 10));
 
         verify(query, times(2)).setParameter(eq("searchVal0"), eq(50.0));
+    }
+
+    @Test
+    @DisplayName("GTE, LT, LTE 연산자 검색 시 수치 비교 SQL 및 searchVal 파라미터가 바인딩되어야 한다")
+    void findDynamicRecords_NumericComparisonOperators_BindsParams() {
+        Map<String, String> params = new HashMap<>();
+        params.put("price", "100");
+        params.put("op_price", "GTE");
+
+        customRecordRepository.findDynamicRecords(
+                List.of(nodeId), null, params, PageRequest.of(0, 10));
+
+        verify(entityManager).createNativeQuery(contains(">="), eq(Record.class));
+        verify(query, times(2)).setParameter(eq("searchVal0"), eq(100.0));
     }
 
     @Test

@@ -45,11 +45,17 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
             String safeKey = key.replaceAll("[^a-zA-Z0-9_]", "_");
             String op = searchParams.getOrDefault("op_" + key, "EQ");
             
-            if ("EQ".equals(op)) {
+            if ("EQ".equals(op) || "CONTAINS".equals(op) || "STARTS_WITH".equals(op) || "ENDS_WITH".equals(op)) {
                 String cond = " AND (CAST(r.data AS jsonb) @> CAST(:searchValStr" + paramIndex + " AS jsonb) " +
                               " OR CAST(r.data AS jsonb) @> CAST(:searchValStrLower" + paramIndex + " AS jsonb) " +
                               " OR CAST(r.data AS jsonb) @> CAST(:searchValNum" + paramIndex + " AS jsonb) " +
-                              " OR CAST(r.data AS jsonb) @> CAST(:searchValNumLower" + paramIndex + " AS jsonb)) ";
+                              " OR CAST(r.data AS jsonb) @> CAST(:searchValNumLower" + paramIndex + " AS jsonb) " +
+                              " OR (NULLIF(r.data->>'" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
+                              " OR (NULLIF(r.data->>'" + safeKey.toLowerCase() + "', '') ILIKE :searchValLike" + paramIndex + ") " +
+                              " OR (NULLIF(r.data->'" + safeKey + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
+                              " OR (NULLIF(r.data->'" + safeKey + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ") " +
+                              " OR (NULLIF(r.data->'" + safeKey.toLowerCase() + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
+                              " OR (NULLIF(r.data->'" + safeKey.toLowerCase() + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ")) ";
                 sql.append(cond);
                 countSql.append(cond);
                 paramIndex++;
@@ -103,13 +109,21 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
             String val = searchParams.get(key);
             String safeKey = key.replaceAll("[^a-zA-Z0-9_]", "_");
             
-            if ("EQ".equals(op)) {
+            if ("EQ".equals(op) || "CONTAINS".equals(op) || "STARTS_WITH".equals(op) || "ENDS_WITH".equals(op)) {
                 String strVal = "{\"" + safeKey + "\": \"" + val.replace("\"", "\\\"") + "\"}";
                 String strValLower = "{\"" + safeKey.toLowerCase() + "\": \"" + val.replace("\"", "\\\"") + "\"}";
                 query.setParameter("searchValStr" + paramIndex, strVal);
                 countQuery.setParameter("searchValStr" + paramIndex, strVal);
                 query.setParameter("searchValStrLower" + paramIndex, strValLower);
                 countQuery.setParameter("searchValStrLower" + paramIndex, strValLower);
+                String likeVal = switch (op) {
+                    case "EQ" -> val;
+                    case "STARTS_WITH" -> val + "%";
+                    case "ENDS_WITH" -> "%" + val;
+                    default -> "%" + val + "%";
+                };
+                query.setParameter("searchValLike" + paramIndex, likeVal);
+                countQuery.setParameter("searchValLike" + paramIndex, likeVal);
                 if (val.matches("-?(0|[1-9]\\d*)(\\.\\d+)?")) {
                     String numVal = "{\"" + safeKey + "\": " + val + "}";
                     String numValLower = "{\"" + safeKey.toLowerCase() + "\": " + val + "}";
@@ -182,11 +196,17 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
             String safeKey = key.replaceAll("[^a-zA-Z0-9_]", "_");
             String op = searchParams.getOrDefault("op_" + key, "EQ");
             
-            if ("EQ".equals(op)) {
+            if ("EQ".equals(op) || "CONTAINS".equals(op) || "STARTS_WITH".equals(op) || "ENDS_WITH".equals(op)) {
                 String cond = " AND (CAST(r.data AS jsonb) @> CAST(:searchValStr" + paramIndex + " AS jsonb) " +
                               " OR CAST(r.data AS jsonb) @> CAST(:searchValStrLower" + paramIndex + " AS jsonb) " +
                               " OR CAST(r.data AS jsonb) @> CAST(:searchValNum" + paramIndex + " AS jsonb) " +
-                              " OR CAST(r.data AS jsonb) @> CAST(:searchValNumLower" + paramIndex + " AS jsonb)) ";
+                              " OR CAST(r.data AS jsonb) @> CAST(:searchValNumLower" + paramIndex + " AS jsonb) " +
+                              " OR (NULLIF(r.data->>'" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
+                              " OR (NULLIF(r.data->>'" + safeKey.toLowerCase() + "', '') ILIKE :searchValLike" + paramIndex + ") " +
+                              " OR (NULLIF(r.data->'" + safeKey + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
+                              " OR (NULLIF(r.data->'" + safeKey + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ") " +
+                              " OR (NULLIF(r.data->'" + safeKey.toLowerCase() + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
+                              " OR (NULLIF(r.data->'" + safeKey.toLowerCase() + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ")) ";
                 sql.append(cond);
                 countSql.append(cond);
                 paramIndex++;
@@ -235,13 +255,21 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
             String val = searchParams.get(key);
             String safeKey = key.replaceAll("[^a-zA-Z0-9_]", "_");
             
-            if ("EQ".equals(op)) {
+            if ("EQ".equals(op) || "CONTAINS".equals(op) || "STARTS_WITH".equals(op) || "ENDS_WITH".equals(op)) {
                 String strVal = "{\"" + safeKey + "\": \"" + val.replace("\"", "\\\"") + "\"}";
                 String strValLower = "{\"" + safeKey.toLowerCase() + "\": \"" + val.replace("\"", "\\\"") + "\"}";
                 query.setParameter("searchValStr" + paramIndex, strVal);
                 countQuery.setParameter("searchValStr" + paramIndex, strVal);
                 query.setParameter("searchValStrLower" + paramIndex, strValLower);
                 countQuery.setParameter("searchValStrLower" + paramIndex, strValLower);
+                String likeVal = switch (op) {
+                    case "EQ" -> val;
+                    case "STARTS_WITH" -> val + "%";
+                    case "ENDS_WITH" -> "%" + val;
+                    default -> "%" + val + "%";
+                };
+                query.setParameter("searchValLike" + paramIndex, likeVal);
+                countQuery.setParameter("searchValLike" + paramIndex, likeVal);
                 if (val.matches("-?(0|[1-9]\\d*)(\\.\\d+)?")) {
                     String numVal = "{\"" + safeKey + "\": " + val + "}";
                     String numValLower = "{\"" + safeKey.toLowerCase() + "\": " + val + "}";

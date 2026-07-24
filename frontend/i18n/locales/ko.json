@@ -496,5 +496,17 @@
   "name": "이름",
   "delete_organization": "조직 삭제",
   "org_delete_success": "조직이 성공적으로 삭제되었습니다.",
-  "org_delete_failed": "조직 삭제 중 오류가 발생했습니다."
+  "org_delete_failed": "조직 삭제 중 오류가 발생했습니다.",
+  "op": {
+    "eq": "일치",
+    "contains": "포함",
+    "starts_with": "시작",
+    "ends_with": "끝",
+    "range": "범위",
+    "below": "이하",
+    "select_option": "선택해주세요",
+    "enter_number": "숫자 입력",
+    "max_value": "최대값 (Max)",
+    "enter_keyword": "검색어 입력"
+  }
 }

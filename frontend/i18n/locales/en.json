@@ -498,5 +498,17 @@
   "name": "Name",
   "delete_organization": "Delete Organization",
   "org_delete_success": "Organization deleted successfully.",
-  "org_delete_failed": "Failed to delete organization."
+  "org_delete_failed": "Failed to delete organization.",
+  "op": {
+    "eq": "Equals",
+    "contains": "Contains",
+    "starts_with": "Starts",
+    "ends_with": "Ends",
+    "range": "Range",
+    "below": "below",
+    "select_option": "Select an option",
+    "enter_number": "Enter number",
+    "max_value": "Max value",
+    "enter_keyword": "Enter keyword"
+  }
 }

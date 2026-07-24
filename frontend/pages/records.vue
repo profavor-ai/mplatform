@@ -27,9 +27,34 @@
           <va-button v-if="searchableFields.length > 0" preset="secondary" icon="filter_list" @click="showAdvancedSearch = !showAdvancedSearch">
             상세 검색
           </va-button>
-          <va-chip v-for="(val, key) in activeFilters" :key="key" v-show="val" color="primary" outline icon-right="close" @click:icon-right="removeFilter(key)">
-            {{ getFilterFieldLabel(key) }}: {{ formatFilterValue(key, val) }}
+          <va-chip
+            v-for="(val, key) in activeFilters"
+            :key="key"
+            v-show="val"
+            color="primary"
+            outline
+            style="display: inline-flex; align-items: center; font-weight: 500;"
+          >
+            <span>{{ getFilterFieldLabel(key) }}: {{ formatFilterValue(key, val) }}</span>
+            <va-icon
+              name="close"
+              size="14px"
+              style="margin-left: 6px; cursor: pointer; opacity: 0.85;"
+              title="필터 삭제"
+              @click.stop="removeFilter(key)"
+            />
           </va-chip>
+          <va-button
+            v-if="Object.keys(activeFilters).some(k => activeFilters[k])"
+            preset="secondary"
+            size="small"
+            color="danger"
+            icon="clear_all"
+            style="margin-left: 0.25rem;"
+            @click="clearFilters"
+          >
+            전체 초기화
+          </va-button>
         </div>
         <template v-if="selectedNode && !selectedNode.isDomain">
           <va-button v-if="hasPermission('record:write')" color="primary" @click="openCreateModal">
@@ -45,9 +70,17 @@
       </div>
 
       <!-- Advanced Search Panel -->
-      <va-card v-if="showAdvancedSearch" class="mb-4" style="background-color: var(--va-background-element);">
-        <va-card-content>
-          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; align-items: start;">
+      <va-card v-if="showAdvancedSearch" class="mb-4" style="background-color: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px;">
+        <va-card-content style="padding: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px dashed var(--va-background-border);">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <va-icon name="tune" color="primary" size="18px" />
+              <span style="font-weight: 700; font-size: 0.9rem; color: var(--va-primary);">상세 검색 조건 (Advanced Search)</span>
+            </div>
+            <va-badge v-if="Object.keys(activeFilters).filter(k => activeFilters[k]).length > 0" :text="`적용 필터 ${Object.keys(activeFilters).filter(k => activeFilters[k]).length}개`" color="primary" />
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.25rem; align-items: start;">
             <div v-for="field in searchableFields" :key="field.id" style="display: flex; flex-direction: column; gap: 0.4rem;">
               <span style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600; text-transform: uppercase;">{{ getTranslatedName(field.name) }}</span>
               
@@ -56,7 +89,7 @@
                 v-model="draftFilters[field.key]"
                 :options="parseOptions(field.options)"
                 value-by="value"
-                :placeholder="currentLocale === 'en' ? 'Select an option' : '선택해주세요'"
+                :placeholder="$t('op.select_option')"
                 clearable
                 class="w-full"
               />
@@ -64,7 +97,7 @@
                 v-else-if="field.type === 'BOOLEAN'"
                 v-model="draftFilters[field.key]"
                 :options="['true', 'false']"
-                :placeholder="currentLocale === 'en' ? 'Select an option' : '선택해주세요'"
+                :placeholder="$t('op.select_option')"
                 clearable
                 class="w-full"
               />
@@ -72,24 +105,25 @@
                 <va-input
                   v-model="draftFilters[field.key]"
                   type="number"
-                  :placeholder="currentLocale === 'en' ? 'Enter number' : '숫자 입력'"
+                  :placeholder="$t('op.enter_number')"
                   clearable
                   class="w-full"
                   @keydown="onFilterKeydown"
                 >
                   <template #prependInner>
                     <select 
-                      v-model="draftFiltersOp[field.key]" 
+                      :value="draftFiltersOp[field.key] || 'EQ'" 
+                      @change="draftFiltersOp[field.key] = $event.target.value"
                       @click.stop
                       @mousedown.stop
-                      style="border: none; outline: none; background: transparent; font-weight: bold; color: var(--va-primary); cursor: pointer; padding-right: 0.2rem; margin-right: 0.5rem; border-right: 1px solid var(--va-background-border);"
+                      style="border: none; outline: none; background: transparent; font-weight: bold; color: var(--va-primary); cursor: pointer; padding-right: 0.2rem; margin-right: 0.5rem; border-right: 1px solid var(--va-background-border); font-size: 0.85rem;"
                     >
                       <option value="EQ">=</option>
                       <option value="GT">&gt;</option>
                       <option value="GTE">&gt;=</option>
                       <option value="LT">&lt;</option>
                       <option value="LTE">&lt;=</option>
-                      <option value="BETWEEN">{{ currentLocale === 'en' ? 'Range' : '범위' }}</option>
+                      <option value="BETWEEN">{{ $t('op.range') }}</option>
                     </select>
                   </template>
                 </va-input>
@@ -97,29 +131,44 @@
                   v-if="draftFiltersOp[field.key] === 'BETWEEN'"
                   v-model="draftFiltersMax[field.key]"
                   type="number"
-                  :placeholder="currentLocale === 'en' ? 'Max value' : '최대값 (Max)'"
+                  :placeholder="$t('op.max_value')"
                   clearable
                   class="w-full"
                   @keydown="onFilterKeydown"
                 >
                   <template #prependInner>
-                    <span style="font-weight: bold; color: #666; margin-right: 0.5rem; border-right: 1px solid #ccc; padding-right: 0.5rem;">~ {{ currentLocale === 'en' ? 'below' : '이하' }}</span>
+                    <span style="font-weight: bold; color: #666; margin-right: 0.5rem; border-right: 1px solid #ccc; padding-right: 0.5rem; font-size: 0.8rem;">~ {{ $t('op.below') }}</span>
                   </template>
                 </va-input>
               </div>
               <va-input
                 v-else
                 v-model="draftFilters[field.key]"
-                :placeholder="currentLocale === 'en' ? 'Enter keyword' : '검색어 입력'"
+                :placeholder="$t('op.enter_keyword')"
                 clearable
                 class="w-full"
                 @keydown="onFilterKeydown"
-              />
+              >
+                <template #prependInner>
+                  <select 
+                    :value="draftFiltersOp[field.key] || 'EQ'" 
+                    @change="draftFiltersOp[field.key] = $event.target.value"
+                    @click.stop
+                    @mousedown.stop
+                    style="border: none; outline: none; background: transparent; font-weight: bold; color: var(--va-primary); cursor: pointer; padding-right: 0.2rem; margin-right: 0.5rem; border-right: 1px solid var(--va-background-border); font-size: 0.85rem;"
+                  >
+                    <option value="EQ">{{ $t('op.eq') }}</option>
+                    <option value="CONTAINS">{{ $t('op.contains') }}</option>
+                    <option value="STARTS_WITH">{{ $t('op.starts_with') }}</option>
+                    <option value="ENDS_WITH">{{ $t('op.ends_with') }}</option>
+                  </select>
+                </template>
+              </va-input>
             </div>
           </div>
-          <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-            <va-button preset="secondary" @click="clearFilters">초기화</va-button>
-            <va-button @click="applyFilters">검색</va-button>
+          <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px dashed var(--va-background-border);">
+            <va-button preset="secondary" icon="restart_alt" @click="clearFilters">초기화</va-button>
+            <va-button color="primary" icon="search" @click="applyFilters">검색</va-button>
           </div>
         </va-card-content>
       </va-card>
@@ -1871,12 +1920,30 @@ const columnDefs = ref([])
   }
   
   const removeFilter = (key) => {
-    delete draftFilters.value[key]
-    delete draftFiltersOp.value[key]
-    delete draftFiltersMax.value[key]
-    delete activeFilters.value[key]
-    delete activeFiltersOp.value[key]
-    delete activeFiltersMax.value[key]
+    const nextDraft = { ...draftFilters.value }
+    delete nextDraft[key]
+    draftFilters.value = nextDraft
+
+    const nextDraftOp = { ...draftFiltersOp.value }
+    delete nextDraftOp[key]
+    draftFiltersOp.value = nextDraftOp
+
+    const nextDraftMax = { ...draftFiltersMax.value }
+    delete nextDraftMax[key]
+    draftFiltersMax.value = nextDraftMax
+
+    const nextActive = { ...activeFilters.value }
+    delete nextActive[key]
+    activeFilters.value = nextActive
+
+    const nextActiveOp = { ...activeFiltersOp.value }
+    delete nextActiveOp[key]
+    activeFiltersOp.value = nextActiveOp
+
+    const nextActiveMax = { ...activeFiltersMax.value }
+    delete nextActiveMax[key]
+    activeFiltersMax.value = nextActiveMax
+
     fetchRecords()
   }
 
@@ -1893,6 +1960,10 @@ const columnDefs = ref([])
     if (op === 'LT') return `< ${val}`
     if (op === 'GTE') return `>= ${val}`
     if (op === 'LTE') return `<= ${val}`
+    if (op === 'CONTAINS') return `[${t('op.contains')}] ${val}`
+    if (op === 'STARTS_WITH') return `[${t('op.starts_with')}] ${val}`
+    if (op === 'ENDS_WITH') return `[${t('op.ends_with')}] ${val}`
+    if (op === 'EQ') return `= ${val}`
     return val
   }
   
@@ -1921,10 +1992,9 @@ const columnDefs = ref([])
           Object.entries(activeFilters.value).forEach(([k, v]) => {
             if (v !== null && v !== '') {
               searchParams.append('search_' + k, v)
-              if (activeFiltersOp.value[k]) {
-                searchParams.append('search_op_' + k, activeFiltersOp.value[k])
-              }
-              if (activeFiltersOp.value[k] === 'BETWEEN' && activeFiltersMax.value[k]) {
+              const op = activeFiltersOp.value[k] || 'EQ'
+              searchParams.append('search_op_' + k, op)
+              if (op === 'BETWEEN' && activeFiltersMax.value[k]) {
                 searchParams.append('search_' + k + '_max', activeFiltersMax.value[k])
               }
             }
