@@ -3,10 +3,11 @@ import { defineNuxtPlugin } from '#app'
 export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.directive('draggable-modal', {
     getSSRProps() {
-      // Return empty props for Server-Side Rendering (SSR) to prevent getSSRProps error
       return {}
     },
     mounted(el) {
+      if (typeof window === 'undefined') return
+
       const setupDrag = () => {
         // Find dialog element inside teleported container or current element
         const dialog = (el.querySelector('.va-modal__dialog') ||
@@ -93,7 +94,6 @@ export default defineNuxtPlugin((nuxtApp) => {
         }
       }
 
-      // Check repeatedly for dynamic/teleported modal DOM appearance
       setupDrag()
       const timer = setInterval(setupDrag, 250)
       ;(el as any)._draggableTimer = timer
