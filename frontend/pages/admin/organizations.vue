@@ -665,10 +665,9 @@
           <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--va-primary); margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.4px;">
             {{ getLabel('group_icon_picker_label', '이모지 아이콘 선택') }}
           </label>
-          <div style="display: flex; align-items: center; gap: 0.75rem; background: var(--va-background-secondary); border: 1px solid var(--va-background-border); padding: 0.5rem 0.75rem; border-radius: 8px; margin-bottom: 0.5rem;">
-            <span style="font-size: 1.5rem; line-height: 1;">{{ newGroupForm.icon || '⚙️' }}</span>
+          <div style="display: flex; align-items: center; background: var(--va-background-secondary); border: 1px solid var(--va-background-border); padding: 0.5rem 0.75rem; border-radius: 8px; margin-bottom: 0.5rem;">
             <span style="font-size: 0.85rem; color: var(--va-text-primary); font-weight: 600;">
-              선택된 아이콘: <b style="color: var(--va-primary); font-size: 1.1rem; margin-left: 0.25rem;">{{ newGroupForm.icon || '⚙️' }}</b>
+              선택된 아이콘: <b style="color: var(--va-primary); font-size: 1.2rem; margin-left: 0.3rem;">{{ newGroupForm.icon || '⚙️' }}</b>
             </span>
           </div>
           <div style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.35rem; background: var(--va-background-element); border: 1px solid var(--va-background-border); padding: 0.5rem; border-radius: 8px; max-height: 120px; overflow-y: auto;">
@@ -677,7 +676,7 @@
               :key="emoji"
               type="button"
               @click="newGroupForm.icon = emoji"
-              style="font-size: 1.25rem; padding: 0.3rem 0; border: 1.5px solid transparent; border-radius: 6px; cursor: pointer; transition: all 0.15s; background: transparent; display: flex; align-items: center; justify-content: center;"
+              style="font-size: 1.2rem; padding: 0.3rem 0; border: 1.5px solid transparent; border-radius: 6px; cursor: pointer; transition: all 0.15s; background: transparent; display: flex; align-items: center; justify-content: center;"
               :style="{
                 borderColor: newGroupForm.icon === emoji ? 'var(--va-primary)' : 'transparent',
                 background: newGroupForm.icon === emoji ? 'rgba(21, 101, 192, 0.14)' : 'transparent',
