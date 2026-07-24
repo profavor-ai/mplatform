@@ -2,6 +2,10 @@ import { defineNuxtPlugin } from '#app'
 
 export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.directive('draggable-modal', {
+    getSSRProps() {
+      // Return empty props for Server-Side Rendering (SSR) to prevent getSSRProps error
+      return {}
+    },
     mounted(el) {
       const setupDrag = () => {
         // Find dialog element inside teleported container or current element
