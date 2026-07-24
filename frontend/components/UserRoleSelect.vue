@@ -1,39 +1,43 @@
 <template>
   <div class="user-role-select-wrapper" style="display: flex; flex-direction: column; gap: 0.4rem; width: 100%;">
+    <!-- Single Select Dropdown -->
     <va-select
-      :model-value="modelValue"
+      v-model="tempSelectedRole"
       :options="formattedOptions"
-      :multiple="multiple"
       :label="label"
-      :placeholder="placeholder"
+      :placeholder="placeholder || getLabel('select_role_to_add', '역할을 선택하여 추가하세요')"
       :clearable="clearable"
       :disabled="disabled"
       :size="size"
       value-by="value"
       text-by="text"
-      @update:modelValue="onUpdate"
-      class="slim-role-select"
+      @update:modelValue="onSelectRole"
     />
 
-    <!-- Selected Roles Chip List -->
-    <div v-if="multiple && selectedRoleList.length > 0" class="selected-role-chips" style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.25rem;">
+    <!-- Selected Role Chips List -->
+    <div v-if="selectedRoleList.length > 0" class="selected-role-chips" style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.25rem;">
       <va-chip
         v-for="roleCode in selectedRoleList"
         :key="roleCode"
         size="small"
         :color="getRoleColor(roleCode)"
-        closeable
-        @remove="removeRole(roleCode)"
-        style="font-weight: 600; font-size: 0.78rem; padding: 2px 8px;"
+        style="font-weight: 600; font-size: 0.78rem; padding: 3px 8px; display: inline-flex; align-items: center;"
       >
-        {{ formatRoleText(roleCode) }}
+        <span>{{ formatRoleText(roleCode) }}</span>
+        <va-icon
+          name="close"
+          size="14px"
+          style="margin-left: 6px; cursor: pointer; opacity: 0.85;"
+          title="역할 해제"
+          @click.stop="removeRole(roleCode)"
+        />
       </va-chip>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoles } from '~/composables/useRoles'
 
 const props = defineProps({
@@ -77,9 +81,16 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'change'])
 
+const { t } = useI18n()
+const getLabel = (key, fallback) => {
+  const res = t(key)
+  return (!res || res === key) ? fallback : res
+}
+
 const { fetchRolesForOrg, formatRoleText, getUserOrgId } = useRoles()
 
 const localRoleList = ref([])
+const tempSelectedRole = ref(null)
 
 const loadRoles = async () => {
   const targetOrgId = props.orgId || getUserOrgId()
@@ -132,11 +143,33 @@ const selectedRoleList = computed(() => {
   return []
 })
 
+const onSelectRole = (newVal) => {
+  if (!newVal) return
+
+  const currentList = Array.isArray(props.modelValue)
+    ? [...props.modelValue]
+    : (typeof props.modelValue === 'string' && props.modelValue ? props.modelValue.split(',').map(r => r.trim()) : [])
+
+  const normTarget = newVal.replace('ROLE_', '')
+  const exists = currentList.some(r => r === newVal || r.replace('ROLE_', '') === normTarget)
+
+  if (!exists) {
+    currentList.push(newVal)
+    const finalVal = Array.isArray(props.modelValue) ? currentList : currentList.join(', ')
+    emit('update:modelValue', finalVal)
+    emit('change', finalVal)
+  }
+
+  nextTick(() => {
+    tempSelectedRole.value = null
+  })
+}
+
 const removeRole = (roleCodeToRemove) => {
   const normTarget = roleCodeToRemove.replace('ROLE_', '')
   const currentList = Array.isArray(props.modelValue)
     ? [...props.modelValue]
-    : (typeof props.modelValue === 'string' ? props.modelValue.split(',').map(r => r.trim()) : [])
+    : (typeof props.modelValue === 'string' && props.modelValue ? props.modelValue.split(',').map(r => r.trim()) : [])
 
   const newList = currentList.filter(r => r !== roleCodeToRemove && r.replace('ROLE_', '') !== normTarget)
 
@@ -157,16 +190,4 @@ const getRoleColor = (code) => {
     default: return 'primary'
   }
 }
-
-const onUpdate = (val) => {
-  emit('update:modelValue', val)
-  emit('change', val)
-}
 </script>
-
-<style scoped>
-:deep(.slim-role-select .va-input-wrapper__field) {
-  max-height: 42px !important;
-  overflow: hidden !important;
-}
-</style>
